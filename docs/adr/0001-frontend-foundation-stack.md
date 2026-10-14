@@ -1,6 +1,6 @@
 # 0001. Frontend foundation stack
 
-**Status**: Accepted
+**Status**: Accepted (styling clause superseded by ADR-0002; other decisions current)
 
 ## Context
 
@@ -16,10 +16,16 @@ seam (backend is required but ungraded, so only a lazy null-safe client is
 wired), Vitest + jsdom for unit/integration tests and Playwright for the E2E
 smoke test per the E2E mandate, and Vercel for deployment.
 
+The Tailwind styling choice is superseded by ADR-0002, which targets Bootstrap
+plus custom CSS. The current scaffold still uses Tailwind until that migration
+lands.
+
 ## Why
 
 Vue/Vite/JavaScript matches the rubric and keeps the toolchain small; Tailwind
-v4 needs no `tailwind.config.js` or PostCSS, so styling stays declarative;
-Supabase provides the required persistence/auth seam without committing to a
-backend design; Vitest shares the Vite config while Playwright proves the shell
-loads in a real browser; Vercel builds Vite SPAs with zero config.
+v4 was the original seed styling choice because it needs no `tailwind.config.js`
+or PostCSS, but ADR-0002 replaces it with Bootstrap plus custom CSS for team
+familiarity and brand control; Supabase provides the required persistence/auth
+seam without committing to a backend design; Vitest shares the Vite config while
+Playwright proves the shell loads in a real browser; Vercel builds Vite SPAs
+with zero config.

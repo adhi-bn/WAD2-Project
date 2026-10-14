@@ -1,27 +1,53 @@
 # Lechaton Typers
 
 Custom mechanical-keyboard builder: users assemble a keyboard from compatible
-parts within a budget. This repo currently holds the runnable frontend
+parts against a target budget. This repo currently holds the runnable frontend
 foundation — app shell, domain seed, and test/CI setup. Product features
 (part pickers, persistence, auth) come later; integration points are stubbed.
 
 See `CONTEXT.md` for the domain vocabulary (Build, Part, Barebones kit,
-Compatibility, Budget) and `docs/adr/` for decisions.
+Compatibility, Budget), `docs/specs/keyboard-builder.md` for the canonical
+product spec (`docs/specs/keyboard-builder-summary.md` is a one-page overview),
+`DESIGN.md` for the visual identity, and `docs/adr/` for decisions.
 
 ## Stack
 
 - Vue 3 (plain JavaScript, no TypeScript) + Vue Router 5
 - Vite 8 + `@vitejs/plugin-vue`
 - Tailwind CSS 4 via `@tailwindcss/vite` (no `tailwind.config.js`, no PostCSS;
-  `src/style.css` is just `@import "tailwindcss";`)
+  `src/style.css` is just `@import "tailwindcss";`) — **current** styling; the
+  agreed target is Bootstrap plus custom CSS (ADR-0002) and the migration is
+  **pending**, so the commands, dependencies, and CI below stay as-is for now
 - Supabase JS client as a null-safe seam (backend not built yet)
 - Vitest 5 + jsdom for unit/integration, Playwright for E2E
-- Node 22, npm
+- Node 22 (>= 22.12) + npm, Git
+
+## Requirements
+
+- Install Node 22 (>= 22.12) with npm and Git **natively**: PowerShell on Windows,
+  Terminal on macOS. WSL is not required.
+- Each teammate installs dependencies locally in the repo root with `npm ci`.
+  Never share or copy `node_modules` between machines or operating systems —
+  native bindings differ per OS.
+- No editor extension or optional preview tooling (such as Impeccable) is
+  required; such tooling stays local and is not part of the shared repo.
+
+## Quick start
+
+The shared work is on `feat/prototype-integration`; `main` has not received the
+scaffold yet. These commands work in Windows PowerShell and macOS Terminal:
+
+```sh
+git clone --branch feat/prototype-integration https://github.com/adhi-bn/WAD2-Project.git
+cd WAD2-Project
+npm ci
+npm run dev
+```
 
 ## Commands
 
 ```bash
-npm install
+npm ci             # locked install from package-lock.json
 npm run dev        # dev server at http://localhost:5173
 npm run build      # production build to dist/
 npm run preview    # serve the production build
@@ -29,7 +55,10 @@ npm test           # Vitest unit + integration (tests/unit, tests/integration)
 npm run test:e2e   # Playwright chromium smoke test (boots dev server)
 ```
 
-Run one Playwright browser on first use:
+If Windows PowerShell blocks `npm.ps1`, use `npm.cmd` and `npx.cmd` with the same
+arguments instead; no execution-policy change is required.
+
+Install the Playwright browser on first use:
 
 ```bash
 npx playwright install chromium
@@ -37,8 +66,18 @@ npx playwright install chromium
 
 ## Environment variables
 
-Copy `.env.example` to `.env` and fill in as needed. Both are optional in dev;
-without them the Supabase client stays `null`.
+Copy `.env.example` to `.env` and fill in as needed; both values are optional in
+dev and the Supabase client stays `null` without them.
+
+```powershell
+# Windows PowerShell
+Copy-Item .env.example .env
+```
+
+```bash
+# macOS Terminal
+cp .env.example .env
+```
 
 | Variable | Purpose |
 | --- | --- |
@@ -55,6 +94,7 @@ Playwright HTML report as an artifact.
 
 Import the repo; Vercel detects Vite. Build command `npm run build`, output
 directory `dist`. Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as
-project environment variables. The SPA uses history routing, so keep the
-default rewrite of unknown paths to `index.html` (Vercel does this for Vite
-projects out of the box).
+project environment variables. The SPA uses history routing, so configure and
+verify a SPA history fallback that rewrites unknown paths to `index.html`, and
+test a direct reload of `/builder` after deploying — do not assume the platform
+already rewrites unknown routes.
