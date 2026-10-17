@@ -1,10 +1,9 @@
-import tailwindcss from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vite'
 
-// Tailwind v4 is a Vite plugin here: no tailwind.config.js, no PostCSS.
+// Brand styling comes from Bootstrap CSS + the custom class namespace.
 export default defineConfig({
-  plugins: [vue(), tailwindcss()],
+  plugins: [vue()],
   test: {
     environment: 'jsdom',
     globals: true,

@@ -1,20 +1,24 @@
 <script setup>
 import { RouterLink, RouterView } from 'vue-router'
+import FatCat from './components/FatCat.vue'
 </script>
 
 <template>
-  <div class="min-h-screen bg-neutral-950 text-neutral-100">
-    <header class="border-b border-neutral-800">
-      <nav class="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
-        <RouterLink to="/" class="text-lg font-semibold tracking-tight">Lechaton Typers</RouterLink>
-        <div class="flex items-center gap-1 text-sm">
-          <RouterLink to="/" class="rounded px-3 py-1.5 hover:bg-neutral-800">Home</RouterLink>
-          <RouterLink to="/builder" class="rounded px-3 py-1.5 hover:bg-neutral-800">Builder</RouterLink>
+  <div class="lct-shell">
+    <header class="border-bottom border-2">
+      <nav class="container d-flex align-items-center justify-content-between gap-4 px-0 py-3">
+        <RouterLink to="/" class="brand">Le Chaton Typers</RouterLink>
+        <div class="d-flex gap-2">
+          <RouterLink to="/" class="navlink">Home</RouterLink>
+          <RouterLink to="/builder" class="navlink">Builder</RouterLink>
         </div>
       </nav>
     </header>
-    <main class="mx-auto max-w-5xl px-4 py-10">
-      <RouterView />
+    <main class="flex-fill">
+      <div class="lct-container py-4">
+        <RouterView />
+      </div>
     </main>
+    <FatCat />
   </div>
 </template>

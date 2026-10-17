@@ -1,1 +1,216 @@
-@import "tailwindcss";
+/* Le Chaton Typers — custom class namespace (no .btn / .card / .modal overrides) */
+/* Design tokens per DESIGN.md frontmatter */
+
+:root {
+  --lct-accent-indigo: #3346FF;
+  --lct-accent-tint: #E2E5FF;
+  --lct-on-accent: #FFFFFF;
+  --lct-app-grey: #ECEEF2;
+  --lct-card-surface: #FFFFFF;
+  --lct-sunken-surface: #F4F5F9;
+  --lct-text-ink: #12151C;
+  --lct-muted-ink: #596072;
+  --lct-line-grey: #D6DAE3;
+  --lct-success-green: #12805A;
+  --lct-danger-orange: #D2461A;
+  --lct-warning-ochre: #9A6400;
+
+  --lct-accent-indigo-dm: #8391FF;
+  --lct-accent-tint-dm: #242B57;
+  --lct-on-accent-dm: #0D1016;
+  --lct-app-grey-dm: #0D1016;
+  --lct-card-surface-dm: #161A23;
+  --lct-sunken-surface-dm: #1C212C;
+  --lct-text-ink-dm: #E9ECF3;
+  --lct-muted-ink-dm: #98A0B2;
+  --lct-line-grey-dm: #2A303D;
+  --lct-success-green-dm: #41D39C;
+  --lct-danger-orange-dm: #FF8B61;
+  --lct-warning-ochre-dm: #F2C14E;
+
+  --lct-rounded-pill: 999px;
+  --lct-rounded-card: 18px;
+  --lct-rounded-control: 12px;
+  --lct-gutter: 20px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --lct-accent-indigo: #8391FF;
+    --lct-accent-tint: #242B57;
+    --lct-on-accent: #0D1016;
+    --lct-app-grey: #0D1016;
+    --lct-card-surface: #161A23;
+    --lct-sunken-surface: #1C212C;
+    --lct-text-ink: #E9ECF3;
+    --lct-muted-ink: #98A0B2;
+    --lct-line-grey: #2A303D;
+    --lct-success-green: #41D39C;
+    --lct-danger-orange: #FF8B61;
+    --lct-warning-ochre: #F2C14E;
+  }
+}
+
+/* Base */
+html {
+  font-family: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--lct-text-ink);
+  background: var(--lct-app-grey);
+  margin: 0;
+}
+
+body {
+  margin: 0;
+  font-family: inherit;
+}
+
+/* Typography */
+.lct-display {
+  font-family: "Unbounded", "Arial Black", system-ui, sans-serif;
+  font-size: clamp(34px, 5.6vw, 60px);
+  font-weight: 600;
+  line-height: 1.02;
+  letter-spacing: -0.01em;
+}
+
+.lct-headline {
+  font-family: "Unbounded", "Arial Black", system-ui, sans-serif;
+  font-size: clamp(24px, 3.4vw, 34px);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.lct-label {
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lct-muted-ink);
+}
+
+.lct-lead {
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--lct-muted-ink);
+  max-width: 62ch;
+}
+
+/* Layout */
+.lct-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.lct-shell main {
+  flex: 1;
+}
+
+.lct-container {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 var(--lct-gutter);
+}
+
+/* Brand components — custom namespace */
+.brand {
+  font-family: "Unbounded", "Arial Black", system-ui, sans-serif;
+  font-size: clamp(24px, 3.4vw, 34px);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--lct-text-ink);
+  text-decoration: none;
+}
+
+.navlink {
+  color: var(--lct-text-ink);
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: var(--lct-rounded-pill);
+  border: 1px solid transparent;
+  font-size: 14px;
+  display: inline-block;
+}
+
+.navlink:hover {
+  border-color: var(--lct-line-grey);
+  background: var(--lct-sunken-surface);
+}
+
+.navlink:focus-visible {
+  outline: 2px solid var(--lct-accent-indigo);
+  outline-offset: 2px;
+}
+
+.ui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--lct-accent-indigo);
+  color: var(--lct-on-accent);
+  border: none;
+  border-radius: var(--lct-rounded-pill);
+  padding: 10px 16px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.ui-btn:hover {
+  filter: brightness(1.08);
+}
+
+.ui-btn:focus-visible {
+  outline: 2px solid var(--lct-accent-indigo);
+  outline-offset: 2px;
+}
+
+.ui-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: none;
+}
+
+.ui-btn.primary {
+  background: var(--lct-accent-indigo);
+  color: var(--lct-on-accent);
+}
+
+/* Cards — custom namespace (not Bootstrap .card) */
+.scard {
+  background: var(--lct-card-surface);
+  border: 1px solid var(--lct-line-grey);
+  border-radius: var(--lct-rounded-card);
+  padding: 20px;
+}
+
+/* Responsive breakpoints per DESIGN.md: ≤900 / ≤760 / ≤720 / ≤520 / ≤420 */
+@media (max-width: 900px) {
+  .lct-container {
+    padding: 0 16px;
+  }
+}
+
+@media (max-width: 760px) {
+  .lct-display {
+    font-size: clamp(28px, 6vw, 44px);
+  }
+}
+
+@media (max-width: 520px) {
+  .brand {
+    font-size: clamp(20px, 5vw, 28px);
+  }
+}
+
+@media (max-width: 420px) {
+  .lct-headline {
+    font-size: clamp(20px, 5vw, 26px);
+  }
+}

@@ -29,29 +29,33 @@ const totalText = computed(() =>
 </script>
 
 <template>
-  <section class="space-y-4">
-    <h1 class="text-2xl font-semibold">Builder</h1>
-    <p class="text-neutral-400">Part pickers land here. Compatibility and budget update as you choose.</p>
-    <dl class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <div class="rounded border border-neutral-800 p-4">
-        <dt class="text-xs uppercase tracking-wide text-neutral-500">Compatibility</dt>
-        <dd>{{ flags.join(' + ') }}</dd>
-        <dd v-if="compatibility.reasons.length">
-          <ul>
-            <li v-for="reason in compatibility.reasons" :key="reason">{{ reason }}</li>
-          </ul>
-        </dd>
+  <section class="lct-builder py-5">
+    <div class="lct-container">
+      <h1 class="lct-headline">Builder</h1>
+      <p class="lct-lead">Part pickers land here. Compatibility and budget update as you choose.</p>
+      <div class="row gy-4">
+        <div class="col-12 col-md-6">
+          <div class="scard">
+            <div class="lct-label mb-2">Compatibility</div>
+            <p>{{ flags.join(' + ') }}</p>
+            <ul v-if="compatibility.reasons.length" class="mb-0">
+              <li v-for="reason in compatibility.reasons" :key="reason">{{ reason }}</li>
+            </ul>
+          </div>
+        </div>
+        <div class="col-12 col-md-6">
+          <div class="scard">
+            <div class="lct-label mb-2">Budget</div>
+            <p v-if="budget.error" class="mb-0">Budget unavailable: {{ budget.error }}</p>
+            <p v-else-if="totalText == null" class="mb-0">Budget unavailable</p>
+            <p v-else class="mb-0">
+              Total {{ totalText }} ·
+              <span v-if="build.limit == null">no target set</span>
+              <span v-else>{{ budget.withinBudget ? 'within budget' : 'over budget' }}</span>
+            </p>
+          </div>
+        </div>
       </div>
-      <div class="rounded border border-neutral-800 p-4">
-        <dt class="text-xs uppercase tracking-wide text-neutral-500">Budget</dt>
-        <dd v-if="budget.error">Budget unavailable: {{ budget.error }}</dd>
-        <dd v-else-if="totalText == null">Budget unavailable</dd>
-        <dd v-else>
-          Total {{ totalText }} &middot;
-          <template v-if="build.limit == null">no target set</template>
-          <template v-else>{{ budget.withinBudget ? 'within budget' : 'over budget' }}</template>
-        </dd>
-      </div>
-    </dl>
+    </div>
   </section>
 </template>
