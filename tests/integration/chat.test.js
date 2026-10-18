@@ -35,12 +35,13 @@ describe('demo chat', () => {
   })
 
   it('sends a message and adds a demo reply', async () => {
-    const wrapper = mount(FatCat)
+    const wrapper = mount(FatCat, { attachTo: document.body })
     await wrapper.find('.lct-mascot').trigger('click')
     const input = wrapper.find('.lct-chat__input-field')
     await input.setValue('Hello')
     await wrapper.find('.lct-chat__send').trigger('click')
     expect(wrapper.text()).toContain('Hello')
     expect(wrapper.text()).toContain('demo reply')
+    wrapper.unmount()
   })
 })

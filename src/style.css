@@ -12,30 +12,29 @@
   --lct-muted-ink: #596072;
   --lct-line-grey: #D6DAE3;
   --lct-success-green: #12805A;
+  --lct-success-tint: #DDF3E8;
   --lct-danger-orange: #D2461A;
+  --lct-danger-tint: #FCE6DD;
   --lct-warning-ochre: #9A6400;
 
-  --lct-accent-indigo-dm: #8391FF;
-  --lct-accent-tint-dm: #242B57;
-  --lct-on-accent-dm: #0D1016;
-  --lct-app-grey-dm: #0D1016;
-  --lct-card-surface-dm: #161A23;
-  --lct-sunken-surface-dm: #1C212C;
-  --lct-text-ink-dm: #E9ECF3;
-  --lct-muted-ink-dm: #98A0B2;
-  --lct-line-grey-dm: #2A303D;
-  --lct-success-green-dm: #41D39C;
-  --lct-danger-orange-dm: #FF8B61;
-  --lct-warning-ochre-dm: #F2C14E;
+  --lct-radius-tag: 6px;
+  --lct-radius-control: 12px;
+  --lct-radius-row: 12px;
+  --lct-radius-card: 18px;
+  --lct-radius-feature-card: 24px;
+  --lct-radius-pill: 999px;
 
   --lct-rounded-pill: 999px;
   --lct-rounded-card: 18px;
   --lct-rounded-control: 12px;
+  --lct-rounded-row: 14px;
   --lct-gutter: 20px;
+
+  --lct-shadow-card: 0 1px 2px rgba(18, 21, 28, 0.06), 0 10px 30px rgba(24, 32, 80, 0.10);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --lct-accent-indigo: #8391FF;
     --lct-accent-tint: #242B57;
     --lct-on-accent: #0D1016;
@@ -46,24 +45,41 @@
     --lct-muted-ink: #98A0B2;
     --lct-line-grey: #2A303D;
     --lct-success-green: #41D39C;
+    --lct-success-tint: #153528;
     --lct-danger-orange: #FF8B61;
+    --lct-danger-tint: #3A1E15;
     --lct-warning-ochre: #F2C14E;
+    --lct-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px rgba(0, 0, 0, 0.35);
   }
 }
 
+:root[data-theme="dark"] {
+  --lct-accent-indigo: #8391FF;
+  --lct-accent-tint: #242B57;
+  --lct-on-accent: #0D1016;
+  --lct-app-grey: #0D1016;
+  --lct-card-surface: #161A23;
+  --lct-sunken-surface: #1C212C;
+  --lct-text-ink: #E9ECF3;
+  --lct-muted-ink: #98A0B2;
+  --lct-line-grey: #2A303D;
+  --lct-success-green: #41D39C;
+  --lct-success-tint: #153528;
+  --lct-danger-orange: #FF8B61;
+  --lct-danger-tint: #3A1E15;
+  --lct-warning-ochre: #F2C14E;
+  --lct-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
 /* Base */
-html {
+html,
+body {
   font-family: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
   font-size: 15px;
   line-height: 1.55;
   color: var(--lct-text-ink);
   background: var(--lct-app-grey);
   margin: 0;
-}
-
-body {
-  margin: 0;
-  font-family: inherit;
 }
 
 /* Typography */
@@ -82,13 +98,25 @@ body {
   letter-spacing: -0.01em;
 }
 
+.lct-title {
+  font-family: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-weight: 700;
+  font-size: clamp(0.9375rem, 1.2vw, 1.125rem);
+}
+
 .lct-label {
   font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 11.5px;
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
   color: var(--lct-muted-ink);
+}
+
+.lct-money {
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 .lct-lead {
@@ -96,6 +124,10 @@ body {
   line-height: 1.55;
   color: var(--lct-muted-ink);
   max-width: 62ch;
+}
+
+.lct-muted {
+  color: var(--lct-muted-ink);
 }
 
 /* Layout */
@@ -107,6 +139,7 @@ body {
 
 .lct-shell main {
   flex: 1;
+  padding-bottom: 104px;
 }
 
 .lct-container {
@@ -130,7 +163,7 @@ body {
   color: var(--lct-text-ink);
   text-decoration: none;
   padding: 6px 12px;
-  border-radius: var(--lct-rounded-pill);
+  border-radius: var(--lct-radius-pill);
   border: 1px solid transparent;
   font-size: 14px;
   display: inline-block;
@@ -153,7 +186,7 @@ body {
   background: var(--lct-accent-indigo);
   color: var(--lct-on-accent);
   border: none;
-  border-radius: var(--lct-rounded-pill);
+  border-radius: var(--lct-radius-pill);
   padding: 10px 16px;
   font-family: inherit;
   font-size: 14px;
@@ -177,16 +210,12 @@ body {
   filter: none;
 }
 
-.ui-btn.primary {
-  background: var(--lct-accent-indigo);
-  color: var(--lct-on-accent);
-}
-
 /* Cards — custom namespace (not Bootstrap .card) */
 .scard {
   background: var(--lct-card-surface);
+  color: var(--lct-text-ink);
   border: 1px solid var(--lct-line-grey);
-  border-radius: var(--lct-rounded-card);
+  border-radius: var(--lct-radius-card);
   padding: 20px;
 }
 

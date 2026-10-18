@@ -6,7 +6,7 @@ import FatCat from './components/FatCat.vue'
 <template>
   <div class="lct-shell">
     <header class="border-bottom border-2">
-      <nav class="container d-flex align-items-center justify-content-between gap-4 px-0 py-3">
+      <nav class="lct-container d-flex align-items-center justify-content-between gap-4 py-3">
         <RouterLink to="/" class="brand">Le Chaton Typers</RouterLink>
         <div class="d-flex gap-2">
           <RouterLink to="/" class="navlink">Home</RouterLink>
@@ -15,9 +15,7 @@ import FatCat from './components/FatCat.vue'
       </nav>
     </header>
     <main class="flex-fill">
-      <div class="lct-container py-4">
-        <RouterView />
-      </div>
+      <RouterView />
     </main>
     <FatCat />
   </div>

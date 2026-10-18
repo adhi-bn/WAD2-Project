@@ -48,8 +48,8 @@ const totalText = computed(() =>
             <div class="lct-label mb-2">Budget</div>
             <p v-if="budget.error" class="mb-0">Budget unavailable: {{ budget.error }}</p>
             <p v-else-if="totalText == null" class="mb-0">Budget unavailable</p>
-            <p v-else class="mb-0">
-              Total {{ totalText }} ·
+            <p v-else class="mb-0 lct-money">
+              Total <span class="lct-money">{{ totalText }}</span> ·
               <span v-if="build.limit == null">no target set</span>
               <span v-else>{{ budget.withinBudget ? 'within budget' : 'over budget' }}</span>
             </p>

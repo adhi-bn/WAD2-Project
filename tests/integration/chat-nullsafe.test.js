@@ -1,55 +1,82 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
-import { createMemoryHistory, createRouter } from 'vue-router'
-import App from '../../src/App.vue'
-import HomeView from '../../src/views/HomeView.vue'
-import BuilderView from '../../src/views/BuilderView.vue'
+import { describe, expect, it } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
+import FatCat from '../../src/components/FatCat.vue'
+import { getSupabase } from '../../src/lib/supabase.js'
 
-function makeRouter() {
-  return createRouter({
-    history: createMemoryHistory(),
-    routes: [
-      { path: '/', name: 'home', component: HomeView },
-      { path: '/builder', name: 'builder', component: BuilderView },
-    ],
-  })
-}
+describe('null-safe cloud action and chat interaction', () => {
+  it('explains cloud save is unavailable when getSupabase() is null and keeps chat usable', async () => {
+    expect(getSupabase()).toBeNull()
 
-async function mountApp() {
-  const router = makeRouter()
-  await router.push('/')
-  await router.isReady()
-  return mount(App, { global: { plugins: [router] } })
-}
+    const wrapper = mount(FatCat, { attachTo: document.body })
+    await wrapper.find('.lct-mascot').trigger('click')
 
-describe('null-safe cloud action (slice 5)', () => {
-  beforeEach(() => vi.useFakeTimers())
-  afterEach(() => vi.useRealTimers())
-
-  it('let the "Save my build" chip explain the cloud is unavailable and what to do', async () => {
-    const wrapper = await mountApp()
-    await wrapper.find('.catbtn').trigger('click')
-    await flushPromises()
-    await vi.advanceTimersByTimeAsync(700) // greeting
-    await flushPromises()
-
-    const chip = wrapper.findAll('.quick button').find((b) => /save/i.test(b.text()))
+    const chip = wrapper
+      .findAll('.lct-chat__chips button')
+      .find((b) => /save/i.test(b.text()))
     expect(chip).toBeTruthy()
     await chip.trigger('click')
-    await vi.advanceTimersByTimeAsync(700)
-    await flushPromises()
 
-    const text = wrapper.find('.msgs').text()
-    expect(text).toMatch(/cloud|not available|needs/i)
-    expect(text).toMatch(/keep building/i) // names an alternative
+    const text = wrapper.find('.lct-chat__messages').text()
+    expect(text).toMatch(/cloud save is not available|supabase is not configured/i)
+    expect(text).toMatch(/keep building/i)
 
-    // chat stays usable: send another message and get a reply
-    await wrapper.find('.chatin input').setValue('hello')
-    await wrapper.find('.chatin').trigger('submit')
-    await vi.advanceTimersByTimeAsync(700)
-    await flushPromises()
+    await wrapper.find('.lct-chat__input-field').setValue('hello')
+    await wrapper.find('.lct-chat__input-row').trigger('submit')
 
-    const after = wrapper.find('.msgs').text()
+    const after = wrapper.find('.lct-chat__messages').text()
     expect(after).toMatch(/meow/i)
+    wrapper.unmount()
+  })
+
+  it('preserves an in-progress input draft when clicking a quick chip and returns domain help', async () => {
+    const wrapper = mount(FatCat, { attachTo: document.body })
+    await wrapper.find('.lct-mascot').trigger('click')
+
+    const input = wrapper.find('.lct-chat__input-field')
+    await input.setValue('my unfinished draft')
+
+    const switchChip = wrapper
+      .findAll('.lct-chat__chip')
+      .find((b) => /5-pin/i.test(b.text()))
+    expect(switchChip).toBeTruthy()
+    await switchChip.trigger('click')
+
+    expect(input.element.value).toBe('my unfinished draft')
+    expect(wrapper.find('.lct-chat__messages').text()).toMatch(/5-pin-only switch policy/i)
+    wrapper.unmount()
+  })
+
+  it('manages dialog focus on open, Escape close, and Tab focus trapping', async () => {
+    const wrapper = mount(FatCat, { attachTo: document.body })
+    const mascot = wrapper.find('.lct-mascot')
+
+    await mascot.trigger('click')
+    await nextTick()
+
+    const input = wrapper.find('.lct-chat__input-field')
+    expect(document.activeElement).toBe(input.element)
+
+    const chips = wrapper.findAll('.lct-chat__chip')
+    const lastChip = chips[chips.length - 1]
+    lastChip.element.focus()
+    expect(document.activeElement).toBe(lastChip.element)
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }))
+    const closeBtn = wrapper.find('.lct-chat__close')
+    expect(document.activeElement).toBe(closeBtn.element)
+
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true }),
+    )
+    expect(document.activeElement).toBe(lastChip.element)
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await nextTick()
+    await nextTick()
+
+    expect(wrapper.find('.lct-chat').exists()).toBe(false)
+    expect(document.activeElement).toBe(mascot.element)
+    wrapper.unmount()
   })
 })
