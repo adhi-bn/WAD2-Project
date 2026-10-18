@@ -14,10 +14,7 @@ product spec (`docs/specs/keyboard-builder-summary.md` is a one-page overview),
 
 - Vue 3 (plain JavaScript, no TypeScript) + Vue Router 5
 - Vite 8 + `@vitejs/plugin-vue`
-- Tailwind CSS 4 via `@tailwindcss/vite` (no `tailwind.config.js`, no PostCSS;
-  `src/style.css` is just `@import "tailwindcss";`) — **current** styling; the
-  agreed target is Bootstrap plus custom CSS (ADR-0002) and the migration is
-  **pending**, so the commands, dependencies, and CI below stay as-is for now
+- Bootstrap 5.3 (grid/layout utilities) + custom CSS (`src/style.css` following `DESIGN.md` tokens and ADR-0002)
 - Supabase JS client as a null-safe seam (backend not built yet)
 - Vitest 5 + jsdom for unit/integration, Playwright for E2E
 - Node 22 (>= 22.12) + npm, Git

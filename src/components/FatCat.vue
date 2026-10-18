@@ -2,11 +2,15 @@
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { getSupabase } from '../lib/supabase.js'
 
+const CAT_SVG = `<svg viewBox="0 0 120 120" aria-hidden="true"><path d="M22 52 L25 13 L53 34 Z" fill="#F2A65A" stroke="#2B1D12" stroke-width="4" stroke-linejoin="round"/><path d="M98 52 L95 13 L67 34 Z" fill="#F2A65A" stroke="#2B1D12" stroke-width="4" stroke-linejoin="round"/><path d="M30 40 L30 24 L43 34 Z" fill="#F7B8B0"/><path d="M90 40 L90 24 L77 34 Z" fill="#F7B8B0"/><ellipse cx="60" cy="93" rx="47" ry="24" fill="#F2A65A" stroke="#2B1D12" stroke-width="4"/><ellipse cx="60" cy="58" rx="43" ry="36" fill="#F2A65A" stroke="#2B1D12" stroke-width="4"/><path d="M50 25 q10 7 20 0 M45 33 q15 8 30 0" stroke="#D9803A" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M37 58 q6 -7 12 0 M71 58 q6 -7 12 0" stroke="#2B1D12" stroke-width="4" fill="none" stroke-linecap="round"/><circle cx="33" cy="70" r="6" fill="#F7B8B0"/><circle cx="87" cy="70" r="6" fill="#F7B8B0"/><path d="M55 65 h10 l-5 5 z" fill="#E77A86" stroke="#2B1D12" stroke-width="2" stroke-linejoin="round"/><path d="M60 70 q-4 6 -9 3 M60 70 q4 6 9 3" stroke="#2B1D12" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M12 62 L31 65 M12 72 L31 71 M108 62 L89 65 M108 72 L89 71" stroke="#2B1D12" stroke-width="2.5" stroke-linecap="round"/><rect x="43" y="89" width="34" height="25" rx="6" fill="#3346FF" stroke="#2B1D12" stroke-width="3"/><rect x="47" y="91" width="26" height="16" rx="4" fill="#6573FF"/><ellipse cx="43" cy="104" rx="9" ry="7" fill="#FBE3C8" stroke="#2B1D12" stroke-width="3"/><ellipse cx="77" cy="104" rx="9" ry="7" fill="#FBE3C8" stroke="#2B1D12" stroke-width="3"/></svg>`
+
 const open = ref(false)
+const badge = ref(true)
 const inputValue = ref('')
 const mascotBtn = ref(null)
 const chatPanel = ref(null)
 const chatInput = ref(null)
+const msgBox = ref(null)
 
 const messages = ref([
   { from: 'biscuit', text: "I'm Biscuit — this is a demo chat. Responses are placeholder copy." },
@@ -53,8 +57,12 @@ function closeChat() {
 
 watch(open, async (isOpen) => {
   if (isOpen) {
+    badge.value = false
     await nextTick()
     chatInput.value?.focus()
+    if (msgBox.value) {
+      msgBox.value.scrollTop = msgBox.value.scrollHeight
+    }
   }
 })
 
@@ -104,6 +112,12 @@ function sendMessage() {
     from: 'biscuit',
     text: getDemoReply(text),
   })
+  nextTick(() => {
+    chatInput.value?.focus()
+    if (msgBox.value) {
+      msgBox.value.scrollTop = msgBox.value.scrollHeight
+    }
+  })
 }
 
 function handleChip(chip) {
@@ -111,6 +125,11 @@ function handleChip(chip) {
   messages.value.push({
     from: 'biscuit',
     text: getDemoReply(chip),
+  })
+  nextTick(() => {
+    if (msgBox.value) {
+      msgBox.value.scrollTop = msgBox.value.scrollHeight
+    }
   })
 }
 </script>
@@ -121,12 +140,12 @@ function handleChip(chip) {
     ref="mascotBtn"
     class="lct-mascot"
     @click="toggleChat"
-    aria-label="Open chat with Biscuit"
+    :aria-label="open ? 'Close chat with Biscuit' : badge ? 'Open chat with Biscuit (1 unread message)' : 'Open chat with Biscuit'"
     :aria-expanded="open"
     type="button"
   >
-    <span class="lct-mascot__mark" aria-hidden="true">🐾</span>
-    <span class="lct-mascot__badge" v-if="!open" aria-hidden="true">!</span>
+    <span class="lct-mascot__cat" v-html="CAT_SVG" aria-hidden="true"></span>
+    <span v-if="badge" class="cat-badge" aria-hidden="true">1</span>
   </button>
 
   <!-- Chat dialog: labelled demo/placeholder, never auto-opens (open starts false) -->
@@ -140,11 +159,12 @@ function handleChip(chip) {
     <div class="lct-chat__overlay" @click="closeChat" />
     <div ref="chatPanel" class="lct-chat__panel">
       <div class="lct-chat__header">
-        <span class="lct-chat__title">Chat with Biscuit</span>
+        <span class="lct-chat__av" v-html="CAT_SVG" aria-hidden="true"></span>
+        <span class="lct-chat__title">Biscuit</span>
         <span class="lct-chat__demo-tag">demo / placeholder</span>
         <button class="lct-chat__close" type="button" @click="closeChat" aria-label="Close chat">×</button>
       </div>
-      <div class="lct-chat__messages" role="status" aria-live="polite">
+      <div ref="msgBox" class="lct-chat__messages" role="status" aria-live="polite">
         <div
           v-for="(msg, i) in messages"
           :key="i"
@@ -203,42 +223,73 @@ function handleChip(chip) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
-  background: var(--lct-accent-indigo);
-  color: var(--lct-on-accent);
+  width: 88px;
+  height: 88px;
+  background: none;
   border: none;
-  border-radius: var(--lct-radius-pill);
-  font-size: 24px;
+  padding: 0;
   cursor: pointer;
-  box-shadow: var(--lct-shadow-card);
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.22));
+  animation: lct-bob 3.2s ease-in-out infinite;
+}
+
+.lct-mascot:hover {
+  animation: lct-wiggle 0.5s ease-in-out;
 }
 
 .lct-mascot:focus-visible {
   outline: 2px solid var(--lct-accent-indigo);
-  outline-offset: 2px;
+  outline-offset: 4px;
+  border-radius: 50%;
 }
 
-.lct-mascot__badge {
+.lct-mascot :deep(svg) {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.lct-mascot__cat {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes lct-bob {
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes lct-wiggle {
+  25% {
+    transform: rotate(-6deg);
+  }
+  75% {
+    transform: rotate(6deg);
+  }
+}
+
+.cat-badge {
   position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 16px;
-  height: 16px;
-  background: var(--lct-danger-orange);
-  color: var(--lct-on-accent);
-  border-radius: var(--lct-radius-pill);
-  font-size: 10px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
+  top: 2px;
+  right: 4px;
+  min-width: 22px;
+  height: 22px;
+  border-radius: 11px;
+  background: #C8431B;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 22px;
+  text-align: center;
+  border: 2px solid var(--lct-card-surface);
 }
 
 .lct-chat {
   position: fixed;
-  bottom: 96px;
+  bottom: 120px;
   right: 28px;
   z-index: 1000;
   display: flex;
@@ -269,9 +320,26 @@ function handleChip(chip) {
 .lct-chat__header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 10px;
   padding: 12px 16px;
   border-bottom: 1px solid var(--lct-line-grey);
+}
+
+.lct-chat__av {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--lct-sunken-surface);
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
+.lct-chat__av :deep(svg) {
+  width: 30px;
+  height: 30px;
+  display: block;
 }
 
 .lct-chat__title {
@@ -289,10 +357,10 @@ function handleChip(chip) {
   background: var(--lct-danger-tint);
   padding: 2px 8px;
   border-radius: var(--lct-radius-tag);
-  margin-left: 8px;
 }
 
 .lct-chat__close {
+  margin-left: auto;
   background: none;
   border: none;
   min-width: 36px;
@@ -416,10 +484,16 @@ function handleChip(chip) {
 }
 
 @media (max-width: 420px) {
-  .lct-mascot,
-  .lct-chat {
+  .lct-mascot {
     right: 16px;
     bottom: 16px;
+    width: 72px;
+    height: 72px;
+  }
+
+  .lct-chat {
+    right: 16px;
+    bottom: 96px;
   }
 }
 </style>

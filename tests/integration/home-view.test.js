@@ -38,4 +38,28 @@ describe('HomeView', () => {
       expect(a.attributes('href') || '').not.toMatch(/\/(swipe|know)\b/)
     }
   })
+
+  it('renders the prototype 4-section structure (.hero, .hs-look, .step, .hs-end)', () => {
+    const wrapper = mountHome()
+    expect(wrapper.find('.hero').exists()).toBe(true)
+    expect(wrapper.find('.stackdemo').exists()).toBe(true)
+    expect(wrapper.find('.hs.hs-look').exists()).toBe(true)
+    expect(wrapper.findAll('.step').length).toBe(4)
+    expect(wrapper.find('.hs.hs-end').exists()).toBe(true)
+  })
+
+  it('renders the 75% schematic keyboard SVG inside .stackdemo', () => {
+    const wrapper = mountHome()
+    const kb = wrapper.find('.stackdemo .kbwrap svg.kb')
+    expect(kb.exists()).toBe(true)
+    expect(kb.attributes('viewBox')).toBe('-6 -6 172 74.5')
+  })
+
+  it('ensures all CTAs link to the builder', () => {
+    const links = mountHome().findAll('a')
+    expect(links.length).toBeGreaterThan(0)
+    for (const a of links) {
+      expect(a.attributes('href')).toBe('/builder')
+    }
+  })
 })

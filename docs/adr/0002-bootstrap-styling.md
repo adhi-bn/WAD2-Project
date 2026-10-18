@@ -1,6 +1,6 @@
 # 0002. Styling target: Bootstrap plus custom CSS
 
-**Status**: Accepted direction; migration pending.
+**Status**: Accepted and implemented.
 
 ## Context
 
@@ -16,8 +16,7 @@ final state uses one styling system — Bootstrap and Tailwind do not ship
 together. Vue 3, plain JavaScript, Vite, Vue Router, the Supabase seam, and the
 Vitest/Playwright stack are unchanged. The root `DESIGN.md` remains the visual
 authority; design tooling such as Impeccable is optional and independent of the
-app's development, build, tests, and CI. The migration is pending: the current
-scaffold still uses Tailwind.
+app's development, build, tests, and CI.
 
 ## Why
 
