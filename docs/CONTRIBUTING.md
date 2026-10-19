@@ -68,6 +68,7 @@ On Windows PowerShell, if execution policy blocks `npm.ps1`, use `npm.cmd` and `
 - **Domain Terms**: Adhere strictly to the domain language and banned synonyms defined in [`CONTEXT.md`](../CONTEXT.md) and [`docs/agents/domain.md`](agents/domain.md). Never substitute synonyms in code, commits, issues, or PRs.
 - **Design System**: Follow the visual identity, tokens, and design rules (including Single-Voice Accent, Event Amber Rule, and Mono for Money) defined in [`DESIGN.md`](../DESIGN.md). Styling uses **Bootstrap 5.3.3** for layout utilities plus **custom CSS** (`src/style.css`), per [ADR-0002](adr/0002-bootstrap-styling.md); do not restyle Bootstrap's native component classes or import Tailwind CSS.
 - **Architecture Decisions**: Review decisions in [`docs/adr/`](adr/). When proposing new architectural patterns, create an ADR based on [`docs/adr/ADR-TEMPLATE.md`](adr/ADR-TEMPLATE.md) documenting Context, Decision, and Why.
+- **Code Documentation & Inline Comments**: When writing or modifying code, provide descriptive JSDoc docstrings for all exported functions, store updaters, and external seams (`@param`, `@returns`). Add concise inline comments explaining non-obvious business logic, domain rules, integer-cent conversions, and edge-case guards. Avoid superficial echo comments that merely restate trivial code syntax.
 
 ## Adding Dependencies
 

@@ -15,6 +15,7 @@ Before writing any UI code, ground the feature in the project's domain vocabular
    - Keep functions completely framework-agnostic (zero imports from Vue, DOM, or external packages).
    - **Integer-Cent Currency Math**: Always represent money in integer cents using canonical decimal string parsing to avoid floating-point errors (see `toCents()` in `src/domain/build.js`).
    - Return descriptive, structured result objects (e.g., `{ compatible, reasons, incomplete, incompatible }`). Avoid throwing errors for standard business rule failures.
+   - **Document Pure Functions**: Add JSDoc docstrings specifying purpose, input shapes (e.g., `{ price }`), and returned structures. Use inline comments to explain non-obvious algorithms, edge cases, and integer-cent conversions.
 
 3. **Write Domain Unit Tests**:
    - Add unit tests in `tests/unit/<feature>.test.js`.
@@ -34,10 +35,12 @@ Bridge your pure domain logic with reactive application state and external servi
    - Stores are module-level reactive singletons (plain ESM, no Pinia).
    - Derive state by invoking pure domain functions within `computed()` wrappers rather than duplicating domain rules.
    - Expose explicit updater functions (e.g., `setSlot()`, `setLimit()`) rather than mutating reactive state directly in views.
+   - **Document Store State & Actions**: Include JSDoc headers on store updaters and inline comments on reactive triggers or side-effects.
 
 2. **Interface with External Seams (`src/lib/`)**:
    - **Supabase Seam (`src/lib/supabase.js`)**: Always use `getSupabase()`. Remember that it returns `null` when environment variables are unset. Features must gracefully degrade to offline or guest operation when `getSupabase()` is `null`.
    - **HTTP Client (`src/lib/http.js`)**: Use `fetchJson(url, options)` for REST calls to remote APIs.
+   - Add JSDoc docstrings and comments detailing expected network shapes and null-safe fallback handling.
    - Write integration tests in `tests/integration/` verifying both connected and disconnected/null-client scenarios.
 
 ---
