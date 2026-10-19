@@ -1,0 +1,15 @@
+node_modules
+dist
+.DS_Store
+
+# Local secrets. Never commit real keys. Commit .env.example instead.
+.env
+.env.*
+!.env.example
+
+# Supabase CLI local state
+supabase/.temp
+supabase/.branches
+
+# Server-side secrets (HitPay, service role, OpenAI). Keep this file local.
+supabase/.env
