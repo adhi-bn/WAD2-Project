@@ -264,7 +264,7 @@ Ordered capability gates; no dates or owners are implied.
 - The approved scope is tracked as GitHub issues in this repository, separate from this document; team review and assigned implementation remain pending. Prototype integration is selective and follows that review.
 - Demo catalogue and reference pricing are illustrative and clearly labelled; no live services or real catalogue data are invented.
 - Physical metadata claims stay within the cited vendor facts and each Part's declared metadata. Surface any contradiction with an ADR rather than silently overriding it.
-- Related documents: this canonical spec, its one-page `keyboard-builder-summary.md`, the root `DESIGN.md` (visual authority, independent of any tooling), and `docs/adr/` (including ADR-0002 for the Bootstrap styling direction).
+- Related documents: this canonical spec, the root `DESIGN.md` (visual authority, independent of any tooling), and `docs/adr/` (including ADR-0002 for the Bootstrap styling direction).
 
 ## Sources
 

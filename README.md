@@ -5,16 +5,22 @@ parts against a target budget. This repo currently holds the runnable frontend
 foundation — app shell, domain seed, and test/CI setup. Product features
 (part pickers, persistence, auth) come later; integration points are stubbed.
 
-See `CONTEXT.md` for the domain vocabulary (Build, Part, Barebones kit,
-Compatibility, Budget), `docs/specs/keyboard-builder.md` for the canonical
-product spec (`docs/specs/keyboard-builder-summary.md` is a one-page overview),
-`DESIGN.md` for the visual identity, and `docs/adr/` for decisions.
+## Documentation
+
+- [`CONTEXT.md`](CONTEXT.md) — Domain vocabulary (Build, Part, Barebones kit, Compatibility, Budget) and banned synonyms.
+- [`DESIGN.md`](DESIGN.md) — Visual identity, color tokens, typography, and component specifications.
+- [`CHANGELOG.md`](CHANGELOG.md) — Release notes and `[Unreleased]` history following Keep a Changelog.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — Architecture overview, tech stack, directory structure, data flow, and seams.
+- [`docs/ADDING-A-FEATURE.md`](docs/ADDING-A-FEATURE.md) — 6-step recipe for introducing new features across domain, store, UI, and tests.
+- [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) — Branch naming, Conventional Commits, changelog workflow, and pre-PR verification.
+- [`docs/specs/keyboard-builder.md`](docs/specs/keyboard-builder.md) — Canonical product specification for the keyboard builder.
+- [`docs/adr/`](docs/adr/) — Architecture Decision Records capturing stack and design choices.
 
 ## Stack
 
 - Vue 3 (plain JavaScript, no TypeScript) + Vue Router 5
 - Vite 8 + `@vitejs/plugin-vue`
-- Bootstrap 5.3 (grid/layout utilities) + custom CSS (`src/style.css` following `DESIGN.md` tokens and ADR-0002)
+- Bootstrap 5.3.3 + custom CSS (`src/style.css`, governed by `DESIGN.md` and `docs/adr/0002-bootstrap-styling.md`) as the active styling system (superseding ADR-0001's initial Tailwind seed)
 - Supabase JS client as a null-safe seam (backend not built yet)
 - Vitest 5 + jsdom for unit/integration, Playwright for E2E
 - Node 22 (>= 22.12) + npm, Git

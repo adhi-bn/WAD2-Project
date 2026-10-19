@@ -1,6 +1,6 @@
 # 0002. Styling target: Bootstrap plus custom CSS
 
-**Status**: Accepted and implemented.
+**Status**: Accepted (implemented in #8)
 
 ## Context
 
@@ -13,10 +13,11 @@ change the framework, routing, backend seam, or test stack.
 
 Migrate the frontend to Bootstrap plus custom CSS as the styling target. The
 final state uses one styling system — Bootstrap and Tailwind do not ship
-together. Vue 3, plain JavaScript, Vite, Vue Router, the Supabase seam, and the
-Vitest/Playwright stack are unchanged. The root `DESIGN.md` remains the visual
-authority; design tooling such as Impeccable is optional and independent of the
-app's development, build, tests, and CI.
+together. The migration from the initial Tailwind seed to Bootstrap 5 + custom
+CSS has landed (implemented in #8). Vue 3, plain JavaScript, Vite, Vue Router, the
+Supabase seam, and the Vitest/Playwright stack are unchanged. The root `DESIGN.md`
+remains the visual authority; design tooling such as Impeccable is optional and
+independent of the app's development, build, tests, and CI.
 
 ## Why
 
