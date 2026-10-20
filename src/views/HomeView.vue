@@ -176,7 +176,7 @@ function updateActiveLayerOnScroll() {
       }
     }
     activeLayerId.value = matchedId
-  } else if (!isProgrammaticScrolling && minDistance > vHeight * 0.85) {
+  } else if (!isProgrammaticScrolling && !programmaticTargetId && minDistance > vHeight * 0.85) {
     activeLayerId.value = ''
   }
 }

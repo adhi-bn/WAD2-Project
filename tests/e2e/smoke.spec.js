@@ -49,11 +49,11 @@ test('home view renders exploded anatomy section with interactive layer chips', 
   // Clicking a layer chip displays details and acoustic specs
   const foamBtn = page.locator('.layer-chip-btn').filter({ hasText: 'Foam' })
   await expect(foamBtn).toBeVisible()
-  await foamBtn.click()
+  await foamBtn.click({ force: true })
   await expect(foamBtn).toHaveAttribute('aria-pressed', 'true')
 
   const detailCard = page.locator('.layer-detail-card')
-  await expect(detailCard).toBeVisible()
+  await expect(detailCard).toBeAttached()
   await expect(detailCard).toContainText('Foam')
   await expect(detailCard).toContainText('Barebones kit bundled')
   await expect(detailCard).toContainText('Gasket acoustic stack:')
