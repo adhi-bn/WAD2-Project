@@ -107,12 +107,8 @@ function selectLayer(layerId) {
         ? document.querySelector(`.layer-step-section[data-layer-id="${layerId}"]`)
         : null)
     if (cardEl && typeof cardEl.scrollIntoView === 'function') {
-      const prefersReduced =
-        typeof window !== 'undefined' &&
-        (Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) ||
-          Boolean(window.navigator?.userAgent?.includes('HeadlessChrome')))
       cardEl.scrollIntoView({
-        behavior: prefersReduced ? 'auto' : 'smooth',
+        behavior: 'auto',
         block: 'center',
       })
     }
