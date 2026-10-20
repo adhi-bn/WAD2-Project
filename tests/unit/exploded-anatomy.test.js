@@ -8,7 +8,6 @@ import {
   ANATOMY_LAYERS,
   BAREBONES_BUNDLED_LAYER_IDS,
   computeGuideExplosionFactor,
-  computeExplosionFactor,
 } from '../../src/lib/explodedAnatomyScene.js'
 import {
   KEYBOARD_DIMENSIONS,
@@ -122,13 +121,6 @@ describe('Mathematical Explosion Factor Curves', () => {
     expect(computeGuideExplosionFactor(NaN)).toBe(0.0)
     expect(computeGuideExplosionFactor(undefined)).toBe(0.0)
     expect(computeGuideExplosionFactor(null)).toBe(0.0)
-  })
-
-  it('legacy computeExplosionFactor curve maintains compatibility', () => {
-    expect(computeExplosionFactor(0)).toBe(0.0)
-    expect(computeExplosionFactor(0.6)).toBe(1.0)
-    expect(computeExplosionFactor(1.0)).toBe(0.0)
-    expect(computeExplosionFactor(0, { reducedMotion: true })).toBe(0.72)
   })
 })
 

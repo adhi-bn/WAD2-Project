@@ -130,46 +130,6 @@ export function isWebGLAvailable(doc = (typeof document !== 'undefined' ? docume
 }
 
 /**
- * Computes the exploded layer separation factor based on scroll progress and motion preferences.
- * Uses a continuous smoothstep curve: 0 at top hero (p <= 0.10), ramps monotonically up to a single peak
- * at 0.55, holds a narrow plateau across 0.55-0.60 (band length 0.05 <= 0.06), and smoothly reassembles back down
- * to 0.0 across 0.60-0.94.
- *
- * @param {number} scrollProgress - Normalized scroll position clamped to [0, 1].
- * @param {object} [options={}] - Motion and static configuration.
- * @param {boolean} [options.reducedMotion=false] - Whether user prefers reduced motion.
- * @param {number} [options.staticFactor=0.72] - Fixed factor used when reduced motion is requested.
- * @returns {number} Explosion factor in range [0, 1].
- */
-export function computeExplosionFactor(
-  scrollProgress,
-  { reducedMotion = false, staticFactor = 0.72 } = {}
-) {
-  if (reducedMotion) {
-    return staticFactor
-  }
-
-  const p = Math.max(0, Math.min(1, Number.isFinite(scrollProgress) ? scrollProgress : 0))
-
-  if (p <= 0.1) {
-    return 0.0
-  }
-  if (p < 0.55) {
-    // Monotonic smoothstep ramp up from 0.10 to 0.55
-    return THREE.MathUtils.smoothstep(p, 0.1, 0.55)
-  }
-  if (p <= 0.6) {
-    // Narrow peak plateau (band length 0.05 <= 0.06)
-    return 1.0
-  }
-  if (p < 0.94) {
-    // Smoothly reassemble back down to 0 across 0.60-0.94
-    return 1.0 - THREE.MathUtils.smoothstep(p, 0.6, 0.94)
-  }
-  return 0.0
-}
-
-/**
  * Computes the exploded layer separation factor across the guided part-by-part home journey.
  * 0 at hero top (p <= 0.05), ramps monotonically during the intro card (0.05 to 0.18),
  * HOLDS at ~1 across all 6 layer cards and step cards (0.18 to 0.82), and smoothly reassembles
@@ -655,7 +615,14 @@ export function createSwitchMatrixInstances(switchProto, targetGroup) {
   const dummyObj = new THREE.Object3D()
   const createdInstances = []
   switchPrimitives.forEach((mesh, pIdx) => {
-    forEachMaterial(mesh.material, (mat) => {
+    // Clone prototype material so the shared switch prototype is never mutated in-place (Adversarial #1)
+    const clonedMaterial = Array.isArray(mesh.material)
+      ? mesh.material.map((m) => (m && typeof m.clone === 'function' ? m.clone() : m))
+      : mesh.material && typeof mesh.material.clone === 'function'
+        ? mesh.material.clone()
+        : mesh.material
+
+    forEachMaterial(clonedMaterial, (mat) => {
       const isTranslucent =
         mat.transparent === true ||
         Boolean(mat.name && mat.name.toLowerCase().includes('switches transparent'))
@@ -665,7 +632,7 @@ export function createSwitchMatrixInstances(switchProto, targetGroup) {
         mat.opacity = 0.78
       }
     })
-    const instancedMesh = new THREE.InstancedMesh(mesh.geometry, mesh.material, 81)
+    const instancedMesh = new THREE.InstancedMesh(mesh.geometry, clonedMaterial, 81)
     instancedMesh.name = `Switch_Instances_Hybrid_${pIdx}`
     SWITCH_LAYOUT_POSITIONS.forEach((pos, idx) => {
       dummyObj.position.set(pos.x, pos.y, pos.z)
@@ -1037,6 +1004,10 @@ export function createExplodedAnatomyScene({
           })
         }
       })
+    }
+    if (!layerId) {
+      // Re-apply active RGB backlight color after clearing highlights (Adversarial #4)
+      updatePlateAndLegendRgb(currentRgbBacklightColor, currentRgbBacklightIntensity)
     }
   }
 
@@ -1591,7 +1562,10 @@ export function createExplodedAnatomyScene({
       const c = color instanceof THREE.Color ? color.clone() : new THREE.Color(color)
       currentRgbBacklightColor.copy(c)
       currentRgbBacklightIntensity = intensity
-      updatePlateAndLegendRgb(currentRgbBacklightColor, currentRgbBacklightIntensity)
+      // Only illuminate plate and legends immediately if no layer is highlighted or if the plate itself is highlighted (Adversarial #4)
+      if (!currentHighlightedLayerId || currentHighlightedLayerId === 'plate') {
+        updatePlateAndLegendRgb(currentRgbBacklightColor, currentRgbBacklightIntensity)
+      }
       if (reducedMotion) {
         requestSingleFrame()
       }

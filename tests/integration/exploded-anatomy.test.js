@@ -12,7 +12,6 @@ import * as THREE from 'three'
 import {
   ANATOMY_LAYERS,
   BAREBONES_BUNDLED_LAYER_IDS,
-  computeExplosionFactor,
   computeGuideExplosionFactor,
   isWebGLAvailable,
   buildProceduralGasketLayers,
@@ -65,52 +64,27 @@ describe('Exploded Anatomy Domain Constants & Math', () => {
     expect(coreParts[1].partCategory).toBe('Switches')
   })
 
-  it('computes smooth hermite explosion factor curves across scroll progress', () => {
-    // Hero top: holds completely closed
-    expect(computeExplosionFactor(0)).toBe(0)
-    expect(computeExplosionFactor(0.05)).toBe(0)
-    expect(computeExplosionFactor(0.1)).toBe(0)
+  it('clones prototype materials in createSwitchMatrixInstances without corrupting source objects (Adversarial #1)', () => {
+    const target = new THREE.Group()
+    const origMaterial = new THREE.MeshStandardMaterial({
+      name: 'switches transparent',
+      transparent: true,
+      opacity: 0.4,
+      depthWrite: false,
+    })
+    const protoMesh = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.01, 0.01), origMaterial)
 
-    // Active explosion ramp (0.10 - 0.55)
-    const factorEarly = computeExplosionFactor(0.2)
-    const factorMid = computeExplosionFactor(0.35)
-    const factorLate = computeExplosionFactor(0.5)
+    const instances = createSwitchMatrixInstances(protoMesh, target)
+    expect(instances).toHaveLength(1)
 
-    expect(factorEarly).toBeGreaterThan(0)
-    expect(factorMid).toBeGreaterThan(factorEarly)
-    expect(factorLate).toBeGreaterThan(factorMid)
-    expect(computeExplosionFactor(0.55)).toBe(1.0)
-    expect(computeExplosionFactor(0.58)).toBe(1.0)
-    expect(computeExplosionFactor(0.6)).toBe(1.0)
+    // InstancedMesh has cloned and modified material
+    expect(instances[0].material).not.toBe(origMaterial)
+    expect(instances[0].material.depthWrite).toBe(true)
+    expect(instances[0].material.opacity).toBeCloseTo(0.78, 2)
 
-    // Continuous decay without long flat plateau (no plateau longer than 0.06 band)
-    const factorPastPeak = computeExplosionFactor(0.7)
-    expect(factorPastPeak).toBeGreaterThan(0)
-    expect(factorPastPeak).toBeLessThan(1.0)
-
-    // Smooth reassembly back down across .hs-end
-    const factorReassembly = computeExplosionFactor(0.85)
-    expect(factorReassembly).toBeGreaterThan(0)
-    expect(factorReassembly).toBeLessThan(factorPastPeak)
-    expect(computeExplosionFactor(0.94)).toBe(0)
-    expect(computeExplosionFactor(1.0)).toBe(0)
-
-    // Clamps out-of-range scroll progress values
-    expect(computeExplosionFactor(-0.5)).toBe(0)
-    expect(computeExplosionFactor(1.5)).toBe(0)
-    expect(computeExplosionFactor(Number.NaN)).toBe(0)
-  })
-
-  it('returns a static non-zero factor when reduced motion is preferred', () => {
-    // Default static factor is 0.72
-    expect(computeExplosionFactor(0, { reducedMotion: true })).toBe(0.72)
-    expect(computeExplosionFactor(0.25, { reducedMotion: true })).toBe(0.72)
-    expect(computeExplosionFactor(0.65, { reducedMotion: true })).toBe(0.72)
-    expect(computeExplosionFactor(0.98, { reducedMotion: true })).toBe(0.72)
-    expect(computeExplosionFactor(1.0, { reducedMotion: true })).toBe(0.72)
-
-    // Supports custom static factor override
-    expect(computeExplosionFactor(0.5, { reducedMotion: true, staticFactor: 0.5 })).toBe(0.5)
+    // Original prototype material is strictly unmutated
+    expect(origMaterial.depthWrite).toBe(false)
+    expect(origMaterial.opacity).toBe(0.4)
   })
 
   it('procedurally synthesizes gasket acoustic stack and ENIG PCB layers', () => {
@@ -423,9 +397,12 @@ describe('createExplodedAnatomyScene with mock renderer', () => {
       expect(inst.name.startsWith('Switch_Instances_')).toBe(true)
     }
 
-    // Translucent switch housing material depthWrite is set to true (B-2)
-    expect(topHousingMesh.material.depthWrite).toBe(true)
-    expect(topHousingMesh.material.opacity).toBeCloseTo(0.78, 2)
+    // Translucent switch housing material depthWrite is set to true on the instanced mesh (B-2, Adversarial #1)
+    const topHousingInstance = instancedMeshes[1]
+    expect(topHousingInstance.material.depthWrite).toBe(true)
+    expect(topHousingInstance.material.opacity).toBeCloseTo(0.78, 2)
+    // Prototype source material remains strictly unmutated
+    expect(topHousingMesh.material.opacity).toBeCloseTo(0.48, 2)
 
     // getStats() reports switchInstanceCount as 81 (not 4 * 81 = 324)
     const stats = sceneController.getStats()
@@ -451,10 +428,14 @@ describe('createExplodedAnatomyScene with mock renderer', () => {
     sceneController.setHighlightedLayer('keycaps')
     expect(plateMesh.material.emissive.getHex()).toBe(0x000000)
 
+    // While keycaps is highlighted, setting custom RGB backlight does not bleed to dimmed plate (Adversarial #4)
+    sceneController.setRgbBacklightColor(0x00ff00, 1.5)
+    expect(plateMesh.material.emissive.getHex()).toBe(0x000000)
+
     // Reset highlight: plate emissive cleanly restores to custom RGB backlight
     sceneController.setHighlightedLayer('')
-    expect(plateMesh.material.emissive.getHex()).toBe(0xff007f)
-    expect(plateMesh.material.emissiveIntensity).toBe(2.0)
+    expect(plateMesh.material.emissive.getHex()).toBe(0x00ff00)
+    expect(plateMesh.material.emissiveIntensity).toBe(1.5)
 
     // Highlight plate itself: gets layer accent color
     sceneController.setHighlightedLayer('plate')
@@ -462,8 +443,8 @@ describe('createExplodedAnatomyScene with mock renderer', () => {
 
     // Reset highlight again: plate restores to custom RGB backlight
     sceneController.setHighlightedLayer('')
-    expect(plateMesh.material.emissive.getHex()).toBe(0xff007f)
-    expect(plateMesh.material.emissiveIntensity).toBe(2.0)
+    expect(plateMesh.material.emissive.getHex()).toBe(0x00ff00)
+    expect(plateMesh.material.emissiveIntensity).toBe(1.5)
   })
 
   it('createSwitchMatrixInstances populates target group with instanced primitives', () => {
@@ -584,9 +565,12 @@ describe('createExplodedAnatomyScene with mock renderer', () => {
       depthWrite: false,
     })
     const switchMesh = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.01, 0.01), transSwitchMat)
-    createSwitchMatrixInstances(switchMesh, targetGroup)
-    expect(transSwitchMat.depthWrite).toBe(true)
-    expect(transSwitchMat.opacity).toBeCloseTo(0.78, 2)
+    const created = createSwitchMatrixInstances(switchMesh, targetGroup)
+    expect(created[0].material.depthWrite).toBe(true)
+    expect(created[0].material.opacity).toBeCloseTo(0.78, 2)
+    // Original prototype material is preserved without mutation (Adversarial #1)
+    expect(transSwitchMat.depthWrite).toBe(false)
+    expect(transSwitchMat.opacity).toBe(0.48)
 
     // 2. Keycap legend decal primitive setup and dimming behavior
     const keycaps = capturedScene.getObjectByName('Layer_Keycaps')
