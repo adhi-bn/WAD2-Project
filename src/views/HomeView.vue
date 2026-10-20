@@ -46,6 +46,7 @@ const rootRef = ref(null)
 const activeLayerId = ref('')
 
 let isProgrammaticScrolling = false
+let programmaticTargetId = ''
 let programmaticScrollTimeout = null
 let rafScrollId = null
 let scrollTicking = false
@@ -55,6 +56,7 @@ let scrollTicking = false
  */
 function clearProgrammaticScrollLock() {
   isProgrammaticScrolling = false
+  programmaticTargetId = ''
   if (programmaticScrollTimeout !== null) {
     clearTimeout(programmaticScrollTimeout)
     programmaticScrollTimeout = null
@@ -94,6 +96,7 @@ function selectLayer(layerId) {
   } else {
     activeLayerId.value = layerId
     isProgrammaticScrolling = true
+    programmaticTargetId = layerId
     if (programmaticScrollTimeout !== null) {
       clearTimeout(programmaticScrollTimeout)
     }
@@ -119,7 +122,7 @@ function selectLayer(layerId) {
       }
       programmaticScrollTimeout = setTimeout(() => {
         onScrollEnd()
-      }, 2000)
+      }, 5000)
     }
   }
 }
@@ -167,8 +170,16 @@ function updateActiveLayerOnScroll() {
   })
 
   if (closestSection && minDistance < vHeight * 0.5) {
-    activeLayerId.value = closestSection.dataset.layerId || ''
-  } else if (minDistance > vHeight * 0.85) {
+    const matchedId = closestSection.dataset.layerId || ''
+    if (isProgrammaticScrolling) {
+      if (matchedId === programmaticTargetId) {
+        clearProgrammaticScrollLock()
+      } else {
+        return
+      }
+    }
+    activeLayerId.value = matchedId
+  } else if (!isProgrammaticScrolling && minDistance > vHeight * 0.85) {
     activeLayerId.value = ''
   }
 }
@@ -298,7 +309,7 @@ const steps = [
               type="button"
               class="layer-chip-btn"
               :class="{ 'is-active': activeLayerId === layer.id }"
-              :aria-pressed="activeLayerId === layer.id"
+              :aria-pressed="activeLayerId === layer.id ? 'true' : 'false'"
               @click="selectLayer(layer.id)"
             >
               <span class="chip-dot" :style="{ backgroundColor: layer.color }"></span>
@@ -317,7 +328,7 @@ const steps = [
                   type="button"
                   class="layer-chip-btn"
                   :class="{ 'is-active': activeLayerId === layer.id }"
-                  :aria-pressed="activeLayerId === layer.id"
+                  :aria-pressed="activeLayerId === layer.id ? 'true' : 'false'"
                   @click="selectLayer(layer.id)"
                 >
                   <span class="chip-dot" :style="{ backgroundColor: layer.color }"></span>

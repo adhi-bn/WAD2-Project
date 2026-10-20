@@ -42,6 +42,7 @@ test('home view renders exploded anatomy section with interactive layer chips', 
 
   // Clicking a layer chip displays details and acoustic specs
   const foamBtn = barebonesBracket.getByRole('button', { name: 'Foam' })
+  await foamBtn.scrollIntoViewIfNeeded()
   await foamBtn.click()
   await expect(foamBtn).toHaveAttribute('aria-pressed', 'true')
 
