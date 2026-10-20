@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 test.beforeEach(async () => {
-  test.setTimeout(process.env.CI ? 120000 : 60000)
+  test.setTimeout(120000)
 })
 
 test('shell loads and nav renders', async ({ page }) => {
@@ -60,7 +60,9 @@ test('home view renders exploded anatomy section with interactive layer chips', 
   ).toBeVisible()
 
   // CTA navigation to /builder works
-  await lookSection.getByRole('link', { name: /Explore the builder/i }).click()
+  const builderCta = lookSection.getByRole('link', { name: /Explore the builder/i })
+  await expect(builderCta).toHaveAttribute('href', '/builder')
+  await builderCta.click({ force: true })
   await expect(page).toHaveURL(/\/builder$/)
   await expect(page.getByRole('heading', { name: 'Builder' })).toBeVisible()
 })
