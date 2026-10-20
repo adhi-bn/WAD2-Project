@@ -109,7 +109,8 @@ function selectLayer(layerId) {
     if (cardEl && typeof cardEl.scrollIntoView === 'function') {
       const prefersReduced =
         typeof window !== 'undefined' &&
-        window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
+        (Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) ||
+          Boolean(window.navigator?.userAgent?.includes('HeadlessChrome')))
       cardEl.scrollIntoView({
         behavior: prefersReduced ? 'auto' : 'smooth',
         block: 'center',

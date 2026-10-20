@@ -481,8 +481,7 @@ section.screen {
 }
 
 /* 3D Exploded Keyboard Anatomy Scene Backdrop */
-.exploded-anatomy-container.is-backdrop-active,
-.exploded-anatomy-container[data-webgl-status="ready"] {
+.exploded-anatomy-container:not([data-webgl-status="unavailable"]) {
   position: fixed;
   inset: 0;
   width: 100vw;
@@ -492,7 +491,6 @@ section.screen {
   overflow: hidden;
 }
 
-.exploded-anatomy-container:not(.is-backdrop-active),
 .exploded-anatomy-container[data-webgl-status="unavailable"] {
   position: relative;
   z-index: 2;

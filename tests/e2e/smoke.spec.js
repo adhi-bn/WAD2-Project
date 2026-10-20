@@ -20,6 +20,12 @@ test('shell loads and nav renders', async ({ page }) => {
 test('home view renders exploded anatomy section with interactive layer chips', async ({ page }) => {
   await page.goto('/')
 
+  // Wait for 3D stage and WebGL capability detection to settle
+  await expect(page.locator('.exploded-anatomy-container')).toHaveAttribute(
+    'data-webgl-status',
+    /ready|unavailable/
+  )
+
   // Exploded anatomy section is visible on home
   const lookSection = page.locator('.hs.hs-look')
   await expect(lookSection).toBeVisible()
