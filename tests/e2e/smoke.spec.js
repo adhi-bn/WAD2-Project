@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 test.beforeEach(async () => {
-  test.setTimeout(60000)
+  test.setTimeout(process.env.CI ? 120000 : 60000)
 })
 
 test('shell loads and nav renders', async ({ page }) => {
