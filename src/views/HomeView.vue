@@ -62,6 +62,15 @@ function clearProgrammaticScrollLock() {
 }
 
 /**
+ * Event handler for user wheel/touch interaction during smooth scroll.
+ */
+function onUserScrollInteraction() {
+  if (isProgrammaticScrolling) {
+    clearProgrammaticScrollLock()
+  }
+}
+
+/**
  * Event handler for scroll end to unlock user scroll processing.
  */
 function onScrollEnd() {
@@ -110,7 +119,7 @@ function selectLayer(layerId) {
       }
       programmaticScrollTimeout = setTimeout(() => {
         onScrollEnd()
-      }, 600)
+      }, 2000)
     }
   }
 }
@@ -157,9 +166,9 @@ function updateActiveLayerOnScroll() {
     }
   })
 
-  if (closestSection && minDistance < vHeight * 0.45) {
+  if (closestSection && minDistance < vHeight * 0.5) {
     activeLayerId.value = closestSection.dataset.layerId || ''
-  } else if (minDistance > vHeight * 0.55) {
+  } else if (minDistance > vHeight * 0.85) {
     activeLayerId.value = ''
   }
 }
@@ -188,6 +197,8 @@ onMounted(() => {
   if (typeof window !== 'undefined') {
     window.addEventListener('scroll', handleWindowScroll, { passive: true })
     window.addEventListener('resize', handleWindowResize, { passive: true })
+    window.addEventListener('wheel', onUserScrollInteraction, { passive: true })
+    window.addEventListener('touchmove', onUserScrollInteraction, { passive: true })
     handleWindowScroll()
   }
 })
@@ -197,6 +208,8 @@ onUnmounted(() => {
     window.removeEventListener('scroll', handleWindowScroll)
     window.removeEventListener('resize', handleWindowResize)
     window.removeEventListener('scrollend', onScrollEnd)
+    window.removeEventListener('wheel', onUserScrollInteraction)
+    window.removeEventListener('touchmove', onUserScrollInteraction)
   }
   if (rafScrollId !== null && typeof cancelAnimationFrame !== 'undefined') {
     cancelAnimationFrame(rafScrollId)
