@@ -1,4 +1,19 @@
 <script setup>
+/**
+ * @fileoverview HomeView component.
+ * Renders the landing screen with an interactive 3D exploded keyboard anatomy backdrop,
+ * guided card-by-card physical layer walk-through, interactive layer focus chips,
+ * and clear calls-to-action leading into the keyboard builder.
+ */
+
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import ExplodedAnatomyCanvas from '../components/ExplodedAnatomyCanvas.vue'
+import { ANATOMY_LAYERS } from '../lib/explodedAnatomyScene.js'
+import {
+  ANATOMY_GUIDE_STEPS,
+  ANATOMY_GUIDE_OUTRO,
+} from '../lib/anatomyGuide.js'
+
 function kbSVG() {
   const main = [
     [...Array(13).fill(1), 2],
@@ -27,7 +42,168 @@ function kbSVG() {
 
 const demoKb = kbSVG()
 
-const layers = ['Barebones kit', '5-pin Switches', 'Keycaps', 'Case + Plate + PCB + Foam']
+const rootRef = ref(null)
+const activeLayerId = ref('')
+
+let isProgrammaticScrolling = false
+let programmaticScrollTimeout = null
+let rafScrollId = null
+let scrollTicking = false
+
+/**
+ * Resets the programmatic scrolling lock flag.
+ */
+function clearProgrammaticScrollLock() {
+  isProgrammaticScrolling = false
+  if (programmaticScrollTimeout !== null) {
+    clearTimeout(programmaticScrollTimeout)
+    programmaticScrollTimeout = null
+  }
+}
+
+/**
+ * Event handler for scroll end to unlock user scroll processing.
+ */
+function onScrollEnd() {
+  clearProgrammaticScrollLock()
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('scrollend', onScrollEnd)
+  }
+}
+
+/**
+ * Selects an anatomical layer from chip interaction and smoothly scrolls
+ * the matching card into viewport center. Locks programmatic scrolling to avoid
+ * thrashing intermediate cards during smooth scroll (REV-1).
+ *
+ * @param {string} layerId - Target layer identifier.
+ */
+function selectLayer(layerId) {
+  if (activeLayerId.value === layerId) {
+    activeLayerId.value = ''
+    clearProgrammaticScrollLock()
+  } else {
+    activeLayerId.value = layerId
+    isProgrammaticScrolling = true
+    if (programmaticScrollTimeout !== null) {
+      clearTimeout(programmaticScrollTimeout)
+    }
+
+    const cardEl =
+      rootRef.value?.querySelector?.(`.layer-step-section[data-layer-id="${layerId}"]`) ||
+      (typeof document !== 'undefined'
+        ? document.querySelector(`.layer-step-section[data-layer-id="${layerId}"]`)
+        : null)
+    if (cardEl && typeof cardEl.scrollIntoView === 'function') {
+      const prefersReduced =
+        typeof window !== 'undefined' &&
+        window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
+      cardEl.scrollIntoView({
+        behavior: prefersReduced ? 'auto' : 'smooth',
+        block: 'center',
+      })
+    }
+
+    if (typeof window !== 'undefined') {
+      if ('onscrollend' in window) {
+        window.addEventListener('scrollend', onScrollEnd, { once: true, passive: true })
+      }
+      programmaticScrollTimeout = setTimeout(() => {
+        onScrollEnd()
+      }, 600)
+    }
+  }
+}
+
+const nonBarebonesLayers = Object.freeze(
+  ANATOMY_LAYERS.filter((l) => !l.isBarebonesInternals)
+)
+
+const barebonesLayers = Object.freeze(
+  ANATOMY_LAYERS.filter((l) => l.isBarebonesInternals)
+)
+
+const selectedLayer = computed(() => {
+  return ANATOMY_LAYERS.find((l) => l.id === activeLayerId.value) || null
+})
+
+/**
+ * Updates the active layer identifier based on which guided layer card's center
+ * is closest to the vertical center of the viewport. Ignored during programmatic scroll (REV-1).
+ */
+function updateActiveLayerOnScroll() {
+  scrollTicking = false
+  rafScrollId = null
+  if (isProgrammaticScrolling) return
+  const sections =
+    rootRef.value?.querySelectorAll?.('.layer-step-section') ||
+    (typeof document !== 'undefined'
+      ? document.querySelectorAll('.layer-step-section')
+      : [])
+  if (!sections || sections.length === 0) return
+
+  const vHeight = typeof window !== 'undefined' ? window.innerHeight || 800 : 800
+  const vCenter = vHeight * 0.5
+  let closestSection = null
+  let minDistance = Infinity
+
+  sections.forEach((sec) => {
+    const rect = sec.getBoundingClientRect()
+    const secCenter = (rect.top + rect.bottom) * 0.5
+    const dist = Math.abs(secCenter - vCenter)
+    if (dist < minDistance) {
+      minDistance = dist
+      closestSection = sec
+    }
+  })
+
+  if (closestSection && minDistance < vHeight * 0.45) {
+    activeLayerId.value = closestSection.dataset.layerId || ''
+  } else if (minDistance > vHeight * 0.55) {
+    activeLayerId.value = ''
+  }
+}
+
+/**
+ * Throttled window scroll event handler.
+ */
+function handleWindowScroll() {
+  if (scrollTicking) return
+  scrollTicking = true
+  if (typeof requestAnimationFrame !== 'undefined') {
+    rafScrollId = requestAnimationFrame(updateActiveLayerOnScroll)
+  } else {
+    updateActiveLayerOnScroll()
+  }
+}
+
+/**
+ * Passive window resize event handler to update active card on viewport/orientation change (REV-6).
+ */
+function handleWindowResize() {
+  handleWindowScroll()
+}
+
+onMounted(() => {
+  if (typeof window !== 'undefined') {
+    window.addEventListener('scroll', handleWindowScroll, { passive: true })
+    window.addEventListener('resize', handleWindowResize, { passive: true })
+    handleWindowScroll()
+  }
+})
+
+onUnmounted(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('scroll', handleWindowScroll)
+    window.removeEventListener('resize', handleWindowResize)
+    window.removeEventListener('scrollend', onScrollEnd)
+  }
+  if (rafScrollId !== null && typeof cancelAnimationFrame !== 'undefined') {
+    cancelAnimationFrame(rafScrollId)
+    rafScrollId = null
+  }
+  clearProgrammaticScrollLock()
+})
 
 const steps = [
   {
@@ -54,7 +230,10 @@ const steps = [
 </script>
 
 <template>
-  <section class="screen" id="home">
+  <section class="screen" id="home" ref="rootRef">
+    <!-- 3D Exploded Anatomy Canvas mounted as sticky/fixed background -->
+    <ExplodedAnatomyCanvas :active-layer-id="activeLayerId" />
+
     <div class="wrap">
       <div class="hero">
         <div>
@@ -88,17 +267,74 @@ const steps = [
       </div>
     </div>
 
+    <!-- Intro Card: Exploded Anatomy Initiation & Interactive Chips -->
     <div class="hs hs-look">
       <div class="wrap">
-        <div class="glass">
+        <div class="glass intro-glass-card">
           <div class="eyebrow">Look inside</div>
           <h2>Build your keyboard across three core parts.</h2>
           <p>
             Every build combines a barebones kit (case, plate, PCB, and foam bundled together), 5-pin switches, and keycaps — and you get to choose every part.
           </p>
-          <div class="layerchips">
-            <span v-for="l in layers" :key="l">{{ l }}</span>
+
+          <div class="layerchips" role="group" aria-label="Keyboard anatomical layers">
+            <!-- Core individual parts: Keycaps and Switches -->
+            <button
+              v-for="layer in nonBarebonesLayers"
+              :key="layer.id"
+              type="button"
+              class="layer-chip-btn"
+              :class="{ 'is-active': activeLayerId === layer.id }"
+              :aria-pressed="activeLayerId === layer.id"
+              @click="selectLayer(layer.id)"
+            >
+              <span class="chip-dot" :style="{ backgroundColor: layer.color }"></span>
+              {{ layer.label }}
+            </button>
+
+            <!-- Barebones kit bundled internals group -->
+            <div class="barebones-bracket">
+              <div class="barebones-bracket-header">
+                <span class="barebones-bracket-badge">Barebones kit (bundled internals)</span>
+              </div>
+              <div class="barebones-bracket-chips">
+                <button
+                  v-for="layer in barebonesLayers"
+                  :key="layer.id"
+                  type="button"
+                  class="layer-chip-btn"
+                  :class="{ 'is-active': activeLayerId === layer.id }"
+                  :aria-pressed="activeLayerId === layer.id"
+                  @click="selectLayer(layer.id)"
+                >
+                  <span class="chip-dot" :style="{ backgroundColor: layer.color }"></span>
+                  {{ layer.label }}
+                </button>
+              </div>
+            </div>
           </div>
+
+          <!-- Active layer description detail card -->
+          <div v-if="selectedLayer" class="layer-detail-card" aria-live="polite">
+            <div class="layer-detail-header">
+              <span class="layer-detail-title">{{ selectedLayer.label }}</span>
+              <span v-if="selectedLayer.isBarebonesInternals" class="layer-detail-tag barebones">
+                Barebones kit bundled
+              </span>
+              <span v-else class="layer-detail-tag core-part">
+                {{ selectedLayer.partCategory }}
+              </span>
+            </div>
+            <p class="layer-detail-desc">{{ selectedLayer.description }}</p>
+            <p v-if="selectedLayer.id === 'foam'" class="gasket-stack-info">
+              <strong>Gasket acoustic stack:</strong> PORON plate cotton, IXPE switch underpad, PET film, and bottom case cotton.
+            </p>
+          </div>
+
+          <p class="anatomy-disclaimer">
+            Illustrative 3D structural guide — not a photorealistic, acoustic, or engineering-CAD claim.
+          </p>
+
           <div class="acts">
             <RouterLink to="/builder" class="ui-btn">Explore the builder →</RouterLink>
           </div>
@@ -106,6 +342,42 @@ const steps = [
       </div>
     </div>
 
+    <!-- 6 Guided Step-by-Step Layer Cards (C-2) -->
+    <div
+      v-for="(step, index) in ANATOMY_GUIDE_STEPS"
+      :key="step.id"
+      class="hs ks layer-step-section"
+      :data-layer="index"
+      :data-layer-id="step.id"
+      :aria-current="activeLayerId === step.id ? 'step' : undefined"
+    >
+      <div class="wrap">
+        <div class="glass layer-step-card" :class="{ 'is-active-step': activeLayerId === step.id }">
+          <div class="step-card-header">
+            <span class="eyebrow">{{ step.eyebrow }}</span>
+            <span v-if="activeLayerId === step.id" class="active-step-pill" aria-label="Active inspected layer">
+              Inspecting
+            </span>
+            <span v-else-if="step.isBarebonesInternals" class="layer-step-badge barebones">
+              Barebones kit
+            </span>
+            <span v-else class="layer-step-badge core-part">
+              Core Part
+            </span>
+          </div>
+          <h2>{{ step.title }}</h2>
+          <p class="step-summary">{{ step.summary }}</p>
+          <ul v-if="step.facts && step.facts.length" class="facts">
+            <li v-for="fact in step.facts" :key="fact[0]">
+              <b>{{ fact[0] }}</b>
+              <span>{{ fact[1] }}</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4 Value Proposition Steps -->
     <div class="hs">
       <div class="wrap">
         <div class="row g-3">
@@ -120,12 +392,13 @@ const steps = [
       </div>
     </div>
 
+    <!-- Outro Reassembly Card -->
     <div class="hs hs-end">
       <div class="wrap">
         <div class="glass">
-          <div class="eyebrow">Back together</div>
-          <h2>Now put it together your way.</h2>
-          <p>Three parts and we check compatibility and budget for you. Ask Biscuit if you need a hand.</p>
+          <div class="eyebrow">{{ ANATOMY_GUIDE_OUTRO.eyebrow }}</div>
+          <h2>{{ ANATOMY_GUIDE_OUTRO.title }}</h2>
+          <p>{{ ANATOMY_GUIDE_OUTRO.summary }} Ask Biscuit if you need a hand.</p>
           <div class="acts">
             <RouterLink to="/builder" class="ui-btn primary">Start building →</RouterLink>
           </div>

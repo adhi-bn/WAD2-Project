@@ -34,3 +34,11 @@ A one-time per-account prize draw that may award a Voucher.
 **Voucher**:
 A time-limited percentage or fixed-amount discount awarded by the Lucky draw.
 _Avoid_: Coupon
+
+**Exploded anatomy**:
+The fixed, scroll-driven visual breakdown on the home surface showing how Keycaps, Switches, and the Barebones kit's bundled internals (plate, PCB, foam, case) stack together in a guided, card-by-card sequence with synchronized 3D layer highlighting, camera focus, and beginner-friendly layer facts.
+_Avoid_: Live preview, customiser preview
+
+**Build preview**:
+The interactive 3D assembly in the builder where the user's chosen Barebones kit, Switches, and Keycaps fit together part by part.
+_Avoid_: Static schematic, 2D diagram
