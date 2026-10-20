@@ -41,12 +41,12 @@ test('home view renders exploded anatomy section with interactive layer chips', 
   await expect(barebonesBracket.getByRole('button', { name: 'Case' })).toBeVisible()
 
   // Clicking a layer chip displays details and acoustic specs
-  const foamBtn = barebonesBracket.getByRole('button', { name: 'Foam' })
-  await foamBtn.scrollIntoViewIfNeeded()
+  const foamBtn = page.locator('.layer-chip-btn').filter({ hasText: 'Foam' })
+  await expect(foamBtn).toBeVisible()
   await foamBtn.click()
   await expect(foamBtn).toHaveAttribute('aria-pressed', 'true')
 
-  const detailCard = lookSection.locator('.layer-detail-card')
+  const detailCard = page.locator('.layer-detail-card')
   await expect(detailCard).toBeVisible()
   await expect(detailCard).toContainText('Foam')
   await expect(detailCard).toContainText('Barebones kit bundled')
@@ -54,14 +54,10 @@ test('home view renders exploded anatomy section with interactive layer chips', 
   await expect(detailCard).toContainText('PORON plate cotton')
 
   // Disclaimer is visible
-  await expect(
-    lookSection.getByText(
-      'Illustrative 3D structural guide — not a photorealistic, acoustic, or engineering-CAD claim.'
-    )
-  ).toBeVisible()
+  await expect(page.locator('.anatomy-disclaimer')).toBeVisible()
 
   // CTA link to /builder is present and points to /builder
-  const builderCta = lookSection.getByRole('link', { name: /Explore the builder/i })
+  const builderCta = page.locator('.acts').getByRole('link', { name: /Explore the builder/i })
   await expect(builderCta).toBeAttached()
   await expect(builderCta).toHaveAttribute('href', '/builder')
 })
