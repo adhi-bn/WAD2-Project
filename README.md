@@ -1,100 +1,103 @@
-# Le Chaton Typers (aka Fat Cat Typers)
+# Lechaton Typers
 
-A custom mechanical keyboard builder: swipe through six cards, get a recommended build,
-swap parts with live price changes, save builds to an account, and check out. Includes a 3D
-keyboard that explodes as you scroll (Three.js) and Biscuit the fat cat with a Spin-to-Win lucky draw.
+Custom mechanical-keyboard builder: users assemble a keyboard from compatible
+parts against a target budget. This repo currently holds the runnable frontend
+foundation — app shell, domain seed, and test/CI setup. Product features
+(part pickers, persistence, auth) come later; integration points are stubbed.
 
-Built with **Vue 3 + Vite**, **Vue Router**, **Bootstrap 5**, vanilla CSS, **Three.js**,
-and **Supabase** (catalogue, accounts, saved builds, orders) with **HitPay** for payments.
+## Documentation
 
-## Run it locally
+- [`CONTEXT.md`](CONTEXT.md) — Domain vocabulary (Build, Part, Barebones kit, Compatibility, Budget) and banned synonyms.
+- [`DESIGN.md`](DESIGN.md) — Visual identity, color tokens, typography, and component specifications.
+- [`CHANGELOG.md`](CHANGELOG.md) — Release notes and `[Unreleased]` history following Keep a Changelog.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — Architecture overview, tech stack, directory structure, data flow, and seams.
+- [`docs/ADDING-A-FEATURE.md`](docs/ADDING-A-FEATURE.md) — 6-step recipe for introducing new features across domain, store, UI, and tests.
+- [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) — Branch naming, Conventional Commits, changelog workflow, and pre-PR verification.
+- [`docs/specs/keyboard-builder.md`](docs/specs/keyboard-builder.md) — Canonical product specification for the keyboard builder.
+- [`docs/adr/`](docs/adr/) — Architecture Decision Records capturing stack and design choices.
 
-You need [Node.js](https://nodejs.org) 18 or newer.
+## Stack
+
+- Vue 3 (plain JavaScript, no TypeScript) + Vue Router 5
+- Vite 8 + `@vitejs/plugin-vue`
+- Bootstrap 5.3.3 + custom CSS (`src/style.css`, governed by `DESIGN.md` and `docs/adr/0002-bootstrap-styling.md`) as the active styling system (superseding ADR-0001's initial Tailwind seed)
+- Supabase JS client as a null-safe seam (backend not built yet)
+- Vitest 5 + jsdom for unit/integration, Playwright for E2E
+- Node 22 (>= 22.12) + npm, Git
+
+## Requirements
+
+- Install Node 22 (>= 22.12) with npm and Git **natively**: PowerShell on Windows,
+  Terminal on macOS. WSL is not required.
+- Each teammate installs dependencies locally in the repo root with `npm ci`.
+  Never share or copy `node_modules` between machines or operating systems —
+  native bindings differ per OS.
+- No editor extension or optional preview tooling (such as Impeccable) is
+  required; such tooling stays local and is not part of the shared repo.
+
+## Quick start
+
+The shared work is on `feat/prototype-integration`; `main` has not received the
+scaffold yet. These commands work in Windows PowerShell and macOS Terminal:
+
+```sh
+git clone --branch feat/prototype-integration https://github.com/adhi-bn/WAD2-Project.git
+cd WAD2-Project
+npm ci
+npm run dev
+```
+
+## Commands
 
 ```bash
-npm install                  # once, downloads the packages
-cp .env.example .env         # then fill in your Supabase URL and anon key
-npm run dev                  # starts the dev server
+npm ci             # locked install from package-lock.json
+npm run dev        # dev server at http://localhost:5173
+npm run build      # production build to dist/
+npm run preview    # serve the production build
+npm test           # Vitest unit + integration (tests/unit, tests/integration)
+npm run test:e2e   # Playwright chromium smoke test (boots dev server)
 ```
 
-Open the address it prints (usually http://localhost:5173). Edits to files in `src/` reload instantly.
+If Windows PowerShell blocks `npm.ps1`, use `npm.cmd` and `npx.cmd` with the same
+arguments instead; no execution-policy change is required.
 
-`npm run build` makes a production copy in `dist/`; `npm run preview` serves that copy.
+Install the Playwright browser on first use:
 
-Without a `.env` file the site still runs. The catalogue comes from the code, and sign-in and
-checkout show a "not set up yet" message.
-
-## Supabase setup (once per project)
-
-1. In the Supabase SQL editor, run `supabase/schema.sql`.
-2. Import the catalogue and prebuilt keyboards. From a Node script or the Supabase client, call
-   `importAll(supabase)` from `supabase/data.js`. Use the **service role** key here, never in the site.
-3. Deploy the server functions in `supabase/functions/`:
-   ```bash
-   supabase functions deploy checkout order-status advisor
-   supabase functions deploy hitpay-webhook --no-verify-jwt
-   ```
-4. Set the secrets for the functions. Copy `supabase/.env.example` to `supabase/.env`, fill it in, then:
-   ```bash
-   supabase secrets set --env-file ./supabase/.env
-   ```
-   Keys live in two places, and neither file is committed:
-   - `.env` (website, public keys only): Supabase URL and anon key.
-   - `supabase/.env` (server, secret keys): HitPay key and salt, service role key, OpenAI key.
-   Never add a secret to `.env`. Anything starting with `VITE_` is sent to every visitor's browser.
-5. In the HitPay dashboard, add the `hitpay-webhook` URL under Developers > Webhook Endpoints.
-
-Use the HitPay sandbox until the payment flow has been tested end to end.
-
-## Where things are
-
-```
-src/
-  main.js                 starts Vue, loads Bootstrap + our CSS
-  App.vue                 event banner, top nav, page outlet, footer, Biscuit, toast
-  router.js               pages: / , /know, /swipe, /parts, /build, /cart, /checkout, /order/:id, /account
-  store.js                shared state: answers, build, cart, user, saved builds, lucky-draw voucher
-  lib/supabase.js         Supabase client (reads VITE_SUPABASE_* from .env)
-  assets/main.css         our own styles (theme colours as CSS variables)
-  data/catalog.js         parts, prices, swipe questions  <- edit products here (sample prices)
-  data/fatcat.js          Biscuit's SVG, lucky-draw prizes and odds
-  logic/builder.js        compatibility rules + recommendation engine (plain JS, no Vue)
-  components/
-    Keyboard3D.vue        Three.js keyboard: mode "home" (background), "know" (teardown), "off"
-    FatCat.vue            mascot, chat box, spin wheel, confetti
-    ProfileChips.vue      the answer chips shown on Parts and Build
-  views/
-    HomeView.vue          hero + swipe-card preview, keyboard explodes behind as you scroll
-    KnowView.vue          "Know your keyboard" layer-by-layer teardown
-    QuizView.vue          Tinder-style swipe questionnaire
-    PartsView.vue         part-by-part picker with price differences and running total
-    SummaryView.vue       full build, ratings, compatibility check, save build, add to cart
-    CartView.vue          cart: one or more builds, edit or remove, totals
-    CheckoutView.vue      customer details, then HitPay payment
-    ConfirmView.vue       order status after payment
-    AccountView.vue       sign up / sign in, saved builds
-supabase/
-  schema.sql              tables and row level security (run once)
-  data.js                 parts and prebuilt keyboards, with importAll() for Supabase
-  functions/
-    checkout/             prices the cart on the server, creates the order and HitPay request
-    hitpay-webhook/       marks an order paid after HitPay's signature check
-    order-status/         returns one order's status to the confirmation page
-    _shared/catalog.js    a copy of src/data/catalog.js used by the functions (keep in sync)
+```bash
+npx playwright install chromium
 ```
 
-## Good to know
+## Environment variables
 
-- **Prices are sample data** until the team loads real ones into `supabase/data.js` and re-imports.
-  The site price always comes from the server at checkout, never from the browser.
-- **Keep the two catalogue copies in sync.** `src/data/catalog.js` and
-  `supabase/functions/_shared/catalog.js` must match. Copy the file again after any change.
-- **Lucky draw:** the wheel result is saved in the browser only. Its voucher codes are not yet
-  created on the server, so they won't be accepted at checkout until that is done.
-- **Demo shortcuts to remove before launch:** in Biscuit's chat, `/win10` (or `/win15`, `/win5`,
-  `/lose`) fixes the next spin. Remove these commands before going live.
-- **Placeholders:** the store address and opening hours in `FatCat.vue` are still `[store address]` and `[opening hours]`.
-- **3D model:** the keyboard is built from simple shapes in `Keyboard3D.vue`. To use Blender models later,
-  export `.glb` files and load them with Three.js's `GLTFLoader` in the same component.
-- **Class names:** our CSS avoids Bootstrap's names (`.ui-btn` instead of `.btn`, `.scard` instead of `.card`,
-  `.ld-modal` instead of `.modal`). Bootstrap's grid (`row`, `col-*`) is used on Home and Parts.
+Copy `.env.example` to `.env` and fill in as needed; both values are optional in
+dev and the Supabase client stays `null` without them.
+
+```powershell
+# Windows PowerShell
+Copy-Item .env.example .env
+```
+
+```bash
+# macOS Terminal
+cp .env.example .env
+```
+
+| Variable | Purpose |
+| --- | --- |
+| `VITE_SUPABASE_URL` | Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anon key |
+
+## CI
+
+`.github/workflows/ci.yml` runs on push to `main` and on pull requests:
+Node 22 → `npm ci` → Vitest → Playwright (chromium) → build, then uploads the
+Playwright HTML report as an artifact.
+
+## Deploy (Vercel)
+
+Import the repo; Vercel detects Vite. Build command `npm run build`, output
+directory `dist`. Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as
+project environment variables. The SPA uses history routing, so configure and
+verify a SPA history fallback that rewrites unknown paths to `index.html`, and
+test a direct reload of `/builder` after deploying — do not assume the platform
+already rewrites unknown routes.

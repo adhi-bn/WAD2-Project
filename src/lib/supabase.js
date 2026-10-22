@@ -9,3 +9,20 @@ export const supabaseReady = Boolean(url && key)
 export const supabase = supabaseReady ? createClient(url, key) : null
 export const functionsUrl = url ? `${url}/functions/v1` : ''
 export const anonKey = key || ''
+
+// Seams used by the WAD2 tests. createSupabaseClient builds a client only when both
+// values are present; getSupabase is the lazily cached, null-safe client for those values.
+export function createSupabaseClient(url, key) {
+  if (!url || !key) return null
+  return createClient(url, key)
+}
+
+let cached
+export function getSupabase() {
+  if (cached !== undefined) return cached
+  cached = createSupabaseClient(
+    import.meta.env.VITE_SUPABASE_URL,
+    import.meta.env.VITE_SUPABASE_ANON_KEY,
+  )
+  return cached
+}

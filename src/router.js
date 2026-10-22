@@ -9,6 +9,7 @@ import CartView from './views/CartView.vue'
 import CheckoutView from './views/CheckoutView.vue'
 import ConfirmView from './views/ConfirmView.vue'
 import AccountView from './views/AccountView.vue'
+import BuilderView from './views/BuilderView.vue'
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -22,6 +23,7 @@ const router = createRouter({
     { path: '/checkout', name: 'checkout', component: CheckoutView, meta: { needsCart: true } },
     { path: '/order/:id', name: 'order', component: ConfirmView },
     { path: '/account', name: 'account', component: AccountView },
+    { path: '/builder', name: 'builder', component: BuilderView },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
   scrollBehavior() {

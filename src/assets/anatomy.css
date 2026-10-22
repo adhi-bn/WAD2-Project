@@ -504,3 +504,20 @@
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
+
+/* Know your keyboard, phone: the card sits at the top and the 3D keyboard at the bottom of the screen. */
+@media (max-width: 991.98px) {
+  #know .exploded-anatomy-container:not([data-webgl-status="unavailable"]) {
+    top: auto;
+    bottom: 0;
+    height: 56vh;
+  }
+  #know .ks {
+    align-items: flex-start;
+    padding-top: 84px;
+    padding-bottom: 0;
+  }
+  #know .ks[data-layer="-1"] {
+    min-height: 62vh;
+  }
+}
