@@ -11,6 +11,7 @@ import FatCat from './components/FatCat.vue'
         <div class="d-flex gap-2">
           <RouterLink to="/" class="navlink">Home</RouterLink>
           <RouterLink to="/builder" class="navlink">Builder</RouterLink>
+          <RouterLink to="/about" class="navlink">About us</RouterLink>
         </div>
       </nav>
     </header>

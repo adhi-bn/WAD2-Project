@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Responsive About Us page with keyboard visual, platform story, feature cards, store-details placeholder, and Keyboard Builder calls to action.
 - Claude agent configuration and entrypoint in [`CLAUDE.md`](CLAUDE.md).
 - System architecture documentation, directory outline, and technical seams in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 - Structured 6-step recipe for implementing new domain and UI features in [`docs/ADDING-A-FEATURE.md`](docs/ADDING-A-FEATURE.md).
