@@ -1,5 +1,3 @@
-# WAD2-Project
-
 # Le Chaton Typers (aka Fat Cat Typers)
 
 A custom mechanical keyboard builder: swipe through six cards, get a recommended build,

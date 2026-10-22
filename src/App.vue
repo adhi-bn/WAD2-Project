@@ -1,14 +1,8 @@
 <script setup>
 import { computed } from 'vue'
-import { useRoute } from 'vue-router'
 import { state, openWheel } from './store.js'
 import { CAT_SVG } from './data/fatcat.js'
-import Keyboard3D from './components/Keyboard3D.vue'
 import FatCat from './components/FatCat.vue'
-
-const route = useRoute()
-// The 3D keyboard is a background on Home, a teardown on Know your keyboard, and off elsewhere.
-const mode3d = computed(() => (route.name === 'home' ? 'home' : route.name === 'know' ? 'know' : 'off'))
 
 const stages = [
   { name: 'swipe', to: '/swipe', n: 1, label: 'Swipe' },
@@ -60,8 +54,6 @@ const countdown = computed(() => {
       </div>
     </div>
   </header>
-
-  <Keyboard3D :mode="mode3d" />
 
   <main>
     <router-view />

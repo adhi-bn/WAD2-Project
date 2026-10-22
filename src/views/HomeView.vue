@@ -1,6 +1,36 @@
 <script setup>
-import { kbSVG } from '../logic/builder.js'
-import { openWheel } from '../store.js'
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { kbSVG, total, money } from '../logic/builder.js'
+import { openWheel, state, loadBuild, buildFromIds } from '../store.js'
+import ExplodedAnatomyCanvas from '../components/ExplodedAnatomyCanvas.vue'
+import { FATKEYS } from '../data/fatkeys.js'
+import FatkeyPreview from '../components/FatkeyPreview.vue'
+
+const router = useRouter()
+const fatkeys = FATKEYS.map((k) => ({ ...k, price: total(buildFromIds(k.layout, k.part_ids)) }))
+// The FATKEY waiting for the visitor's answer to "replace your build?"
+const pending = ref(null)
+
+// The budget starts at the keyboard's own price, so the meter shows any upgrade as going over.
+function startWith(k) {
+  state.answers.budget = k.price
+  loadBuild(k)
+  router.push('/parts')
+}
+function chooseFatkey(k) {
+  if (state.build) { pending.value = k; return }
+  startWith(k)
+}
+function replaceBuild() {
+  const k = pending.value
+  pending.value = null
+  startWith(k)
+}
+function keepBuild() {
+  pending.value = null
+  router.push('/parts')
+}
 
 const demoKb = kbSVG('75')
 const steps = [
@@ -14,6 +44,9 @@ const layers = ['Keycaps', 'Switches', 'Plate', 'PCB', 'Foam', 'Case']
 
 <template>
   <section class="screen" id="home">
+    <!-- 3D exploded keyboard, fixed behind the page; it opens up as the layer card scrolls past. -->
+    <ExplodedAnatomyCanvas />
+
     <div class="wrap">
       <div class="hero">
         <div>
@@ -37,6 +70,26 @@ const layers = ['Keycaps', 'Switches', 'Plate', 'PCB', 'Foam', 'Case']
             <h2>75%</h2>
             <p>Arrows and F-row, still compact. The popular middle.</p>
             <div class="eg">84 keys · 5 stabilisers · fits most desks</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ready-made FATKEY keyboards: pick one to start, or go straight to your own build. -->
+    <div class="hs fk-pick">
+      <div class="wrap">
+        <div class="eyebrow">Start with a FATKEY</div>
+        <h2 class="fk-title">Pick a ready-made keyboard.</h2>
+        <div class="row g-3">
+          <div v-for="k in fatkeys" :key="k.id" class="col-12 col-md-4">
+            <div class="step fk-card">
+              <FatkeyPreview :look="k.look" />
+              <div class="num">{{ k.layout }}% layout</div>
+              <h3>{{ k.name }}</h3>
+              <p>{{ k.tagline }}</p>
+              <div class="fk-price">from {{ money(k.price) }}</div>
+              <button type="button" class="ui-btn primary fk-btn" @click="chooseFatkey(k)">Select {{ k.name }}</button>
+            </div>
           </div>
         </div>
       </div>
@@ -75,6 +128,17 @@ const layers = ['Keycaps', 'Switches', 'Plate', 'PCB', 'Foam', 'Case']
             <router-link to="/swipe" class="ui-btn primary">Start swiping →</router-link>
             <button type="button" class="ui-btn" @click="openWheel">Spin the lucky wheel</button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="pending" class="pick-overlay" role="dialog" aria-modal="true" aria-labelledby="replaceTitle">
+      <div class="glass">
+        <div class="eyebrow">Replace your build?</div>
+        <h2 id="replaceTitle">You already have a build. Replace it with {{ pending.name }}?</h2>
+        <div class="acts">
+          <button type="button" class="ui-btn primary" @click="replaceBuild">Yes, replace it</button>
+          <button type="button" class="ui-btn" @click="keepBuild">No, keep mine</button>
         </div>
       </div>
     </div>

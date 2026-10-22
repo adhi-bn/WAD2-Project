@@ -94,6 +94,8 @@ export function loadBuild(item, { fromBiscuit = false } = {}) {
   state.answers.layout = item.layout
   state.cat = catalog(item.layout)
   state.build = buildFromIds(item.layout, item.part_ids)
+  // The parts page compares each part with the recommended build, so a loaded build needs one too.
+  state.rec = { ...state.build }
   state.biscuit = fromBiscuit
   state.reached.build = false
 }

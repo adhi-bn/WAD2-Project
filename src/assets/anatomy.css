@@ -1,0 +1,506 @@
+/* 3D Exploded Keyboard Anatomy Scene Backdrop */
+.exploded-anatomy-container:not([data-webgl-status="unavailable"]) {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.exploded-anatomy-container[data-webgl-status="unavailable"] {
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+  width: 100%;
+}
+
+.exploded-anatomy-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+}
+
+/* Ensure foreground content stacks cleanly above the 3D canvas backdrop */
+#home .wrap,
+#home .hero,
+#home .hs {
+  position: relative;
+  z-index: 1;
+}
+
+.layerchips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.layer-chip-btn {
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: var(--lct-radius-tag);
+  background: var(--lct-sunken-surface);
+  border: 1px solid var(--lct-line-grey);
+  color: var(--lct-text-ink);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+  line-height: 1.2;
+}
+
+.layer-chip-btn:hover {
+  background: var(--lct-card-surface);
+  border-color: var(--lct-accent-indigo);
+}
+
+.layer-chip-btn:active {
+  transform: translateY(1px);
+}
+
+.layer-chip-btn[aria-pressed="true"],
+.layer-chip-btn.is-active {
+  background: var(--lct-accent-indigo);
+  color: var(--lct-on-accent);
+  border-color: var(--lct-accent-indigo);
+  box-shadow: 0 0 0 1px var(--lct-accent-indigo);
+}
+
+.layer-chip-btn:focus-visible {
+  outline: 2px solid var(--lct-accent-indigo);
+  outline-offset: 2px;
+}
+
+.chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+/* Barebones Kit Bundled Internals Bracket */
+.barebones-bracket {
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border-radius: var(--lct-radius-control);
+  background: color-mix(in srgb, var(--lct-sunken-surface) 75%, transparent);
+  border: 1px dashed var(--lct-line-grey);
+}
+
+.barebones-bracket-header {
+  margin-bottom: 8px;
+}
+
+.barebones-bracket-badge {
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--lct-accent-indigo);
+}
+
+.barebones-bracket-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Active Layer Detail Card */
+.layer-detail-card {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: var(--lct-radius-control);
+  background: var(--lct-card-surface);
+  border: 1px solid var(--lct-line-grey);
+  box-shadow: 0 2px 8px rgba(18, 21, 28, 0.05);
+}
+
+.layer-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.layer-detail-title {
+  font-family: "Figtree", system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--lct-text-ink);
+}
+
+.layer-detail-tag {
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: var(--lct-radius-tag);
+}
+
+.layer-detail-tag.barebones {
+  background: var(--lct-accent-tint);
+  color: var(--lct-accent-indigo);
+}
+
+.layer-detail-tag.core-part {
+  background: var(--lct-sunken-surface);
+  color: var(--lct-muted-ink);
+  border: 1px solid var(--lct-line-grey);
+}
+
+.layer-detail-desc {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--lct-muted-ink);
+  margin: 0;
+}
+
+.gasket-stack-info {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--lct-text-ink);
+  background: var(--lct-sunken-surface);
+  padding: 8px 10px;
+  border-radius: var(--lct-radius-tag);
+  border: 1px solid var(--lct-line-grey);
+}
+
+.anatomy-disclaimer {
+  font-size: 11px;
+  line-height: 1.4;
+  font-style: italic;
+  color: var(--lct-muted-ink);
+  margin-top: 14px;
+}
+
+/* Guided Exploded Anatomy Step Cards (C-2, C-3) */
+.layer-step-section {
+  min-height: 65vh;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-block: 28px;
+}
+
+.layer-step-card {
+  max-width: 440px;
+  background: var(--lct-card-surface);
+  border: 1px solid var(--lct-line-grey);
+  border-radius: var(--lct-radius-card);
+  padding: 24px;
+  box-shadow: var(--lct-shadow-card);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.layer-step-card.is-active-step {
+  border-color: var(--lct-accent-indigo);
+  box-shadow: 0 10px 30px rgba(47, 65, 230, 0.16);
+  transform: translateY(-2px);
+}
+
+.step-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.step-card-header .eyebrow {
+  margin: 0;
+}
+
+.active-step-pill {
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: var(--lct-radius-tag);
+  background: var(--lct-accent-indigo);
+  color: #ffffff;
+}
+
+.layer-step-badge {
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: var(--lct-radius-tag);
+}
+
+.layer-step-badge.barebones {
+  background: var(--lct-accent-tint);
+  color: var(--lct-accent-indigo);
+}
+
+.layer-step-badge.core-part {
+  background: var(--lct-sunken-surface);
+  color: var(--lct-muted-ink);
+  border: 1px solid var(--lct-line-grey);
+}
+
+.step-summary {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--lct-muted-ink);
+  margin: 8px 0 0;
+}
+
+.layer-step-card .facts {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--lct-line-grey);
+  padding-top: 12px;
+}
+
+.layer-step-card .facts li {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.layer-step-card .facts li b {
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--lct-text-ink);
+  min-width: 84px;
+  flex-shrink: 0;
+}
+
+.layer-step-card .facts li span {
+  color: var(--lct-muted-ink);
+}
+
+@media (min-width: 992px) {
+  .layer-step-section .wrap {
+    display: flex;
+    justify-content: flex-start;
+  }
+  .layer-step-card {
+    max-width: 440px;
+    margin-left: 0;
+    margin-right: auto;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .layer-step-section {
+    min-height: 72vh;
+    align-items: flex-end;
+    padding-bottom: 32px;
+  }
+  .layer-step-card {
+    max-width: 100%;
+    margin: 0 auto;
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+}
+
+/* Exploded Anatomy HTML Fallback */
+.exploded-anatomy-fallback:not(.is-fallback-visible) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.exploded-anatomy-fallback.is-fallback-visible {
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+  max-width: 680px;
+  margin: 24px auto;
+  padding: 0 16px;
+}
+
+.fallback-card {
+  background: var(--lct-card-surface);
+  border: 1px solid var(--lct-line-grey);
+  border-radius: var(--lct-radius-card);
+  padding: 24px;
+  box-shadow: var(--lct-shadow-card);
+}
+
+.fallback-eyebrow {
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--lct-accent-indigo);
+}
+
+.fallback-title {
+  font-family: "Unbounded", "Arial Black", system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  margin: 6px 0 8px;
+  color: var(--lct-text-ink);
+}
+
+.fallback-subtitle {
+  font-size: 13px;
+  color: var(--lct-muted-ink);
+  margin: 0 0 16px;
+}
+
+.fallback-layers-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fallback-layer-row {
+  padding: 12px 14px;
+  border-radius: var(--lct-radius-control);
+  background: var(--lct-sunken-surface);
+  border: 1px solid var(--lct-line-grey);
+}
+
+.fallback-layer-row.is-barebones-internals {
+  border-left: 3px solid var(--lct-accent-indigo);
+}
+
+.fallback-layer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.fallback-layer-name {
+  font-family: "Figtree", system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--lct-text-ink);
+}
+
+.fallback-badge {
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: var(--lct-radius-tag);
+}
+
+.fallback-badge.barebones {
+  background: var(--lct-accent-tint);
+  color: var(--lct-accent-indigo);
+}
+
+.fallback-badge.core-part {
+  background: var(--lct-card-surface);
+  color: var(--lct-muted-ink);
+  border: 1px solid var(--lct-line-grey);
+}
+
+.fallback-layer-desc {
+  font-size: 12px;
+  color: var(--lct-muted-ink);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.fallback-disclaimer {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--lct-muted-ink);
+  margin-top: 14px;
+  margin-bottom: 0;
+}
+
+
+/* Know your keyboard: keep the text above the 3D backdrop. */
+#know .ks .wrap { position: relative; z-index: 1; }
+
+/* Know your keyboard, desktop: text on the left, 3D keyboard on the right, so the two never overlap. */
+@media (min-width: 992px) {
+  #know .exploded-anatomy-container:not([data-webgl-status="unavailable"]) {
+    left: 44vw;
+    width: 56vw;
+  }
+  #know .kintro h1 {
+    font-size: clamp(32px, 3.4vw, 50px);
+    max-width: 12ch;
+  }
+  #know .kintro p,
+  #know .layer-step-card {
+    max-width: 38ch;
+  }
+}
+
+/* Know your keyboard: the intro becomes a glass card, like the layer cards, so the text stays readable over the 3D view. */
+#know .kintro {
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 26px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  max-width: 520px;
+}
+@media (min-width: 992px) {
+  #know .kintro { max-width: min(520px, 42vw); }
+  #know .kintro h1 { max-width: none; }
+}
+
+/* Know your keyboard, phone: the 3D keyboard fills the upper part of the screen and each layer card sits below it. */
+@media (max-width: 991.98px) {
+  #know .exploded-anatomy-container:not([data-webgl-status="unavailable"]) {
+    height: 58vh;
+    bottom: auto;
+  }
+}
+
+/* Know your keyboard: the layer card in view turns solid white. */
+#know .layer-step-card.is-active-step {
+  background: #FFFFFF;
+  transition: background .3s ease;
+}
+
+/* Know your keyboard, phone: the intro scroll section is shorter, so the intro card sits right under the keyboard. */
+@media (max-width: 991.98px) {
+  #know .ks[data-layer="-1"] {
+    min-height: 66vh;
+  }
+}
+
+/* Know your keyboard: every text card is solid white, so it sits clearly on top of the 3D keyboard. */
+#know .kintro,
+#know .layer-step-card {
+  background: #FFFFFF;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
