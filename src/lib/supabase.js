@@ -17,6 +17,7 @@ export function createSupabaseClient(url, key) {
   return createClient(url, key)
 }
 
+// ponytail: one lazily-cached client; add auth/realtime wiring when a feature needs it.
 let cached
 export function getSupabase() {
   if (cached !== undefined) return cached
