@@ -63,6 +63,7 @@ Vue Router (URL) ──> Views (src/views/)
    - Zero dependencies on Vue, the DOM, or external packages.
    - **Integer-Cent Currency Math**: Currency calculations operate strictly in integer cents using canonical decimal string parsing (`toCents`) to eliminate IEEE-754 floating-point inaccuracies. Price limits and sums must safely round-trip between numbers and integer cents.
    - Domain functions return descriptive diagnostic objects (e.g., `{ compatible, reasons, incomplete, incompatible }` and `{ total, withinBudget, error }`) instead of raising UI exceptions.
+   - **Interim Catalog Schema vs. Domain Invariant (ADR-0007)**: The builder domain strictly models exactly three Part slots (`barebones`, `switches`, `keycaps`). The backend Supabase catalog temporarily stores 8 granular physical layers (`case`, `plate`, `pcb`, `foam`, `switches`, `keycaps`, `stabs`, `cable`) as documented technical debt to support prototype flows; the builder domain will not expand to support 8 independent parts, and consolidating them into Barebones kits is scheduled for a future refactoring pass.
 
 2. **Reactive Stores (`src/stores/`)**:
    - Module-level reactive singletons using Vue's `reactive()` and `computed()`.

@@ -9,7 +9,7 @@ import { supabase, supabaseReady } from '../lib/supabase.js'
 import { CATS } from '../data/catalog.js'
 
 const router = useRouter()
-const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+const reduce = typeof window !== 'undefined' && typeof window.matchMedia === 'function' ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : false
 
 /* ---------- chat ---------- */
 const DEFAULT_CHIPS = [['spin', 'Spin the wheel'], ['switch', 'Help me pick switches'], ['store', 'Visit the store'], ['reset', 'Reset demo']]
@@ -225,26 +225,26 @@ function confetti() {
 
 <template>
   <div v-show="!hiddenCat" class="kitty">
-    <div v-if="chatOpen" class="chat" role="dialog" aria-label="Chat with Biscuit">
-      <header>
-        <span class="av" v-html="CAT_SVG"></span>
+    <div v-if="chatOpen" class="chat lct-chat" role="dialog" aria-modal="true" aria-label="Chat with Biscuit">
+      <header class="lct-chat__header">
+        <span class="av lct-chat__av" v-html="CAT_SVG"></span>
         <div class="who"><b>Biscuit</b><span>Le Chaton Typers' fat cat</span></div>
-        <button type="button" class="ic" aria-label="Minimise chat" @click="chatOpen = false">–</button>
+        <button type="button" class="ic lct-chat__close" aria-label="Minimise chat" @click="chatOpen = false">–</button>
         <button type="button" class="ic" aria-label="Hide Biscuit" @click="hiddenCat = true">×</button>
       </header>
-      <div ref="msgBox" class="msgs" aria-live="polite">
+      <div ref="msgBox" class="msgs lct-chat__messages" aria-live="polite">
         <template v-for="m in msgs" :key="m.id">
           <div v-if="m.typing" class="msg bot typing"><i></i><i></i><i></i></div>
-          <div v-else-if="m.who === 'me'" class="msg me">{{ m.html }}</div>
-          <div v-else class="msg bot" v-html="m.html"></div>
+          <div v-else-if="m.who === 'me'" class="msg me lct-chat__msg">{{ m.html }}</div>
+          <div v-else class="msg bot lct-chat__msg" v-html="m.html"></div>
         </template>
       </div>
-      <div class="quick"><button v-for="c in chips" :key="c[0]" type="button" @click="tapChip(c)">{{ c[1] }}</button></div>
+      <div class="quick"><button v-for="c in chips" :key="c[0]" type="button" class="lct-chat__chip" @click="tapChip(c)">{{ c[1] }}</button></div>
       <form class="chatin" @submit.prevent="send">
         <button type="button" class="ui-btn" aria-label="Send a photo of a keyboard" title="Send a photo" :disabled="aiBusy" @click="pickPhoto">📷</button>
         <input ref="photoIn" type="file" accept="image/jpeg,image/png,image/webp" hidden @change="onPhoto" />
-        <input v-model="input" placeholder="Ask Biscuit…" autocomplete="off" aria-label="Message Biscuit" />
-        <button class="ui-btn primary" type="submit" :disabled="aiBusy">Send</button>
+        <input v-model="input" class="lct-chat__input-field" placeholder="Ask Biscuit…" autocomplete="off" aria-label="Message Biscuit" />
+        <button class="ui-btn primary lct-chat__send" type="submit" :disabled="aiBusy">Send</button>
       </form>
     </div>
     <div v-if="tease && !chatOpen" class="tease">
@@ -252,7 +252,7 @@ function confetti() {
       <p>Psst! Spin my lucky wheel for up to <b>15% off</b> your build.</p>
       <button type="button" class="ui-btn primary" @click="tease = false; openWheel()">Spin now</button>
     </div>
-    <button type="button" class="catbtn" aria-label="Chat with Biscuit the cat" @click="chatOpen ? (chatOpen = false) : openChat()">
+    <button type="button" class="catbtn lct-mascot" :aria-label="chatOpen ? 'Close chat with Biscuit' : (badge ? 'Open chat with Biscuit (1 unread message)' : 'Open chat with Biscuit')" @click="chatOpen ? (chatOpen = false) : openChat()">
       <span v-html="CAT_SVG"></span><span v-if="badge" class="cat-badge">1</span>
     </button>
   </div>

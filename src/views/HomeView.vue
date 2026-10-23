@@ -103,7 +103,11 @@ const layers = ['Keycaps', 'Switches', 'Plate', 'PCB', 'Foam', 'Case']
           <h2>Every keyboard is six layers.</h2>
           <p>Keep scrolling. The keyboard behind this page is coming apart, and you get to choose every layer.</p>
           <div class="layerchips"><span v-for="l in layers" :key="l">{{ l }}</span></div>
-          <div class="acts"><router-link to="/know" class="ui-btn">Know your keyboard →</router-link></div>
+          <p class="fine mt-2">Choose your <b>Barebones kit</b>, <b>Switches</b>, and <b>Keycaps</b>. Setting a budget warns when you go over, but never blocks you.</p>
+          <div class="acts">
+            <router-link to="/know" class="ui-btn">Know your keyboard →</router-link>
+            <router-link to="/builder" class="ui-btn">Direct to Builder →</router-link>
+          </div>
         </div>
       </div>
     </div>

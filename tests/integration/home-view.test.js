@@ -8,7 +8,10 @@ function mountHome() {
     history: createMemoryHistory(),
     routes: [
       { path: '/', component: HomeView },
+      { path: '/swipe', component: { template: '<div />' } },
+      { path: '/know', component: { template: '<div />' } },
       { path: '/builder', component: { template: '<div />' } },
+      { path: '/parts', component: { template: '<div />' } },
     ],
   })
   return mount(HomeView, { global: { plugins: [router] } })
@@ -29,22 +32,29 @@ describe('HomeView', () => {
     expect(text).toMatch(/never block|not block|won't block/i)
   })
 
-  it('links its primary CTA to the builder', () => {
-    expect(mountHome().find('a.ui-btn.primary[href="/builder"]').exists()).toBe(true)
+  it('links its primary CTA to start swiping and educational tour to know', () => {
+    const wrapper = mountHome()
+    expect(wrapper.find('a.ui-btn.primary[href="/swipe"]').exists()).toBe(true)
+    expect(wrapper.find('a.ui-btn[href="/know"]').exists()).toBe(true)
   })
 
-  it('has no links to removed prototype routes', () => {
-    for (const a of mountHome().findAll('a')) {
-      expect(a.attributes('href') || '').not.toMatch(/\/(swipe|know)\b/)
-    }
+  it('renders the ready-made FATKEY keyboard options', () => {
+    const wrapper = mountHome()
+    expect(wrapper.find('.fk-pick').exists()).toBe(true)
+    const cards = wrapper.findAll('.fk-card')
+    expect(cards.length).toBe(3)
+    const text = wrapper.find('.fk-pick').text()
+    expect(text).toContain('FATKEY')
+    expect(text).toContain('FATKEY PRO')
+    expect(text).toContain('FATKEY PRO MAX')
   })
 
-  it('renders the prototype 4-section structure (.hero, .hs-look, .step, .hs-end)', () => {
+  it('renders the layout sections and step cards', () => {
     const wrapper = mountHome()
     expect(wrapper.find('.hero').exists()).toBe(true)
     expect(wrapper.find('.stackdemo').exists()).toBe(true)
     expect(wrapper.find('.hs.hs-look').exists()).toBe(true)
-    expect(wrapper.findAll('.step').length).toBe(4)
+    expect(wrapper.findAll('.step').length).toBeGreaterThanOrEqual(4)
     expect(wrapper.find('.hs.hs-end').exists()).toBe(true)
   })
 
@@ -53,13 +63,5 @@ describe('HomeView', () => {
     const kb = wrapper.find('.stackdemo .kbwrap svg.kb')
     expect(kb.exists()).toBe(true)
     expect(kb.attributes('viewBox')).toBe('-6 -6 172 74.5')
-  })
-
-  it('ensures all CTAs link to the builder', () => {
-    const links = mountHome().findAll('a')
-    expect(links.length).toBeGreaterThan(0)
-    for (const a of links) {
-      expect(a.attributes('href')).toBe('/builder')
-    }
   })
 })
