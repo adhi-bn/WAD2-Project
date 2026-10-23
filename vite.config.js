@@ -1,9 +1,9 @@
-import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vite'
+import vue from '@vitejs/plugin-vue'
 
-// Brand styling comes from Bootstrap CSS + the custom class namespace.
 export default defineConfig({
   plugins: [vue()],
+  build: { chunkSizeWarningLimit: 1000 },
   test: {
     environment: 'jsdom',
     globals: true,

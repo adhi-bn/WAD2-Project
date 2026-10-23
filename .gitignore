@@ -1,3 +1,20 @@
+node_modules
+dist
+.DS_Store
+
+# Local secrets. Never commit real keys. Commit .env.example instead.
+.env
+.env.*
+!.env.example
+
+# Supabase CLI local state
+supabase/.temp
+supabase/.branches
+
+# Server-side secrets (HitPay, service role, OpenAI). Keep this file local.
+supabase/.env
+
+# Merged from WAD2-Project
 # Logs
 logs
 *.log
@@ -6,30 +23,19 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-
-node_modules
-dist
 dist-ssr
 *.local
-
 # Editor directories and files
 .vscode/
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-
 # Optional local preview tooling (not shared)
 .impeccable/
-
 # Playwright
 test-results
 playwright-report
-
 # Env
-.env
-.env.*
-!.env.example
