@@ -1,4 +1,4 @@
-import { createRouter, createWebHashHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 import { state } from './store.js'
 import HomeView from './views/HomeView.vue'
 import KnowView from './views/KnowView.vue'
@@ -12,7 +12,7 @@ import AccountView from './views/AccountView.vue'
 import BuilderView from './views/BuilderView.vue'
 
 const router = createRouter({
-  history: createWebHashHistory(),
+  history: createWebHistory(),
   routes: [
     { path: '/', name: 'home', component: HomeView },
     { path: '/know', name: 'know', component: KnowView },

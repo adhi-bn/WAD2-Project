@@ -37,13 +37,13 @@ const countdown = computed(() => {
         <span class="brandcat" v-html="CAT_SVG"></span><span class="brandtxt">Le Chaton Typers</span>
       </router-link>
       <div class="topnav">
-        <router-link to="/" class="navlink" active-class="on">
+        <router-link to="/" class="navlink" active-class="on" aria-label="Home">
           <span class="full">Home</span><span class="short">Home</span>
         </router-link>
         <router-link to="/know" class="navlink" active-class="on">
           <span class="full">Know your keyboard</span><span class="short">Learn</span>
         </router-link>
-        <router-link to="/builder" class="navlink" active-class="on">
+        <router-link to="/builder" class="navlink" active-class="on" aria-label="Builder">
           <span class="full">Builder</span><span class="short">Builder</span>
         </router-link>
         <router-link to="/account" class="navlink" active-class="on">
