@@ -5,21 +5,44 @@ Custom mechanical-keyboard builder: users assemble a keyboard from compatible pa
 ## Language
 
 **Build**:
-A user-assembled keyboard made by choosing one Part in each slot.
+A user-assembled keyboard made by choosing one Part in each of the 6 Component Groups (Case, Plate, PCB, Switches, Keycaps, and Add-ons), governed by [docs/adr/0008-hybrid-six-group-builder-architecture.md](docs/adr/0008-hybrid-six-group-builder-architecture.md).
 _Avoid_: Configuration, custom keyboard
 
 **Part**:
-One selectable component for a Build, in exactly one of three slots: barebones, switches, keycaps.
-*(Note: As documented in [docs/adr/0007-temporary-8-part-catalog-schema.md](docs/adr/0007-temporary-8-part-catalog-schema.md), the backend Supabase catalog temporarily persists 8 granular physical layers — `case`, `plate`, `pcb`, `foam`, `switches`, `keycaps`, `stabs`, `cable` — as technical debt to support the prototype customizer and checkout. The canonical builder domain model targets 3 slots and will not support 8 independent parts; consolidating these layers into Barebones kits is scheduled for a future refactoring milestone).*
+One selectable component for a Build, belonging to exactly one of the 6 Component Groups: Case, Plate, PCB, Switches, Keycaps, or Add-ons.
+*(Note: As documented in [docs/adr/0008-hybrid-six-group-builder-architecture.md](docs/adr/0008-hybrid-six-group-builder-architecture.md), which supersedes [docs/adr/0007-temporary-8-part-catalog-schema.md](docs/adr/0007-temporary-8-part-catalog-schema.md), the builder architecture establishes a 6-group hybrid model condensing the physical layers to eliminate horizontal scrolling on desktop while preserving user agency).*
 _Avoid_: Component, item
 
 **Barebones kit**:
-The base unit of a Build, with its case and fixed internals (plate, PCB, foam, stabilizers) bundled and priced as one Part. Switches and keycaps attach to it.
+The base physical assembly of a Build. In the 6-group builder architecture, the structural foundation is customized across Case, Plate, and PCB, while secondary accessory components (Foam, Stabilizers, Cable) are bundled under Add-ons.
 _Avoid_: Base, kit
 
+**Component Groups**:
+The 6 canonical builder selection categories:
+1. **Case**: The structural exterior housing of the keyboard, determining layout size and material.
+2. **Plate**: The mounting plate supporting the switches.
+3. **PCB**: The printed circuit board providing electrical connections and hot-swap sockets.
+4. **Switches**: The mechanical key switches that register keystrokes.
+5. **Keycaps**: The sculpted caps that sit on switch stems.
+6. **Add-ons**: The bundled secondary accessories (Foam, Stabilizers, Cable).
+This 6-group configuration condenses the previous 8 granular layers to fit standard desktop displays without horizontal navigation overflow.
+_Avoid_: Categories, tabs
+
+**Add-ons**:
+Secondary accessory components bundling Foam, Stabilizers, and Cable into a single category. Add-ons are preselected by default from the starter build or preference quiz recommendations, simplifying assembly for newcomers while allowing customization for enthusiasts.
+_Avoid_: Extras, accessories, miscellaneous
+
 **Compatibility**:
-Whether the chosen switches, keycaps, and barebones for a Build fit together. PCB and foam are not separately customisable in the canonical builder.
+Whether the chosen components for a Build fit together physically and electrically. Validated against database-driven JSON schema flags for layout size (e.g., 60%, 75%, 100%) and socket type (e.g., hot-swap).
 _Avoid_: Validity, match
+
+**Incompatibility Badge / Banner**:
+The visual and behavioral feedback shown when a component violates hardware compatibility rules (layout size: 60%/75%/100%, socket type: hot-swap) validated against schema flags. Incompatible components display a red badge on their option card and a top warning banner across the builder view, explaining the conflict and blocking progression/checkout until resolved.
+_Avoid_: Error popup, blocker alert
+
+**3D Build Preview Boundary**:
+The architectural boundary governing the builder's interactive 3D canvas. The 3D view in the builder statically displays and updates only 3 active visual layers: Keycaps, Switches, and Base (Case). Internal components (PCB, Plate, Foam, Stabilizers) do NOT visually alter or mutate the 3D model geometry or exploded rendering, but register selection state and present high-fidelity 2D product imagery.
+_Avoid_: Full 3D rendering, interior 3D view
 
 **Budget**:
 The user's target spend for a Build, compared against the total price of its selected Parts.

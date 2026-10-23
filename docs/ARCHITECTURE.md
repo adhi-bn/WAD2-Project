@@ -63,11 +63,12 @@ Vue Router (URL) ──> Views (src/views/)
    - Zero dependencies on Vue, the DOM, or external packages.
    - **Integer-Cent Currency Math**: Currency calculations operate strictly in integer cents using canonical decimal string parsing (`toCents`) to eliminate IEEE-754 floating-point inaccuracies. Price limits and sums must safely round-trip between numbers and integer cents.
    - Domain functions return descriptive diagnostic objects (e.g., `{ compatible, reasons, incomplete, incompatible }` and `{ total, withinBudget, error }`) instead of raising UI exceptions.
-   - **Interim Catalog Schema vs. Domain Invariant (ADR-0007)**: The builder domain strictly models exactly three Part slots (`barebones`, `switches`, `keycaps`). The backend Supabase catalog temporarily stores 8 granular physical layers (`case`, `plate`, `pcb`, `foam`, `switches`, `keycaps`, `stabs`, `cable`) as documented technical debt to support prototype flows; the builder domain will not expand to support 8 independent parts, and consolidating them into Barebones kits is scheduled for a future refactoring pass.
+   - **6-Group Hybrid Builder Architecture (ADR-0008)**: The builder domain models 6 Component Groups: `case`, `plate`, `pcb`, `switches`, `keycaps`, and `add_ons` (bundling `foam`, `stabs`, and `cable`), superseding the interim 8-part technical debt framing of [ADR-0007](adr/0007-temporary-8-part-catalog-schema.md) with [ADR-0008](adr/0008-hybrid-six-group-builder-architecture.md). Secondary accessory components in `add_ons` are preselected by default from the starter build or preference quiz.
+   - **Database-Driven Compatibility Validation**: Hardware compatibility is evaluated against JSON schema flags for layout size (60%, 75%, 100% matching across Case, Plate, and PCB) and socket type (hot-swap). Incompatible parts display a red badge on their card and a top warning banner, blocking progression and checkout until resolved.
 
 2. **Reactive Stores (`src/stores/`)**:
    - Module-level reactive singletons using Vue's `reactive()` and `computed()`.
-   - Store state manages user selections across the three Part slots: `barebones`, `switches`, and `keycaps`, plus the target `limit`.
+   - Store state manages user selections across the 6 Component Groups: `case`, `plate`, `pcb`, `switches`, `keycaps`, and `add_ons`, plus the target `limit`, pre-populating Add-ons defaults from the starter build.
    - Derived values (`compatibility`, `budget`) are computed by invoking the pure domain functions, preventing UI components from reimplementing business rules.
    - State modifications occur via designated updater functions (e.g., `setSlot`, `setLimit`).
 
@@ -75,6 +76,8 @@ Vue Router (URL) ──> Views (src/views/)
    - `src/views/` correspond to top-level routes declared in `src/router/index.js`.
    - Components read from reactive stores and dispatch actions via store helpers or router navigation.
    - UI components never execute domain math or validation directly; they consume store computed properties.
+   - **3-Layer 3D Visual Preview Boundary**: In `BuilderView.vue`, the interactive Three.js 3D canvas is architecturally bounded to 3 active exterior layers: **Keycaps**, **Switches**, and **Base (Case)**. Internal hardware selections (Plate, PCB, Foam, Stabilizers) do not alter 3D mesh geometry, avoiding WebGL polygon bloat and misalignment; their details and visual cues are presented via high-fidelity 2D product imagery on selection cards.
+   - **Floating Navigation Shortcut**: A floating action button with a hover tooltip menu provides fast jumping between the 6 Component Groups without requiring horizontal tab scrolling.
 
 4. **Null-Safe External Seams (`src/lib/`)**:
    - `src/lib/supabase.js` exports `getSupabase()` (and `createSupabaseClient(url, key)`), which lazily instantiates the Supabase client. If environment variables (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) are missing, `getSupabase()` returns `null`.

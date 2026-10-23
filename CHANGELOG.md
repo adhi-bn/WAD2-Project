@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Architectural Decision Record [`docs/adr/0007-temporary-8-part-catalog-schema.md`](docs/adr/0007-temporary-8-part-catalog-schema.md) documenting the temporary retention of the 8-part Supabase catalog schema as technical debt.
+- Architectural Decision Record [`docs/adr/0008-hybrid-six-group-builder-architecture.md`](docs/adr/0008-hybrid-six-group-builder-architecture.md) establishing the 6-group hybrid keyboard builder architecture (Case, Plate, PCB, Switches, Keycaps, Add-ons), 3-layer 3D visual preview boundary, preselected Add-ons, and database-driven compatibility feedback.
+- Architectural Decision Record [`docs/adr/0007-temporary-8-part-catalog-schema.md`](docs/adr/0007-temporary-8-part-catalog-schema.md) documenting the temporary retention of the 8-part Supabase catalog schema as technical debt (superseded by ADR-0008).
 - Claude agent configuration and entrypoint in [`CLAUDE.md`](CLAUDE.md).
 - System architecture documentation, directory outline, and technical seams in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 - Structured 6-step recipe for implementing new domain and UI features in [`docs/ADDING-A-FEATURE.md`](docs/ADDING-A-FEATURE.md).
@@ -18,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Repository changelog in [`CHANGELOG.md`](CHANGELOG.md) tracking milestones and unreleased changes following Keep a Changelog 1.1.0.
 
 ### Changed
+- Superseded ADR-0007 with ADR-0008, formalizing team consensus to condense 8 physical layers into 6 Component Groups (Case, Plate, PCB, Switches, Keycaps, Add-ons) to eliminate desktop horizontal scrolling while bundling Foam, Stabilizers, and Cable into preselected Add-ons.
+- Aligned `CONTEXT.md`, `docs/specs/keyboard-builder.md`, and `docs/ARCHITECTURE.md` with ADR-0008, updating Build, Part, Barebones kit, Compatibility definitions, 6 Component Groups, 3-layer 3D visual preview boundary (Keycaps, Switches, Base/Case), 2D internal imagery, floating navigation shortcut, and red badge + top warning banner compatibility feedback.
 - Documented collaboration conventions, branching strategy, Conventional Commits, dependency management, and environment variable synchronization.
 - Standardized code documentation requirements across collaboration guides, mandating JSDoc docstrings for public exports/functions and inline comments for non-obvious logic when agents or contributors write code.
 
