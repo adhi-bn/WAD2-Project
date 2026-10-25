@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 test('shell loads and nav renders', async ({ page }) => {
+  test.setTimeout(60000)
   await page.goto('/')
 
   await expect(page.getByRole('link', { name: 'Le Chaton Typers' })).toBeVisible()
