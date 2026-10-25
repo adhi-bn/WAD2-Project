@@ -35,6 +35,7 @@ describe('profile authentication surface', () => {
 
     expect(wrapper.get('h1').text()).toBe('Sign in to save your builds')
     expect(wrapper.text()).toContain('Accounts are not connected yet.')
+    expect(wrapper.get('button[disabled]').text()).toBe('Continue with Google')
   })
 
   it('changes the shell account label to Profile for a signed-in user', async () => {
@@ -77,5 +78,16 @@ describe('profile authentication surface', () => {
     expect(state.build).toBeNull()
     expect(state.guestDraft).toBeNull()
     expect(state.ui.accountTransition).toBe(false)
+  })
+
+  it('shows a preserved guest draft to signed-out visitors after a reload', () => {
+    const draft = { layout: '75', part_ids: { case: 'case-plastic', plate: 'plate-steel', pcb: 'pcb-hot', switch: 'sw-linear', keycap: 'kc-abs', addon: 'add-wrist' }, budget: 350 }
+    localStorage.setItem('lct_guest_draft', JSON.stringify(draft))
+    state.guestDraft = draft
+
+    const wrapper = mount(AccountView)
+
+    expect(wrapper.get('.profile-draft').text()).toContain('Local guest draft')
+    expect(wrapper.get('.profile-draft button').text()).toBe('Open guest draft')
   })
 })

@@ -103,6 +103,10 @@ function continueGuestDraft() {
 
       <div v-if="!supabaseReady" class="panel">
         <p>Accounts are not connected yet. Add your Supabase details to the site settings to turn this on.</p>
+        <button ref="googleButton" type="button" class="ui-btn google-btn" disabled aria-describedby="googleUnavailable">
+          Continue with Google
+        </button>
+        <p id="googleUnavailable" class="account-status">Google sign-in is unavailable until Supabase is configured.</p>
       </div>
 
       <div v-else-if="!state.user" class="panel" style="max-width: 480px">
@@ -161,11 +165,6 @@ function continueGuestDraft() {
           </div>
         </div>
 
-        <div v-if="state.guestDraft" class="panel profile-draft">
-          <div><div class="eyebrow">Local guest draft</div><p>A Build was explicitly preserved on this device and is not attached to your profile.</p></div>
-          <button type="button" class="ui-btn" @click="continueGuestDraft">Open guest draft</button>
-        </div>
-
         <div v-if="saved.length === 0" class="panel">
           <h3>No saved builds yet</h3>
           <p>Build a keyboard and press "Save build" on the build page.</p>
@@ -198,6 +197,11 @@ function continueGuestDraft() {
             <p>Payment details are unavailable. This app does not collect or store card information.</p>
           </section>
         </div>
+      </div>
+
+      <div v-if="state.guestDraft" class="panel profile-draft">
+        <div><div class="eyebrow">Local guest draft</div><p>A Build was explicitly preserved on this device and is not attached to your profile.</p></div>
+        <button type="button" class="ui-btn" @click="continueGuestDraft">Open guest draft</button>
       </div>
     </div>
   </section>

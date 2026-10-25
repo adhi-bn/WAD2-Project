@@ -7,6 +7,7 @@ import { supabase, supabaseReady } from './lib/supabase.js'
 
 const saved = (() => { try { return JSON.parse(localStorage.getItem('lct_ld') || '{}') } catch (e) { return {} } })()
 const savedCart = (() => { try { return JSON.parse(localStorage.getItem('lct_cart') || '[]') } catch (e) { return [] } })()
+const savedGuestDraft = (() => { try { return JSON.parse(localStorage.getItem('lct_guest_draft') || 'null') } catch (e) { return null } })()
 
 export const state = reactive({
   answers: { layout: null, weight: null, frame: null, keycap: null, switch: null, budget: 350 },
@@ -22,7 +23,7 @@ export const state = reactive({
   ld: Object.assign({ used: false, prize: null, code: null, expires: 0, applied: false }, saved), // lucky draw
   user: null, // signed-in Supabase user, or null
   savedBuilds: [], // the signed-in user's saved builds
-  guestDraft: null, // an explicitly preserved local Build, never uploaded automatically
+  guestDraft: savedGuestDraft, // an explicitly preserved local Build, never uploaded automatically
 })
 
 let sessionRevision = 0
@@ -200,6 +201,7 @@ export async function signInWithGoogle() {
  * @returns {Promise<{error?: string}>} An error when saving is unavailable or unsuccessful.
  */
 export async function saveBuild(name) {
+  if (!state.build) return { error: 'No build in progress.' }
   if (!supabase || !state.user) return { error: 'Sign in to save your build.' }
   if (state.ui.accountTransition) return { error: 'Choose what to do with the previous account Build before saving.' }
   const revision = sessionRevision
@@ -217,6 +219,7 @@ export async function saveBuild(name) {
  * @returns {Promise<void>}
  */
 export async function deleteSaved(id) {
+  if (!supabase || !state.user) return
   const revision = sessionRevision
   const userId = state.user?.id
   await supabase.from('saved_builds').delete().eq('id', id)
@@ -260,8 +263,11 @@ if (supabaseReady) {
   supabase.auth.onAuthStateChange((_event, session) => {
     const previousUserId = state.user?.id
     const nextUserId = session?.user?.id
+    const isAccountSwitch = Boolean(previousUserId && nextUserId && previousUserId !== nextUserId)
+    const isSignOut = Boolean(previousUserId && !nextUserId)
     sessionRevision += 1
-    clearAccountState()
+    // Keep device-only lucky-draw state through an initial session restore and token refresh.
+    if (isAccountSwitch || isSignOut) clearAccountState()
     state.user = session?.user ?? null
     // A Build cannot silently move from one account to another after an external session change.
     if (!isSigningOut && previousUserId && previousUserId !== nextUserId && state.build) state.ui.accountTransition = true
