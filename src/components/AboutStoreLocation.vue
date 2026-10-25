@@ -13,7 +13,7 @@ const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${enco
       <div class="col-12 col-lg-6">
         <div class="about-store__copy h-100">
           <p class="eyebrow">Visit our store</p>
-          <h2 id="store-heading" class="lct-headline">Try the feeling in person.</h2>
+          <h2 id="store-heading" class="lct-headline lct-balance">Try the feeling in person.</h2>
           <p class="lct-muted mb-4">
             Visit us at Jewel Changi Airport to see, hear, and try keyboard Parts in person.
           </p>
@@ -29,7 +29,7 @@ const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${enco
             </div>
             <div>
               <dt>Contact</dt>
-              <dd><a href="tel:+6569694835">+65 9696 4835</a></dd>
+              <dd><a href="tel:+6596964835">+65 9696 4835</a></dd>
             </div>
           </dl>
 
@@ -51,8 +51,11 @@ const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${enco
             class="about-store__map"
             :src="mapUrl"
             title="Google Maps showing Le Chaton Typers at Jewel Changi Airport"
+            width="600"
+            height="450"
             loading="lazy"
             referrerpolicy="no-referrer-when-downgrade"
+            sandbox="allow-scripts allow-same-origin allow-popups"
           ></iframe>
           <p class="about-store__map-note">Jewel Changi Airport, Singapore</p>
         </div>

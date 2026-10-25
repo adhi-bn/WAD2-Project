@@ -12,7 +12,7 @@ import AboutStoreLocation from '../components/AboutStoreLocation.vue'
         <div class="row align-items-center g-5">
           <div class="col-12 col-lg-7">
             <p class="eyebrow">About Le Chaton Typers</p>
-            <h1 id="about-page-title" class="lct-display">Le Chaton Typers</h1>
+            <h1 id="about-page-title" class="lct-display lct-balance"><span translate="no">Le Chaton Typers</span></h1>
             <p class="about-hero__tagline">Your Keyboard. Your Style. Your Sound.</p>
             <p class="lct-lead">
               A mechanical-keyboard platform that helps you design, visualise, hear, compare, and track the Budget for your Build before checkout.
@@ -31,7 +31,7 @@ import AboutStoreLocation from '../components/AboutStoreLocation.vue'
         <div class="row justify-content-between g-4">
           <div class="col-12 col-lg-4">
             <p class="eyebrow">Our story &amp; vision</p>
-            <h2 id="story-heading" class="lct-headline">A clearer way to make a keyboard yours.</h2>
+            <h2 id="story-heading" class="lct-headline lct-balance">A clearer way to make a keyboard yours.</h2>
           </div>
           <div class="col-12 col-lg-7">
             <div class="about-story lct-reveal">
@@ -51,23 +51,23 @@ import AboutStoreLocation from '../components/AboutStoreLocation.vue'
       <div class="lct-container">
         <div class="about-section__heading">
           <p class="eyebrow">What makes us different</p>
-          <h2 id="different-heading" class="lct-headline">Everything you need to decide with confidence.</h2>
+          <h2 id="different-heading" class="lct-headline lct-balance">Everything you need to decide with confidence.</h2>
         </div>
         <AboutFeatureCards />
       </div>
     </section>
 
-    <div class="about-section">
+    <section class="about-section">
       <div class="lct-container">
         <AboutStoreLocation />
       </div>
-    </div>
+    </section>
 
     <section class="about-final-cta" aria-labelledby="final-cta-heading">
       <div class="lct-container">
         <div class="about-final-cta__panel lct-reveal">
           <p class="eyebrow">Your workbench awaits</p>
-          <h2 id="final-cta-heading" class="lct-headline">Ready to build your dream keyboard?</h2>
+          <h2 id="final-cta-heading" class="lct-headline lct-balance">Ready to build your dream keyboard?</h2>
           <RouterLink to="/builder" class="ui-btn primary big">Start building <span aria-hidden="true">→</span></RouterLink>
         </div>
       </div>

@@ -1,5 +1,5 @@
 /* About page — uses the shared application tokens from main.css. */
-.about-page { overflow: hidden; }
+.about-page { --about-dark-surface: #15171c; }
 
 .about-page .lct-container {
   width: 100%;
@@ -23,6 +23,7 @@
   font-weight: 600;
   line-height: 1.15;
   letter-spacing: -.01em;
+  text-wrap: balance;
 }
 
 .about-page .lct-title { font-size: clamp(1.1rem, 1.6vw, 1.3rem); }
@@ -38,7 +39,7 @@
 .about-hero__action { margin-top: 18px; }
 
 .about-keyboard-visual { position: relative; max-width: 470px; margin: 0 auto; padding: 50px 24px 64px; transform: rotate(-5deg); }
-.about-keyboard-visual__case { display: grid; grid-template-columns: repeat(13, minmax(0, 1fr)); gap: 7px; padding: 16px; border: 1px solid var(--ink); border-radius: 22px; background: var(--ink); box-shadow: 18px 22px 0 var(--accent), var(--shadow); }
+.about-keyboard-visual__case { display: grid; grid-template-columns: repeat(13, minmax(0, 1fr)); gap: 7px; padding: 16px; border: 1px solid var(--about-dark-surface); border-radius: 22px; background: var(--about-dark-surface); box-shadow: 18px 22px 0 var(--accent), var(--shadow); }
 .about-keyboard-visual__key { height: clamp(19px, 3vw, 31px); border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
 .about-keyboard-visual__key:nth-child(13n + 1), .about-keyboard-visual__key:nth-child(19), .about-keyboard-visual__key:nth-child(48) { background: var(--accent-soft); }
 .about-keyboard-visual__key:nth-child(49) { grid-column: span 5; }
@@ -68,9 +69,9 @@
 .about-store__map-note { position: absolute; right: 14px; bottom: 14px; max-width: 280px; margin: 0; padding: 7px 10px; border-radius: 6px; background: color-mix(in srgb, var(--surface) 92%, transparent); color: var(--ink); font-size: 12px; }
 
 .about-final-cta { padding-top: 0; }
-.about-final-cta__panel { padding: clamp(32px, 6vw, 64px); border-radius: 24px; background: var(--ink); color: var(--surface); text-align: center; }
+.about-final-cta__panel { padding: clamp(32px, 6vw, 64px); border-radius: 24px; background: var(--about-dark-surface); color: #f1f2f4; text-align: center; }
 .about-final-cta__panel .eyebrow { color: var(--accent); }
-.about-final-cta__panel .lct-headline { max-width: 650px; margin: 10px auto 28px; color: var(--surface); }
+.about-final-cta__panel .lct-headline { max-width: 650px; margin: 10px auto 28px; color: #f1f2f4; }
 
 .lct-reveal { animation: lct-fade-up 500ms ease both; }
 @keyframes lct-fade-up { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
@@ -82,4 +83,10 @@
   .about-hero { padding-top: 56px; }
   .about-keyboard-visual { max-width: 390px; padding-top: 36px; }
   .about-store__map-wrap, .about-store__map { min-height: 300px; }
+}
+
+@media (max-width: 420px) {
+  .about-keyboard-visual { padding-inline: 10px; }
+  .about-keyboard-visual__case { gap: 4px; padding: 10px; }
+  .about-store__details div { grid-template-columns: 1fr; gap: 2px; }
 }
