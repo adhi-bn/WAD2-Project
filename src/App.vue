@@ -47,7 +47,7 @@ const countdown = computed(() => {
           <span class="full">Builder</span><span class="short">Builder</span>
         </router-link>
         <router-link to="/account" class="navlink" active-class="on">
-          <span class="full">{{ state.user ? 'My account' : 'Sign in' }}</span><span class="short">{{ state.user ? 'Account' : 'Sign in' }}</span>
+          <span class="full">{{ state.user ? 'Profile' : 'Sign in' }}</span><span class="short">{{ state.user ? 'Profile' : 'Sign in' }}</span>
         </router-link>
         <nav class="stages" aria-label="Progress">
           <template v-for="s in stages" :key="s.name">
