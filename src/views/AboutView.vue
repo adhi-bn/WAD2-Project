@@ -15,7 +15,7 @@ import AboutStoreLocation from '../components/AboutStoreLocation.vue'
             <h1 id="about-page-title" class="lct-display">Le Chaton Typers</h1>
             <p class="about-hero__tagline">Your Keyboard. Your Style. Your Sound.</p>
             <p class="lct-lead">
-              A custom mechanical keyboard platform that helps you design, visualise, hear, compare, and price your Build before purchasing.
+              A mechanical-keyboard platform that helps you design, visualise, hear, compare, and track the Budget for your Build before checkout.
             </p>
             <RouterLink to="/builder" class="ui-btn primary big about-hero__action">Start building <span aria-hidden="true">→</span></RouterLink>
           </div>
@@ -36,10 +36,10 @@ import AboutStoreLocation from '../components/AboutStoreLocation.vue'
           <div class="col-12 col-lg-7">
             <div class="about-story lct-reveal">
               <p>
-                Building a custom mechanical keyboard can feel complicated when you are just getting started. Product information is scattered, Parts can be incompatible, and it is hard to know what the finished keyboard will look, feel, sound, or cost like.
+                Assembling a Build can feel complicated when you are just getting started. Part information is scattered, Parts can be incompatible, and it is hard to know how the finished keyboard will look, feel, sound, or fit your Budget.
               </p>
               <p class="mb-0">
-                We are creating a more accessible, interactive, and convenient way to explore custom keyboards—so you can make considered choices and enjoy building something that feels entirely yours.
+                We are creating a more accessible, interactive, and convenient way to explore Parts and assemble a Build—so you can make considered choices and enjoy building something that feels entirely yours.
               </p>
             </div>
           </div>

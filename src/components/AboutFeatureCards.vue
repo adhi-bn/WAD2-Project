@@ -2,8 +2,8 @@
 const features = [
   {
     number: '01',
-    title: '360° Keyboard Visualisation',
-    description: 'Preview custom keyboard configurations in an interactive 3D model before you commit to a Build.',
+    title: '3D Build Visualisation',
+    description: 'Preview your Build in an interactive 3D model before you commit to it.',
     icon: '◌',
   },
   {
@@ -20,8 +20,8 @@ const features = [
   },
   {
     number: '04',
-    title: 'Transparent Pricing',
-    description: 'Compare Part prices and keep an eye on your estimated total as you build.',
+    title: 'Budget clarity',
+    description: 'Compare Parts and keep track of your Budget as you build.',
     icon: 'S$',
   },
 ]

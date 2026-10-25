@@ -26,10 +26,10 @@ describe('AboutView', () => {
   it('renders all four platform feature cards', () => {
     const text = mountAbout().text()
 
-    expect(text).toContain('360° Keyboard Visualisation')
+    expect(text).toContain('3D Build Visualisation')
     expect(text).toContain('Switch Sound Preview')
     expect(text).toContain('Compatibility Checking')
-    expect(text).toContain('Transparent Pricing')
+    expect(text).toContain('Budget clarity')
   })
 
   it('shows the store information and accessible map title', () => {
