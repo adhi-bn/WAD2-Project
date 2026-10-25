@@ -17,7 +17,8 @@ const signingInWithGoogle = ref(false)
 const confirmSignOut = ref(false)
 const googleButton = ref(null)
 const signOutButton = ref(null)
-const signOutDialog = ref(null)
+const transitionDialog = ref(null)
+const confirmSignOutDialog = ref(null)
 
 const saved = computed(() => state.savedBuilds.map((s) => ({ ...s, price: total(buildFromIds(s.layout, s.part_ids)) })))
 
@@ -26,7 +27,7 @@ onMounted(() => { if (state.user) refreshSaved() })
 watch(() => state.ui.accountTransition, async (needsDecision) => {
   if (!needsDecision) return
   await nextTick()
-  signOutDialog.value?.focus()
+  transitionDialog.value?.focus()
 })
 
 async function submit() {
@@ -66,7 +67,7 @@ async function startSignOut() {
   if (!state.build) { await finishSignOut(false); return }
   confirmSignOut.value = true
   await nextTick()
-  signOutDialog.value?.focus()
+  confirmSignOutDialog.value?.focus()
 }
 
 async function cancelSignOut() {
@@ -78,6 +79,10 @@ async function cancelSignOut() {
 function resolveTransition(preserveDraft) {
   resolveAccountTransition({ preserveDraft })
   info.value = preserveDraft ? 'Your previous Build is saved locally as a guest draft.' : 'Your previous Build was discarded.'
+}
+
+function dismissTransition() {
+  resolveTransition(false)
 }
 
 function open(s) {
@@ -144,7 +149,7 @@ function continueGuestDraft() {
           <button ref="signOutButton" type="button" class="ui-btn" @click="startSignOut">Sign out</button>
         </div>
 
-        <div v-if="state.ui.accountTransition" ref="signOutDialog" class="panel profile-signout" role="dialog" aria-modal="true" aria-labelledby="accountTransitionTitle" tabindex="-1">
+        <div v-if="state.ui.accountTransition" ref="transitionDialog" class="panel profile-signout" role="dialog" aria-modal="true" aria-labelledby="accountTransitionTitle" tabindex="-1" @keydown.esc="dismissTransition">
           <div class="eyebrow">Account changed</div>
           <h2 id="accountTransitionTitle">What should happen to the previous Build?</h2>
           <p>It cannot be saved to this profile unless you create a new Build here. Choose whether to keep a device-only guest draft or discard it.</p>
@@ -154,7 +159,7 @@ function continueGuestDraft() {
           </div>
         </div>
 
-        <div v-if="confirmSignOut" ref="signOutDialog" class="panel profile-signout" role="dialog" aria-modal="true" aria-labelledby="signOutTitle" tabindex="-1">
+        <div v-if="confirmSignOut" ref="confirmSignOutDialog" class="panel profile-signout" role="dialog" aria-modal="true" aria-labelledby="signOutTitle" tabindex="-1" @keydown.esc="cancelSignOut">
           <div class="eyebrow">Before you sign out</div>
           <h2 id="signOutTitle">What should happen to this Build?</h2>
           <p>Your current Build is not saved to another account. Choose whether to preserve it only on this device.</p>
@@ -199,7 +204,7 @@ function continueGuestDraft() {
         </div>
       </div>
 
-      <div v-if="state.guestDraft" class="panel profile-draft">
+      <div v-if="state.guestDraft && !state.user" class="panel profile-draft">
         <div><div class="eyebrow">Local guest draft</div><p>A Build was explicitly preserved on this device and is not attached to your profile.</p></div>
         <button type="button" class="ui-btn" @click="continueGuestDraft">Open guest draft</button>
       </div>

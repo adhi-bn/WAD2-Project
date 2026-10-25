@@ -152,6 +152,9 @@ export function restoreGuestDraft() {
   if (!state.guestDraft?.layout || !state.guestDraft?.part_ids) return false
   loadBuild(state.guestDraft)
   state.answers.budget = state.guestDraft.budget ?? state.answers.budget
+  // Restoring is an explicit choice. Do not leave this device-only draft available to another account.
+  try { localStorage.removeItem('lct_guest_draft') } catch (e) { /* private mode */ }
+  state.guestDraft = null
   return true
 }
 
@@ -221,8 +224,8 @@ export async function saveBuild(name) {
 export async function deleteSaved(id) {
   if (!supabase || !state.user) return
   const revision = sessionRevision
-  const userId = state.user?.id
-  await supabase.from('saved_builds').delete().eq('id', id)
+  const userId = state.user.id
+  await supabase.from('saved_builds').delete().eq('id', id).eq('user_id', userId)
   if (revision !== sessionRevision || state.user?.id !== userId) return
   await refreshSaved()
 }
@@ -247,10 +250,15 @@ export async function signUp(email, password) {
 export async function signOut({ preserveDraft = false } = {}) {
   if (supabase) {
     isSigningOut = true
-    const { error } = await supabase.auth.signOut()
-    isSigningOut = false
-    // Keep the current Build intact when Supabase cannot complete the sign-out.
-    if (error) return { error: error.message }
+    try {
+      const { error } = await supabase.auth.signOut()
+      // Keep the current Build intact when Supabase cannot complete the sign-out.
+      if (error) return { error: error.message }
+    } catch (error) {
+      return { error: error?.message || 'Unable to contact the sign-out service.' }
+    } finally {
+      isSigningOut = false
+    }
   }
   if (preserveDraft) preserveGuestDraft()
   discardCurrentBuild()

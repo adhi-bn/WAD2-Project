@@ -5,7 +5,7 @@ import AccountView from '../../src/views/AccountView.vue'
 import App from '../../src/App.vue'
 import HomeView from '../../src/views/HomeView.vue'
 import { catalog, CATS } from '../../src/data/catalog.js'
-import { preserveGuestDraft, resolveAccountTransition, signOut, state } from '../../src/store.js'
+import { preserveGuestDraft, resolveAccountTransition, restoreGuestDraft, signOut, state } from '../../src/store.js'
 
 function makeRouter() {
   return createRouter({
@@ -90,4 +90,17 @@ describe('profile authentication surface', () => {
     expect(wrapper.get('.profile-draft').text()).toContain('Local guest draft')
     expect(wrapper.get('.profile-draft button').text()).toBe('Open guest draft')
   })
+
+  it('consumes a guest draft after the guest explicitly restores it', () => {
+    const parts = catalog('75')
+    state.answers.layout = '75'
+    state.build = Object.fromEntries(CATS.map((group) => [group, parts[group][0]]))
+
+    preserveGuestDraft()
+
+    expect(restoreGuestDraft()).toBe(true)
+    expect(state.guestDraft).toBeNull()
+    expect(localStorage.getItem('lct_guest_draft')).toBeNull()
+  })
+
 })
