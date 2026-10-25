@@ -4,7 +4,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 const props = defineProps({
   part: {
     type: Object,
-    required: true,
+    default: null,
   },
 })
 
@@ -12,11 +12,15 @@ const volume = ref(0.7)
 const muted = ref(false)
 const playing = ref(false)
 const loading = ref(false)
+const seeking = ref(false)
 const status = ref('')
+const playbackError = ref('')
 const sample = computed(() => props.part?.sample || '')
 const volumePercent = computed(() => `${Math.round(volume.value * 100)}%`)
 const profile = computed(() => props.part?.type || 'switch')
-const profileLabel = computed(() => profile.value[0].toUpperCase() + profile.value.slice(1))
+const profileLabel = computed(() => `${profile.value.charAt(0).toUpperCase()}${profile.value.slice(1)}`)
+const partName = computed(() => props.part?.name || 'Selected switch')
+const seekId = computed(() => `switch-audio-seek-${props.part?.id ?? 'selected-switch'}`)
 const duration = ref(0)
 const currentTime = ref(0)
 
@@ -24,79 +28,97 @@ let audioContext
 let gainNode
 let sourceNode
 let decodedSample
-let decodedUrl
 let requestId = 0
 let loadController
 let progressTimer
 let playbackOffset = 0
 let sourceStartedAt = 0
 
-function releaseSource() {
+/**
+ * Stops the active source and disconnects it from the persistent gain node.
+ * @param {boolean} [stopSource=true] Whether to stop the source before disconnecting it.
+ * @returns {void}
+ */
+function releaseSource(stopSource = true) {
   if (progressTimer) {
     clearInterval(progressTimer)
     progressTimer = undefined
   }
   if (sourceNode) {
     sourceNode.onended = null
-    sourceNode.stop()
+    if (stopSource) sourceNode.stop()
     sourceNode.disconnect()
   }
-  if (gainNode) {
-    gainNode.disconnect()
-  }
   sourceNode = null
-  gainNode = null
   playing.value = false
 }
 
+/**
+ * Invalidates pending loads and releases current playback resources.
+ * @returns {void}
+ */
 function cancelPlayback() {
   requestId += 1
   loadController?.abort()
   loadController = undefined
   releaseSource()
   loading.value = false
+  seeking.value = false
 }
 
+/**
+ * Applies the current mute and volume settings to the active gain node.
+ * @returns {void}
+ */
 function updateGain() {
   if (gainNode) gainNode.gain.value = muted.value ? 0 : volume.value
 }
 
+/**
+ * Calculates playback time from the saved offset and AudioContext clock.
+ * @returns {number} Current playback time in seconds.
+ */
 function elapsedTime() {
   if (!audioContext || !playing.value) return playbackOffset
+  // The context clock is monotonic, so elapsed time stays stable between timer ticks.
   return Math.min(duration.value, playbackOffset + audioContext.currentTime - sourceStartedAt)
 }
 
+/**
+ * Starts the timer that keeps the visible seek position current.
+ * @returns {void}
+ */
 function startProgressUpdates() {
   if (progressTimer) clearInterval(progressTimer)
   progressTimer = setInterval(() => {
-    currentTime.value = elapsedTime()
+    // Avoid having the playback clock fight the value currently being dragged.
+    if (!seeking.value) currentTime.value = elapsedTime()
   }, 50)
 }
 
+/**
+ * Creates and starts a source at a specific offset in the decoded sample.
+ * @param {number} offset Playback offset in seconds.
+ * @returns {void}
+ */
 function startSource(offset) {
   const source = audioContext.createBufferSource()
-  const gain = audioContext.createGain()
+  // Reuse one gain node across pause and seek restarts instead of rebuilding the output graph.
+  if (!gainNode) {
+    gainNode = audioContext.createGain()
+    gainNode.connect(audioContext.destination)
+  }
   source.buffer = decodedSample
-  gain.gain.value = muted.value ? 0 : volume.value
-  source.connect(gain)
-  gain.connect(audioContext.destination)
+  gainNode.gain.value = muted.value ? 0 : volume.value
+  source.connect(gainNode)
   source.onended = () => {
     if (sourceNode !== source) return
-    source.disconnect()
-    gain.disconnect()
-    sourceNode = null
-    gainNode = null
-    if (progressTimer) {
-      clearInterval(progressTimer)
-      progressTimer = undefined
-    }
+    releaseSource(false)
     playbackOffset = duration.value
     currentTime.value = duration.value
-    playing.value = false
-    status.value = `Playback finished for ${props.part.name}.`
+    status.value = `Playback finished for ${partName.value}.`
   }
   sourceNode = source
-  gainNode = gain
   playbackOffset = offset
   sourceStartedAt = audioContext.currentTime
   currentTime.value = offset
@@ -105,9 +127,13 @@ function startSource(offset) {
   startProgressUpdates()
 }
 
+/**
+ * Loads, decodes, or resumes the selected sample after an explicit user action.
+ * @returns {Promise<void>}
+ */
 async function playSample() {
   if (!sample.value) {
-    status.value = `No recorded sample is available for ${props.part.name}.`
+    status.value = `No recorded sample is available for ${partName.value}.`
     return
   }
   if (loading.value) return
@@ -115,41 +141,45 @@ async function playSample() {
     playbackOffset = elapsedTime()
     currentTime.value = playbackOffset
     releaseSource()
-    status.value = `Paused playback for ${props.part.name}.`
+    status.value = `Paused playback for ${partName.value}.`
     return
   }
 
   const currentRequest = ++requestId
+  const targetUrl = sample.value
   releaseSource()
   loading.value = true
-  status.value = `Loading recorded sample for ${props.part.name}.`
+  playbackError.value = ''
+  status.value = `Loading recorded sample for ${partName.value}.`
 
   try {
-    const AudioContextClass = window.AudioContext
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext
     if (!AudioContextClass) throw new Error('Web Audio is unavailable')
 
     audioContext ||= new AudioContextClass()
     if (audioContext.state === 'suspended') await audioContext.resume()
     if (currentRequest !== requestId) return
 
-    if (decodedUrl !== sample.value) {
+    if (!decodedSample) {
       loadController = new AbortController()
-      const response = await fetch(sample.value, { signal: loadController.signal })
+      const response = await fetch(targetUrl, { signal: loadController.signal })
       if (!response.ok) throw new Error(`Sample request failed (${response.status})`)
       const audioData = await response.arrayBuffer()
       if (currentRequest !== requestId) return
-      decodedSample = await audioContext.decodeAudioData(audioData)
-      if (!Number.isFinite(decodedSample.duration) || decodedSample.duration <= 0) {
+      const decoded = await audioContext.decodeAudioData(audioData)
+      if (currentRequest !== requestId) return
+      if (!Number.isFinite(decoded.duration) || decoded.duration <= 0) {
         throw new Error('Recorded sample has no usable duration')
       }
-      decodedUrl = sample.value
+      // Decode is not abortable; only publish the buffer if this Part is still selected.
+      decodedSample = decoded
     }
     if (currentRequest !== requestId) return
 
     duration.value = decodedSample.duration
     playbackOffset = playbackOffset >= duration.value ? 0 : playbackOffset
     startSource(playbackOffset)
-    status.value = `Playing ${profile.value} typing sample for ${props.part.name}${muted.value ? ' (muted)' : ''}.`
+    status.value = `Playing ${profile.value} typing sample for ${partName.value}${muted.value ? ' (muted)' : ''}.`
   } catch {
     if (currentRequest === requestId) {
       releaseSource()
@@ -157,7 +187,8 @@ async function playSample() {
       duration.value = 0
       currentTime.value = 0
       playbackOffset = 0
-      status.value = `Could not play the recorded sample for ${props.part.name}. Try again later.`
+      playbackError.value = `Could not play the recorded sample for ${partName.value}. Try again later.`
+      status.value = ''
     }
   } finally {
     if (currentRequest === requestId) {
@@ -167,25 +198,72 @@ async function playSample() {
   }
 }
 
+/**
+ * Reads and bounds the requested seek position to the decoded sample.
+ * @param {Event} event Input or change event from the seek slider.
+ * @returns {number} A valid playback position in seconds.
+ */
+function getSeekTarget(event) {
+  const requestedTime = Number(event.target.value)
+  // Range events should be numeric; prevent invalid input from poisoning playback math.
+  return Number.isFinite(requestedTime)
+    ? Math.min(duration.value, Math.max(0, requestedTime))
+    : 0
+}
+
+/**
+ * Updates the seek preview without restarting playback while the slider is dragged.
+ * @param {Event} event Input event from the seek slider.
+ * @returns {void}
+ */
+function previewSeek(event) {
+  seeking.value = true
+  currentTime.value = getSeekTarget(event)
+}
+
+/**
+ * Commits a seek and restarts the source only when the user finishes adjusting it.
+ * @param {Event} event Change event from the seek slider.
+ * @returns {void}
+ */
 function seekSample(event) {
-  const target = Math.min(duration.value, Math.max(0, Number(event.target.value)))
+  const target = getSeekTarget(event)
+  seeking.value = false
   playbackOffset = target
   currentTime.value = target
   if (!playing.value) return
 
   releaseSource()
   startSource(target)
-  status.value = `Playing ${profile.value} typing sample for ${props.part.name}${muted.value ? ' (muted)' : ''}.`
+  status.value = `Playing ${profile.value} typing sample for ${partName.value}${muted.value ? ' (muted)' : ''}.`
 }
 
+/**
+ * Toggles mute and synchronizes the active gain node.
+ * @returns {void}
+ */
 function toggleMute() {
   muted.value = !muted.value
   updateGain()
   status.value = muted.value
-    ? `Muted${playing.value ? ` · playing ${props.part.name}` : ''}.`
-    : `Sound on${playing.value ? ` · playing ${props.part.name}` : ''}.`
+    ? `Muted${playing.value ? ` · playing ${partName.value}` : ''}.`
+    : `Sound on${playing.value ? ` · playing ${partName.value}` : ''}.`
 }
 
+/**
+ * Unmutes playback when the user changes the volume slider.
+ * @returns {void}
+ */
+function changeVolume() {
+  muted.value = false
+  updateGain()
+}
+
+/**
+ * Formats a playback time with tenths of a second.
+ * @param {number} seconds Time in seconds.
+ * @returns {string} A minutes, seconds, and tenths display value.
+ */
 function formatTime(seconds) {
   const tenths = Math.round((Number.isFinite(seconds) ? seconds : 0) * 10)
   const minutes = Math.floor(tenths / 600)
@@ -196,17 +274,19 @@ function formatTime(seconds) {
 watch([() => props.part?.id, sample], () => {
   cancelPlayback()
   decodedSample = undefined
-  decodedUrl = undefined
   duration.value = 0
   currentTime.value = 0
   playbackOffset = 0
+  playbackError.value = ''
   status.value = sample.value
-    ? `Recorded ${profile.value} typing sample linked to ${props.part.name}.`
-    : `No recorded sample is available for ${props.part.name}.`
+    ? `Recorded ${profile.value} typing sample linked to ${partName.value}.`
+    : `No recorded sample is available for ${partName.value}.`
 }, { immediate: true })
 
 onBeforeUnmount(() => {
   cancelPlayback()
+  gainNode?.disconnect()
+  gainNode = null
   if (audioContext && audioContext.state !== 'closed') {
     audioContext.close().catch((error) => console.error('Failed to close switch audio context', error))
   }
@@ -218,8 +298,8 @@ onBeforeUnmount(() => {
     <div class="switch-audio__heading">
       <div>
         <h3 id="switch-audio-title">Hear your selected switch</h3>
-        <p v-if="sample">Recorded {{ profileLabel }} typing sample · {{ part.name }}</p>
-        <p v-else>No recorded sample available · {{ part.name }}</p>
+        <p v-if="sample">Recorded {{ profileLabel }} typing sample · {{ partName }}</p>
+        <p v-else>No recorded sample available · {{ partName }}</p>
       </div>
       <span class="switch-audio__badge">{{ sample ? 'Recorded sample' : 'Sample unavailable' }}</span>
     </div>
@@ -230,8 +310,7 @@ onBeforeUnmount(() => {
           type="button"
           class="ui-btn primary"
           :disabled="!sample || loading"
-          :aria-label="loading ? `Loading sample for ${part.name}` : `${playing ? 'Pause' : 'Play'} sample for ${part.name}`"
-          :aria-pressed="playing"
+          :aria-label="loading ? `Loading sample for ${partName}` : `${playing ? 'Pause' : 'Play'} sample for ${partName}`"
           @click="playSample"
         >
           {{ loading ? 'Loading…' : playing ? 'Pause' : 'Play' }}
@@ -262,17 +341,17 @@ onBeforeUnmount(() => {
             max="1"
             step="0.05"
             :disabled="!sample"
-            :aria-label="`Volume for ${part.name} sample`"
-            @input="updateGain"
+            :aria-label="`Volume for ${partName} sample`"
+            @input="changeVolume"
           />
           <output>{{ volumePercent }}</output>
         </label>
       </div>
 
       <div class="switch-audio__timeline">
-        <label class="visually-hidden" :for="`switch-audio-seek-${part.id}`">Seek in {{ part.name }} sample</label>
+        <label class="visually-hidden" :for="seekId">Seek in {{ partName }} sample</label>
         <input
-          :id="`switch-audio-seek-${part.id}`"
+          :id="seekId"
           class="switch-audio__seek"
           type="range"
           min="0"
@@ -281,7 +360,8 @@ onBeforeUnmount(() => {
           :value="currentTime"
           :disabled="!sample || !duration"
           :aria-valuetext="`${formatTime(currentTime)} of ${duration ? formatTime(duration) : 'unknown duration'}`"
-          @input="seekSample"
+          @input="previewSeek"
+          @change="seekSample"
         />
         <div class="switch-audio__time" aria-hidden="true">
           <span>{{ formatTime(currentTime) }}</span>
@@ -290,6 +370,13 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
+    <p v-if="playbackError" class="switch-audio__error" role="alert">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
+        <path d="M12 7.5v5m0 3h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+      </svg>
+      {{ playbackError }}
+    </p>
     <p class="visually-hidden" role="status" aria-live="polite" aria-atomic="true">
       {{ status }}
     </p>

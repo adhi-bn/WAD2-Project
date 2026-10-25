@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Repository changelog in [`CHANGELOG.md`](CHANGELOG.md) tracking milestones and unreleased changes following Keep a Changelog 1.1.0.
 
 ### Changed
+- Switched the frontend and shared switch catalogues to MP3 recordings; removed the M4A originals after verifying all catalogue samples decode and play in Chromium.
 - Expanded the switch-audio player with pause/resume, seeking, playback progress, and responsive card controls; linked Gazzew Boba U4 to its dedicated recording (#17).
 - Moved the switch-audio card below the Switches description, compacted its controls, and replaced visible status text and the Mute label with accessible status and an icon (#17).
 - Superseded ADR-0007 with ADR-0008, formalizing team consensus to condense 8 physical layers into 6 Component Groups (Case, Plate, PCB, Switches, Keycaps, Add-ons) to eliminate desktop horizontal scrolling while bundling Foam, Stabilizers, and Cable into preselected Add-ons.
@@ -33,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Standardized code documentation requirements across collaboration guides, mandating JSDoc docstrings for public exports/functions and inline comments for non-obvious logic when agents or contributors write code.
 
 ### Fixed
+- Restored switch-audio player styling in the active frontend stylesheet so controls render correctly in the builder.
+- Made switch-audio load/decode errors visible, guarded late decode results when the selected Part changes, delayed seek restarts until slider adjustment completes, and made the player safe for missing Part data.
+- Consolidated switch-audio styling under the governed design tokens, restored the mute control's 44px touch target, and corrected the story-section `.wrap` scope.
+- Kept volume changes audible after mute, removed toggle semantics from the changing Play/Pause action, and added the legacy WebKit AudioContext fallback.
 
 ## [0.1.0] - 2026-10-18
 

@@ -8,10 +8,10 @@ import { BASE } from '../../src/data/catalog.js'
 enableAutoUnmount(afterEach)
 
 let latestSource
-let audioSources
 let latestGain
 let latestAudioContext
 let originalAudioContext
+let originalWebkitAudioContext
 
 class MockAudioContext {
   constructor() {
@@ -42,7 +42,6 @@ class MockAudioContext {
       start: vi.fn(),
       stop: vi.fn(),
     }
-    audioSources.push(latestSource)
     return latestSource
   }
 
@@ -58,10 +57,10 @@ class MockAudioContext {
 
 beforeEach(() => {
   latestSource = null
-  audioSources = []
   latestGain = null
   latestAudioContext = null
   originalAudioContext = Object.getOwnPropertyDescriptor(window, 'AudioContext')
+  originalWebkitAudioContext = Object.getOwnPropertyDescriptor(window, 'webkitAudioContext')
   Object.defineProperty(window, 'AudioContext', { configurable: true, value: MockAudioContext })
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
     ok: true,
@@ -73,6 +72,8 @@ afterEach(() => {
   vi.useRealTimers()
   if (originalAudioContext) Object.defineProperty(window, 'AudioContext', originalAudioContext)
   else delete window.AudioContext
+  if (originalWebkitAudioContext) Object.defineProperty(window, 'webkitAudioContext', originalWebkitAudioContext)
+  else delete window.webkitAudioContext
   vi.unstubAllGlobals()
 })
 
@@ -83,10 +84,11 @@ describe('SwitchAudioPreview', () => {
     expect(recordedParts).toHaveLength(11)
     expect(new Set(recordedParts.map((option) => option.type))).toEqual(new Set(['linear', 'silent', 'tactile', 'clicky']))
     for (const part of recordedParts) {
+      expect(part.sample).toMatch(/\.mp3$/)
       expect(existsSync(resolve(process.cwd(), 'public', part.sample.slice(1)))).toBe(true)
     }
-    expect(BASE.switches.find((option) => option.id === 'u4').sample).toBe('/switch-audio/gazzew-boba-u4.m4a')
-    expect(BASE.switches.find((option) => option.id === 'u4t').sample).toBe('/switch-audio/gazzew-boba.m4a')
+    expect(BASE.switches.find((option) => option.id === 'u4').sample).toBe('/switch-audio/gazzew-boba-u4.mp3')
+    expect(BASE.switches.find((option) => option.id === 'u4t').sample).toBe('/switch-audio/gazzew-boba.mp3')
   })
 
   it('plays the dedicated recording linked to Gazzew Boba U4', async () => {
@@ -97,7 +99,7 @@ describe('SwitchAudioPreview', () => {
     await flushPromises()
 
     expect(wrapper.get('button[aria-label="Pause sample for Gazzew Boba U4 silent tactile"]').text()).toBe('Pause')
-    expect(fetch).toHaveBeenCalledWith('/switch-audio/gazzew-boba-u4.m4a', expect.any(Object))
+    expect(fetch).toHaveBeenCalledWith('/switch-audio/gazzew-boba-u4.mp3', expect.any(Object))
     expect(latestSource.start).toHaveBeenCalledWith(0, 0)
     expect(wrapper.get('[role="status"]').text()).toContain('Playing silent typing sample')
   })
@@ -114,7 +116,7 @@ describe('SwitchAudioPreview', () => {
     await wrapper.get('button[aria-label="Play sample for Gateron Milky Yellow Pro"]').trigger('click')
     await flushPromises()
 
-    expect(fetch).toHaveBeenCalledWith('/switch-audio/gateron-milky-yellows.m4a', expect.any(Object))
+    expect(fetch).toHaveBeenCalledWith('/switch-audio/gateron-milky-yellows.mp3', expect.any(Object))
     expect(latestAudioContext.resume).toHaveBeenCalledOnce()
     expect(latestSource.start).toHaveBeenCalledOnce()
     expect(wrapper.get('[role="status"]').text()).toContain('Playing linear typing sample')
@@ -125,11 +127,12 @@ describe('SwitchAudioPreview', () => {
     expect(wrapper.get('[role="status"]').text()).toContain('Muted')
 
     await wrapper.get('input[aria-label="Volume for Gateron Milky Yellow Pro sample"]').setValue('0.4')
-    expect(latestGain.gain.value).toBe(0)
+    expect(latestGain.gain.value).toBe(0.4)
+    expect(wrapper.get('button[aria-label="Mute switch sample"]').attributes('aria-pressed')).toBe('false')
     expect(wrapper.text()).toContain('40%')
 
-    await wrapper.get('button[aria-label="Unmute switch sample"]').trigger('click')
-    expect(latestGain.gain.value).toBe(0.4)
+    await wrapper.get('button[aria-label="Mute switch sample"]').trigger('click')
+    expect(latestGain.gain.value).toBe(0)
   })
 
   it('pauses, resumes, and seeks without leaving multiple samples playing', async () => {
@@ -146,7 +149,16 @@ describe('SwitchAudioPreview', () => {
     await flushPromises()
     const firstSource = latestSource
 
-    await wrapper.get('.switch-audio__seek').setValue('2.5')
+    const seek = wrapper.get('.switch-audio__seek')
+    seek.element.value = '1.25'
+    await seek.trigger('input')
+    expect(latestSource).toBe(firstSource)
+    expect(wrapper.get('[role="status"]').text()).toContain('Playing linear typing sample')
+
+    seek.element.value = '2.5'
+    await seek.trigger('input')
+    expect(latestSource).toBe(firstSource)
+    await seek.trigger('change')
     const seekSource = latestSource
     expect(firstSource.stop).toHaveBeenCalledOnce()
     expect(seekSource.start).toHaveBeenCalledWith(0, 2.5)
@@ -160,7 +172,7 @@ describe('SwitchAudioPreview', () => {
     await flushPromises()
     expect(latestSource).not.toBe(seekSource)
     expect(latestSource.start).toHaveBeenCalledWith(0, 2.5)
-    expect(audioSources).toHaveLength(3)
+    expect(fetch).toHaveBeenCalledOnce()
   })
 
   it('updates playback progress and reports the ended state', async () => {
@@ -210,30 +222,34 @@ describe('SwitchAudioPreview', () => {
 
     await wrapper.get('button[aria-label="Play sample for Gateron Brown Pro"]').trigger('click')
     await flushPromises()
-    expect(fetch).toHaveBeenLastCalledWith('/switch-audio/gateron-gpro-brown.m4a', expect.any(Object))
+    expect(fetch).toHaveBeenLastCalledWith('/switch-audio/gateron-gpro-brown.mp3', expect.any(Object))
     expect(latestSource.start).toHaveBeenCalledWith(0, 0)
   })
 
-  it('announces unavailable samples and disables playback controls', () => {
+  it('handles missing or incomplete Parts and disables unavailable playback controls', () => {
+    const emptyWrapper = mount(SwitchAudioPreview)
+    expect(emptyWrapper.text()).toContain('Selected switch')
+    expect(emptyWrapper.get('[role="status"]').text()).toContain('No recorded sample is available')
+    expect(emptyWrapper.get('button[aria-label="Play sample for Selected switch"]').element.disabled).toBe(true)
+
     const part = { id: 'unrecorded', name: 'Unrecorded switch', type: 'tactile' }
     const wrapper = mount(SwitchAudioPreview, { props: { part } })
 
     expect(wrapper.get('[role="status"]').text()).toContain('No recorded sample is available')
     expect(wrapper.text()).toContain('Sample unavailable')
-    expect(wrapper.find('.switch-audio__status').exists()).toBe(false)
     expect(wrapper.get('[role="status"]').classes()).toContain('visually-hidden')
     expect(wrapper.get('button[aria-label="Play sample for Unrecorded switch"]').element.disabled).toBe(true)
     expect(fetch).not.toHaveBeenCalled()
   })
 
-  it('reports a truthful error when the recorded sample cannot be loaded or decoded', async () => {
+  it('shows visible and accessible errors when the recorded sample cannot load or decode', async () => {
     const part = BASE.switches.find((option) => option.id === 'cream')
     const wrapper = mount(SwitchAudioPreview, { props: { part } })
     fetch.mockResolvedValueOnce({ ok: false, status: 404 })
 
     await wrapper.get('button[aria-label="Play sample for Akko V3 Cream Yellow Pro"]').trigger('click')
     await flushPromises()
-    expect(wrapper.get('[role="status"]').text()).toContain('Could not play the recorded sample')
+    expect(wrapper.get('[role="alert"]').text()).toContain('Could not play the recorded sample')
 
     fetch.mockResolvedValueOnce({
       ok: true,
@@ -243,7 +259,54 @@ describe('SwitchAudioPreview', () => {
 
     await wrapper.get('button[aria-label="Play sample for Akko V3 Cream Yellow Pro"]').trigger('click')
     await flushPromises()
-    expect(wrapper.get('[role="status"]').text()).toContain('Could not play the recorded sample')
+    expect(wrapper.get('[role="alert"]').text()).toContain('Could not play the recorded sample')
+  })
+
+  it('does not let a stale decode replace the newly selected sample', async () => {
+    const first = BASE.switches.find((option) => option.id === 'gyellow')
+    const next = BASE.switches.find((option) => option.id === 'gbrown')
+    const wrapper = mount(SwitchAudioPreview, { props: { part: first } })
+    const pendingDecodes = []
+    class DeferredAudioContext extends MockAudioContext {
+      decodeAudioData = vi.fn(() => new Promise((resolve) => pendingDecodes.push(resolve)))
+    }
+    Object.defineProperty(window, 'AudioContext', { configurable: true, value: DeferredAudioContext })
+
+    await wrapper.get('button[aria-label="Play sample for Gateron Milky Yellow Pro"]').trigger('click')
+    await flushPromises()
+    expect(pendingDecodes).toHaveLength(1)
+
+    await wrapper.setProps({ part: next })
+    await wrapper.get('button[aria-label="Play sample for Gateron Brown Pro"]').trigger('click')
+    await flushPromises()
+    expect(pendingDecodes).toHaveLength(2)
+
+    const currentBuffer = { duration: 5 }
+    pendingDecodes[1](currentBuffer)
+    await flushPromises()
+    expect(latestSource.buffer).toBe(currentBuffer)
+
+    pendingDecodes[0]({ duration: 3 })
+    await flushPromises()
+    await wrapper.get('button[aria-label="Pause sample for Gateron Brown Pro"]').trigger('click')
+    await wrapper.get('button[aria-label="Play sample for Gateron Brown Pro"]').trigger('click')
+    await flushPromises()
+
+    expect(latestSource.buffer).toBe(currentBuffer)
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('uses the WebKit AudioContext fallback when the standard name is unavailable', async () => {
+    const part = BASE.switches.find((option) => option.id === 'gyellow')
+    const wrapper = mount(SwitchAudioPreview, { props: { part } })
+    Object.defineProperty(window, 'AudioContext', { configurable: true, value: undefined })
+    Object.defineProperty(window, 'webkitAudioContext', { configurable: true, value: MockAudioContext })
+
+    await wrapper.get('button[aria-label="Play sample for Gateron Milky Yellow Pro"]').trigger('click')
+    await flushPromises()
+
+    expect(latestAudioContext).toBeInstanceOf(MockAudioContext)
+    expect(latestSource.start).toHaveBeenCalledOnce()
   })
 
   it('reports a playback error when the browser refuses to resume its audio context', async () => {
@@ -258,7 +321,7 @@ describe('SwitchAudioPreview', () => {
     await wrapper.get('button[aria-label="Play sample for Gateron Milky Yellow Pro"]').trigger('click')
     await flushPromises()
 
-    expect(wrapper.get('[role="status"]').text()).toContain('Could not play the recorded sample')
+    expect(wrapper.get('[role="alert"]').text()).toContain('Could not play the recorded sample')
     expect(latestAudioContext.resume).toHaveBeenCalledOnce()
     expect(fetch).not.toHaveBeenCalled()
     expect(latestSource).toBeNull()

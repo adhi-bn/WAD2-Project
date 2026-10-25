@@ -14,10 +14,11 @@ The keyboard builder's audio feature needs user-initiated switch/typing samples 
 
 ## Decision
 
-- Use the supplied original recordings in `public/switch-audio/`; do not synthesize or substitute generic audio.
+- Use the supplied switch recordings converted to `.mp3` in `public/switch-audio/`; do not synthesize or substitute generic audio.
+- Verify each catalogue MP3 can be fetched, decoded, and played in Chromium before publishing it.
 - Store each available public sample path on its matching switch catalogue entry and use the selected entry to determine the sample and announced profile.
 - Play the clips only after an explicit user action with the Web Audio API. Provide mute and volume controls, visible focus, and announced playing, muted, missing-sample, and playback-error states.
-- Link the supplied `gazzew-boba-u4.m4a` recording to Gazzew Boba U4 and `gazzew-boba.m4a` to Gazzew Boba U4T; each catalogue entry uses its matching recording.
+- Link `gazzew-boba-u4.mp3` to Gazzew Boba U4 and the separate `gazzew-boba.mp3` recording to Gazzew Boba U4T; each catalogue entry uses its matching recording.
 - Keep any other unrecorded entry unlinked rather than substituting an unrelated recording.
 - Treat the clips as a demo of the declared switch profile, not as a claim of acoustic or engineering accuracy.
 
@@ -25,7 +26,7 @@ The keyboard builder's audio feature needs user-initiated switch/typing samples 
 
 - **Synthesized switch sounds**: Rejected because the agreed final audio is based on permitted or self-owned recordings, with no synthesised-profile commitment.
 - **One generic sample for every switch**: Rejected because it would misrepresent the selected switch/profile and conceal missing coverage.
-- **HTML audio playback**: Rejected in favour of Web Audio API playback, which provides the agreed volume and mute controls.
+- **HTML audio playback**: HTML audio supports volume and mute. Web Audio was chosen for finer gain-graph management and precise pause/resume/seek behavior, not because those basic controls are unavailable in HTML audio.
 
 ## Consequences
 
