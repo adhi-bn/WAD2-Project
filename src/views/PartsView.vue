@@ -5,6 +5,7 @@ import { CATS, META } from '../data/catalog.js'
 import { money, money2, signed, total, grams, kg, spec, reason, preferred, bestFit, whyText } from '../logic/builder.js'
 import { state, layout, choose, discountOf, activeVoucher, timeLeft } from '../store.js'
 import ProfileChips from '../components/ProfileChips.vue'
+import SwitchAudioPreview from '../components/SwitchAudioPreview.vue'
 
 const router = useRouter()
 const catIdx = ref(0)
@@ -71,6 +72,8 @@ onBeforeUnmount(() => document.body.classList.remove('hasbar'))
             <h2>{{ META[cat].label }}</h2>
             <p>{{ whyText(cat, b, answers) }}</p>
           </div>
+
+          <SwitchAudioPreview v-if="cat === 'switches'" :part="cur" />
 
           <div class="row g-3">
             <div v-for="o in three" :key="o.id" class="col-12 col-md-4">
