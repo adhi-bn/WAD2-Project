@@ -535,6 +535,7 @@ section.screen {
   .glass {
     max-width: none;
   }
+
 }
 
 @media (max-width: 520px) {
