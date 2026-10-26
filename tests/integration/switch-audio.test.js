@@ -143,6 +143,7 @@ describe('SwitchAudioPreview', () => {
     expect(controls.find('button[aria-label="Mute switch sample"]').exists()).toBe(true)
     expect(controls.find('input[aria-label="Volume for Gateron Milky Yellow Pro sample"]').exists()).toBe(true)
     expect(controls.get('button[aria-label="Play sample for Gateron Milky Yellow Pro"]').text()).toBe('Play')
+    expect(controls.get('button[aria-label="Play sample for Gateron Milky Yellow Pro"]').attributes('aria-pressed')).toBeUndefined()
     expect(controls.get('button[aria-label="Mute switch sample"]').find('svg').exists()).toBe(true)
 
     await wrapper.get('button[aria-label="Play sample for Gateron Milky Yellow Pro"]').trigger('click')
@@ -240,6 +241,13 @@ describe('SwitchAudioPreview', () => {
     expect(wrapper.get('[role="status"]').classes()).toContain('visually-hidden')
     expect(wrapper.get('button[aria-label="Play sample for Unrecorded switch"]').element.disabled).toBe(true)
     expect(fetch).not.toHaveBeenCalled()
+
+    const nullWrapper = mount(SwitchAudioPreview, { props: { part: null } })
+    expect(nullWrapper.text()).toContain('Selected switch')
+    expect(nullWrapper.get('[role="status"]').text()).toContain('No recorded sample is available')
+
+    const unnamedWrapper = mount(SwitchAudioPreview, { props: { part: { sample: '/switch-audio/sample.mp3' } } })
+    expect(unnamedWrapper.get('.switch-audio__heading p').text()).toContain('Recorded Switch typing sample')
   })
 
   it('shows visible and accessible errors when the recorded sample cannot load or decode', async () => {
