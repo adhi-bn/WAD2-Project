@@ -8,6 +8,8 @@ const props = defineProps({
   },
 })
 
+// Keep user-adjustable controls and playback state reactive so the template reflects
+// asynchronous loading, playback, mute, and seek changes without exposing Web Audio nodes.
 const volume = ref(0.7)
 const muted = ref(false)
 const playing = ref(false)
@@ -25,15 +27,19 @@ const duration = ref(0)
 const currentTime = ref(0)
 const seekValueText = ref('0:00.0 of unknown duration')
 
+// These browser resources stay outside Vue reactivity; only their user-visible state is reactive.
 let audioContext
 let gainNode
 let sourceNode
 let decodedSample
+// requestId invalidates stale async work; the controller cancels fetches, and the timer drives progress.
 let requestId = 0
 let loadController
 let progressTimer
+// Web Audio sources are one-shot, so retain the offset and clock time to resume with a fresh source.
 let playbackOffset = 0
 let sourceStartedAt = 0
+// Deduplicates the same seek when browser change, keyup, or blur events commit it more than once.
 let committedSeekTarget
 
 /**
@@ -43,11 +49,13 @@ let committedSeekTarget
  */
 function releaseSource(stopSource = true) {
   seeking.value = false
+  // Stop progress updates whenever a source is paused, replaced, ended, or torn down.
   if (progressTimer) {
     clearInterval(progressTimer)
     progressTimer = undefined
   }
   if (sourceNode) {
+    // Clear the active reference before stopping, because stop may queue an ended callback.
     const source = sourceNode
     sourceNode = null
     playing.value = false
@@ -67,6 +75,7 @@ function releaseSource(stopSource = true) {
  * @returns {void}
  */
 function cancelPlayback() {
+  // Any async continuation holding the old request number must stop before publishing a buffer.
   requestId += 1
   loadController?.abort()
   loadController = undefined
@@ -80,6 +89,7 @@ function cancelPlayback() {
  * @returns {void}
  */
 function updateGain() {
+  // A zero gain mutes output without changing the user's remembered slider value.
   if (gainNode) gainNode.gain.value = muted.value ? 0 : volume.value
 }
 
@@ -111,6 +121,7 @@ function startProgressUpdates() {
  * @returns {void}
  */
 function startSource(offset) {
+  // BufferSource nodes cannot be restarted, so every resume or committed seek creates a new one.
   const source = audioContext.createBufferSource()
   // Reuse one gain node across pause and seek restarts instead of rebuilding the output graph.
   if (!gainNode) {
@@ -121,6 +132,7 @@ function startSource(offset) {
   gainNode.gain.value = muted.value ? 0 : volume.value
   source.connect(gainNode)
   source.onended = () => {
+    // Ignore completion callbacks from a source that has already been replaced by a seek.
     if (sourceNode !== source) return
     releaseSource(false)
     playbackOffset = duration.value
@@ -133,6 +145,7 @@ function startSource(offset) {
   currentTime.value = offset
   updateSeekValueText()
   try {
+    // Register the source as active only after start succeeds, keeping state consistent on errors.
     source.start(0, offset)
   } catch (error) {
     source.disconnect()
@@ -148,12 +161,14 @@ function startSource(offset) {
  * @returns {Promise<void>}
  */
 async function playSample() {
+  // Missing recordings remain a descriptive unavailable state rather than triggering a request.
   if (!sample.value) {
     status.value = `No recorded sample is available for ${partName.value}.`
     return
   }
   if (loading.value) return
   if (playing.value) {
+    // Save the current clock-derived position before releasing the one-shot source to pause.
     playbackOffset = elapsedTime()
     currentTime.value = playbackOffset
     updateSeekValueText()
@@ -170,23 +185,28 @@ async function playSample() {
   status.value = `Loading recorded sample for ${partName.value}.`
 
   try {
+    // Construct Web Audio only after the user presses Play to comply with browser autoplay policy.
     const AudioContextClass = window.AudioContext || window.webkitAudioContext
     if (!AudioContextClass) throw new Error('Web Audio is unavailable')
 
     if (!audioContext || audioContext.state === 'closed') {
       audioContext = new AudioContextClass()
+      // Nodes belong to their AudioContext; a fresh context needs a new gain and decoded buffer.
       gainNode = null
       decodedSample = undefined
     }
+    // Safari can report interrupted as well as suspended; resume every non-running context.
     if (audioContext.state !== 'running') await audioContext.resume()
     if (audioContext.state !== 'running') throw new Error('Web Audio context did not resume')
     if (currentRequest !== requestId) return
 
     if (!decodedSample) {
+      // Fetch once per selected Part; abort the network request if selection changes mid-load.
       loadController = new AbortController()
       const response = await fetch(targetUrl, { signal: loadController.signal })
       if (!response.ok) throw new Error(`Sample request failed (${response.status})`)
       const audioData = await response.arrayBuffer()
+      // Check after each await because changing Parts invalidates this request while it is pending.
       if (currentRequest !== requestId) return
       const decoded = await audioContext.decodeAudioData(audioData)
       if (currentRequest !== requestId) return
@@ -199,10 +219,12 @@ async function playSample() {
     if (currentRequest !== requestId) return
 
     duration.value = decodedSample.duration
+    // Start over if the saved offset came from a longer sample selected previously.
     playbackOffset = playbackOffset >= duration.value ? 0 : playbackOffset
     startSource(playbackOffset)
     status.value = `Playing ${profile.value} typing sample for ${partName.value}${muted.value ? ' (muted)' : ''}.`
   } catch {
+    // Only the current request may reset state or report its error; stale failures belong to old Parts.
     if (currentRequest === requestId) {
       releaseSource()
       playing.value = false
@@ -241,6 +263,7 @@ function getSeekTarget(event) {
  * @returns {void}
  */
 function previewSeek(event) {
+  // Preview updates the displayed thumb and time but leaves the playing source untouched.
   seeking.value = true
   committedSeekTarget = undefined
   currentTime.value = getSeekTarget(event)
@@ -263,6 +286,7 @@ function seekSample(event) {
   if (!playing.value) return
 
   try {
+    // Commit by replacing the one-shot source only after the user finishes the adjustment.
     releaseSource()
     startSource(target)
     status.value = `Playing ${profile.value} typing sample for ${partName.value}${muted.value ? ' (muted)' : ''}.`
@@ -278,6 +302,7 @@ function seekSample(event) {
  * @returns {void}
  */
 function updateSeekValueText() {
+  // This text changes only on user actions and playback boundaries, not each progress tick.
   const total = duration.value ? formatTime(duration.value) : 'unknown duration'
   seekValueText.value = `${formatTime(currentTime.value)} of ${total}`
 }
@@ -288,6 +313,7 @@ function updateSeekValueText() {
  * @returns {void}
  */
 function finishKeyboardSeek(event) {
+  // Firefox may delay change until blur, so commit keyboard adjustments on key release.
   if (seeking.value && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) {
     seekSample(event)
   }
@@ -299,6 +325,7 @@ function finishKeyboardSeek(event) {
  * @returns {void}
  */
 function finishSeekOnBlur(event) {
+  // Blur is a fallback for browsers that leave a pending input without a final change event.
   if (seeking.value) seekSample(event)
 }
 
@@ -307,6 +334,7 @@ function finishSeekOnBlur(event) {
  * @returns {void}
  */
 function toggleMute() {
+  // The pressed state represents mute; the fixed accessible label remains a toggle-button name.
   muted.value = !muted.value
   updateGain()
   status.value = muted.value
@@ -319,6 +347,7 @@ function toggleMute() {
  * @returns {void}
  */
 function changeVolume() {
+  // Moving volume is an explicit request for sound, so clear mute before applying the gain.
   muted.value = false
   updateGain()
 }
@@ -329,6 +358,7 @@ function changeVolume() {
  * @returns {string} A minutes, seconds, and tenths display value.
  */
 function formatTime(seconds) {
+  // Work in tenths to render a stable one-decimal display without floating-point artifacts.
   const tenths = Math.round((Number.isFinite(seconds) ? seconds : 0) * 10)
   const minutes = Math.floor(tenths / 600)
   const secondsWithinMinute = Math.floor(tenths / 10) % 60
@@ -336,6 +366,7 @@ function formatTime(seconds) {
 }
 
 watch([() => props.part?.id, sample], () => {
+  // A new Part must not inherit playback, decoded audio, or errors from the previous selection.
   cancelPlayback()
   decodedSample = undefined
   duration.value = 0
@@ -349,6 +380,7 @@ watch([() => props.part?.id, sample], () => {
 }, { immediate: true })
 
 onBeforeUnmount(() => {
+  // Release source, gain, and context resources so the component leaves no audio graph behind.
   cancelPlayback()
   gainNode?.disconnect()
   gainNode = null
@@ -360,6 +392,7 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="switch-audio" aria-labelledby="switch-audio-title">
+    <!-- The heading always identifies the selected Part and whether its recording is available. -->
     <div class="switch-audio__heading">
       <div>
         <h3 id="switch-audio-title">Hear your selected switch</h3>
@@ -370,6 +403,7 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="switch-audio__player">
+      <!-- Playback starts only from this button; mute and volume share the same gain node. -->
       <div class="switch-audio__controls">
         <button
           type="button"
@@ -415,6 +449,7 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="switch-audio__timeline">
+        <!-- The visible clock updates continuously while aria-valuetext stays boundary-driven. -->
         <label class="visually-hidden" :for="seekId">Seek in {{ partName }} sample</label>
         <input
           :id="seekId"
@@ -438,6 +473,7 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
+    <!-- Keep failures visible and announced; routine status stays available to assistive technology. -->
     <p v-if="playbackError" class="switch-audio__error" role="alert">
       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
