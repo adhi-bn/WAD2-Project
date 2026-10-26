@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Google OAuth entry point and a guest-first Profile surface with saved Builds, explicit local guest-draft preservation on sign-out, and clear address/payment availability states.
 - Vercel SPA history fallback so direct links such as `/builder` resolve to the app shell.
 - Selected-switch Web Audio playback with linked self-recorded samples, mute/volume controls, accessible status and failure reporting (#17).
-- Linked the supplied Gazzew Boba recording to both Gazzew Boba U4 and U4T (#17).
+- Linked dedicated Gazzew Boba recordings to U4 and U4T (#17).
 - Architectural Decision Record [`docs/adr/0006-team-recorded-audio-assets.md`](docs/adr/0006-team-recorded-audio-assets.md) documenting self-recorded switch-audio assets, profile coverage, and missing-variant handling (#17).
 - Responsive About Us page with keyboard visual, platform story, feature cards, store details, and Keyboard Builder calls to action.
 - Architectural Decision Record [`docs/adr/0008-hybrid-six-group-builder-architecture.md`](docs/adr/0008-hybrid-six-group-builder-architecture.md) establishing the 6-group hybrid keyboard builder architecture (Case, Plate, PCB, Switches, Keycaps, Add-ons), 3-layer 3D visual preview boundary, preselected Add-ons, and database-driven compatibility feedback.
@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Made switch-audio load/decode errors visible, guarded late decode results when the selected Part changes, delayed seek restarts until slider adjustment completes, and made the player safe for missing Part data.
 - Consolidated switch-audio styling under the governed design tokens, restored the mute control's 44px touch target, and corrected the story-section `.wrap` scope.
 - Kept volume changes audible after mute, removed toggle semantics from the changing Play/Pause action, and added the legacy WebKit AudioContext fallback.
+- Recreated closed Web Audio contexts, resumed interrupted contexts, kept playback progress out of rapid ARIA updates, and committed keyboard seeks with visible failure handling.
 
 ## [0.1.0] - 2026-10-18
 

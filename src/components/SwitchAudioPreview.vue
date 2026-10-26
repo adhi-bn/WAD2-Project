@@ -23,6 +23,7 @@ const partName = computed(() => props.part?.name || 'Selected switch')
 const seekId = computed(() => `switch-audio-seek-${props.part?.id ?? 'selected-switch'}`)
 const duration = ref(0)
 const currentTime = ref(0)
+const seekValueText = ref('0:00.0 of unknown duration')
 
 let audioContext
 let gainNode
@@ -33,6 +34,7 @@ let loadController
 let progressTimer
 let playbackOffset = 0
 let sourceStartedAt = 0
+let committedSeekTarget
 
 /**
  * Stops the active source and disconnects it from the persistent gain node.
@@ -40,14 +42,21 @@ let sourceStartedAt = 0
  * @returns {void}
  */
 function releaseSource(stopSource = true) {
+  seeking.value = false
   if (progressTimer) {
     clearInterval(progressTimer)
     progressTimer = undefined
   }
   if (sourceNode) {
-    sourceNode.onended = null
-    if (stopSource) sourceNode.stop()
-    sourceNode.disconnect()
+    const source = sourceNode
+    sourceNode = null
+    playing.value = false
+    source.onended = null
+    // A closed context has already stopped its sources and no longer accepts node operations.
+    if (audioContext?.state !== 'closed') {
+      if (stopSource) source.stop()
+      source.disconnect()
+    }
   }
   sourceNode = null
   playing.value = false
@@ -116,13 +125,20 @@ function startSource(offset) {
     releaseSource(false)
     playbackOffset = duration.value
     currentTime.value = duration.value
+    updateSeekValueText()
     status.value = `Playback finished for ${partName.value}.`
   }
-  sourceNode = source
   playbackOffset = offset
   sourceStartedAt = audioContext.currentTime
   currentTime.value = offset
-  source.start(0, offset)
+  updateSeekValueText()
+  try {
+    source.start(0, offset)
+  } catch (error) {
+    source.disconnect()
+    throw error
+  }
+  sourceNode = source
   playing.value = true
   startProgressUpdates()
 }
@@ -140,6 +156,7 @@ async function playSample() {
   if (playing.value) {
     playbackOffset = elapsedTime()
     currentTime.value = playbackOffset
+    updateSeekValueText()
     releaseSource()
     status.value = `Paused playback for ${partName.value}.`
     return
@@ -156,8 +173,13 @@ async function playSample() {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext
     if (!AudioContextClass) throw new Error('Web Audio is unavailable')
 
-    audioContext ||= new AudioContextClass()
-    if (audioContext.state === 'suspended') await audioContext.resume()
+    if (!audioContext || audioContext.state === 'closed') {
+      audioContext = new AudioContextClass()
+      gainNode = null
+      decodedSample = undefined
+    }
+    if (audioContext.state !== 'running') await audioContext.resume()
+    if (audioContext.state !== 'running') throw new Error('Web Audio context did not resume')
     if (currentRequest !== requestId) return
 
     if (!decodedSample) {
@@ -187,6 +209,8 @@ async function playSample() {
       duration.value = 0
       currentTime.value = 0
       playbackOffset = 0
+      committedSeekTarget = undefined
+      updateSeekValueText()
       playbackError.value = `Could not play the recorded sample for ${partName.value}. Try again later.`
       status.value = ''
     }
@@ -218,7 +242,9 @@ function getSeekTarget(event) {
  */
 function previewSeek(event) {
   seeking.value = true
+  committedSeekTarget = undefined
   currentTime.value = getSeekTarget(event)
+  updateSeekValueText()
 }
 
 /**
@@ -229,13 +255,51 @@ function previewSeek(event) {
 function seekSample(event) {
   const target = getSeekTarget(event)
   seeking.value = false
-  playbackOffset = target
   currentTime.value = target
+  updateSeekValueText()
+  if (target === committedSeekTarget) return
+  committedSeekTarget = target
+  playbackOffset = target
   if (!playing.value) return
 
-  releaseSource()
-  startSource(target)
-  status.value = `Playing ${profile.value} typing sample for ${partName.value}${muted.value ? ' (muted)' : ''}.`
+  try {
+    releaseSource()
+    startSource(target)
+    status.value = `Playing ${profile.value} typing sample for ${partName.value}${muted.value ? ' (muted)' : ''}.`
+  } catch {
+    releaseSource()
+    playbackError.value = `Could not play the recorded sample for ${partName.value}. Try again later.`
+    status.value = ''
+  }
+}
+
+/**
+ * Updates the seek slider's accessible text only at user or playback state boundaries.
+ * @returns {void}
+ */
+function updateSeekValueText() {
+  const total = duration.value ? formatTime(duration.value) : 'unknown duration'
+  seekValueText.value = `${formatTime(currentTime.value)} of ${total}`
+}
+
+/**
+ * Commits keyboard slider changes after the native range value has updated.
+ * @param {KeyboardEvent} event Key-up event from the seek slider.
+ * @returns {void}
+ */
+function finishKeyboardSeek(event) {
+  if (seeking.value && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) {
+    seekSample(event)
+  }
+}
+
+/**
+ * Commits a pending seek if focus leaves before the browser emits a change event.
+ * @param {FocusEvent} event Blur event from the seek slider.
+ * @returns {void}
+ */
+function finishSeekOnBlur(event) {
+  if (seeking.value) seekSample(event)
 }
 
 /**
@@ -277,6 +341,7 @@ watch([() => props.part?.id, sample], () => {
   duration.value = 0
   currentTime.value = 0
   playbackOffset = 0
+  updateSeekValueText()
   playbackError.value = ''
   status.value = sample.value
     ? `Recorded ${profile.value} typing sample linked to ${partName.value}.`
@@ -320,7 +385,7 @@ onBeforeUnmount(() => {
           class="ui-btn switch-audio__mute"
           :disabled="!sample"
           :aria-pressed="muted"
-          :aria-label="muted ? 'Unmute switch sample' : 'Mute switch sample'"
+          aria-label="Mute switch sample"
           @click="toggleMute"
         >
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -342,6 +407,7 @@ onBeforeUnmount(() => {
             step="0.05"
             :disabled="!sample"
             :aria-label="`Volume for ${partName} sample`"
+            :aria-valuetext="volumePercent"
             @input="changeVolume"
           />
           <output>{{ volumePercent }}</output>
@@ -359,9 +425,11 @@ onBeforeUnmount(() => {
           step="0.01"
           :value="currentTime"
           :disabled="!sample || !duration"
-          :aria-valuetext="`${formatTime(currentTime)} of ${duration ? formatTime(duration) : 'unknown duration'}`"
+          :aria-valuetext="seekValueText"
           @input="previewSeek"
           @change="seekSample"
+          @keyup="finishKeyboardSeek"
+          @blur="finishSeekOnBlur"
         />
         <div class="switch-audio__time" aria-hidden="true">
           <span>{{ formatTime(currentTime) }}</span>

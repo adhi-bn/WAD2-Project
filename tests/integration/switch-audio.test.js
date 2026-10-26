@@ -124,11 +124,13 @@ describe('SwitchAudioPreview', () => {
 
     await wrapper.get('button[aria-label="Mute switch sample"]').trigger('click')
     expect(latestGain.gain.value).toBe(0)
+    expect(wrapper.get('button[aria-label="Mute switch sample"]').attributes('aria-pressed')).toBe('true')
     expect(wrapper.get('[role="status"]').text()).toContain('Muted')
 
     await wrapper.get('input[aria-label="Volume for Gateron Milky Yellow Pro sample"]').setValue('0.4')
     expect(latestGain.gain.value).toBe(0.4)
     expect(wrapper.get('button[aria-label="Mute switch sample"]').attributes('aria-pressed')).toBe('false')
+    expect(wrapper.get('input[aria-label="Volume for Gateron Milky Yellow Pro sample"]').attributes('aria-valuetext')).toBe('40%')
     expect(wrapper.text()).toContain('40%')
 
     await wrapper.get('button[aria-label="Mute switch sample"]').trigger('click')
@@ -183,14 +185,68 @@ describe('SwitchAudioPreview', () => {
 
     await wrapper.get('button[aria-label="Play sample for Gateron Milky Yellow Pro"]').trigger('click')
     await flushPromises()
+    const seek = wrapper.get('.switch-audio__seek')
+    const initialAccessibleTime = seek.attributes('aria-valuetext')
+    await seek.trigger('focus')
     latestAudioContext.currentTime = 1.5
     await vi.advanceTimersByTimeAsync(100)
     expect(wrapper.find('.switch-audio__time').text()).toContain('0:01.5')
+    expect(seek.attributes('aria-valuetext')).toBe(initialAccessibleTime)
 
     latestSource.onended()
     await wrapper.vm.$nextTick()
     expect(wrapper.find('.switch-audio__time').text()).toContain('0:04.3')
     expect(wrapper.get('[role="status"]').text()).toContain('Playback finished')
+  })
+
+  it('recreates a closed audio context after the system closes it', async () => {
+    const part = BASE.switches.find((option) => option.id === 'gyellow')
+    const wrapper = mount(SwitchAudioPreview, { props: { part } })
+
+    await wrapper.get('button[aria-label="Play sample for Gateron Milky Yellow Pro"]').trigger('click')
+    await flushPromises()
+    const closedContext = latestAudioContext
+    await wrapper.get('button[aria-label="Pause sample for Gateron Milky Yellow Pro"]').trigger('click')
+    closedContext.state = 'closed'
+
+    await wrapper.get('button[aria-label="Play sample for Gateron Milky Yellow Pro"]').trigger('click')
+    await flushPromises()
+
+    expect(latestAudioContext).not.toBe(closedContext)
+    expect(latestAudioContext.state).toBe('running')
+    expect(fetch).toHaveBeenCalledTimes(2)
+    expect(latestSource.start).toHaveBeenCalledOnce()
+  })
+
+  it('commits keyboard seeking and reports source-start errors without leaving playback active', async () => {
+    const part = BASE.switches.find((option) => option.id === 'gyellow')
+    const wrapper = mount(SwitchAudioPreview, { props: { part } })
+
+    await wrapper.get('button[aria-label="Play sample for Gateron Milky Yellow Pro"]').trigger('click')
+    await flushPromises()
+    const seek = wrapper.get('.switch-audio__seek')
+    seek.element.value = '1.25'
+    await seek.trigger('input')
+    await seek.trigger('keyup', { key: 'ArrowRight' })
+    const keyboardSource = latestSource
+    expect(keyboardSource.start).toHaveBeenCalledWith(0, 1.25)
+    await seek.trigger('change')
+    expect(latestSource).toBe(keyboardSource)
+
+    seek.element.value = '1.75'
+    await seek.trigger('input')
+    await seek.trigger('blur')
+    expect(latestSource.start).toHaveBeenCalledWith(0, 1.75)
+
+    latestAudioContext.createBufferSource = vi.fn(() => {
+      throw new Error('Audio source unavailable')
+    })
+    seek.element.value = '2'
+    await seek.trigger('input')
+    await seek.trigger('change')
+
+    expect(wrapper.get('[role="alert"]').text()).toContain('Could not play the recorded sample')
+    expect(wrapper.get('button[aria-label="Play sample for Gateron Milky Yellow Pro"]').text()).toBe('Play')
   })
 
   it('stops playback and closes Web Audio resources when unmounted', async () => {
@@ -314,6 +370,25 @@ describe('SwitchAudioPreview', () => {
     await flushPromises()
 
     expect(latestAudioContext).toBeInstanceOf(MockAudioContext)
+    expect(latestSource.start).toHaveBeenCalledOnce()
+  })
+
+  it('resumes an interrupted AudioContext before playback', async () => {
+    const part = BASE.switches.find((option) => option.id === 'gyellow')
+    const wrapper = mount(SwitchAudioPreview, { props: { part } })
+    class InterruptedAudioContext extends MockAudioContext {
+      constructor() {
+        super()
+        this.state = 'interrupted'
+      }
+    }
+    Object.defineProperty(window, 'AudioContext', { configurable: true, value: InterruptedAudioContext })
+
+    await wrapper.get('button[aria-label="Play sample for Gateron Milky Yellow Pro"]').trigger('click')
+    await flushPromises()
+
+    expect(latestAudioContext.resume).toHaveBeenCalledOnce()
+    expect(latestAudioContext.state).toBe('running')
     expect(latestSource.start).toHaveBeenCalledOnce()
   })
 
