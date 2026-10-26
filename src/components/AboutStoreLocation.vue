@@ -55,7 +55,7 @@ const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${enco
             height="450"
             loading="lazy"
             referrerpolicy="no-referrer-when-downgrade"
-            sandbox="allow-scripts allow-same-origin allow-popups"
+            sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
           ></iframe>
           <p class="about-store__map-note">Jewel Changi Airport, Singapore</p>
         </div>

@@ -11,7 +11,7 @@ import AboutStoreLocation from '../components/AboutStoreLocation.vue'
       <div class="lct-container">
         <div class="row align-items-center g-5">
           <div class="col-12 col-lg-7">
-            <p class="eyebrow">About Le Chaton Typers</p>
+            <p class="eyebrow">About <span translate="no">Le Chaton Typers</span></p>
             <h1 id="about-page-title" class="lct-display lct-balance"><span translate="no">Le Chaton Typers</span></h1>
             <p class="about-hero__tagline">Your Keyboard. Your Style. Your Sound.</p>
             <p class="lct-lead">
@@ -57,11 +57,11 @@ import AboutStoreLocation from '../components/AboutStoreLocation.vue'
       </div>
     </section>
 
-    <section class="about-section">
+    <div class="about-section">
       <div class="lct-container">
         <AboutStoreLocation />
       </div>
-    </section>
+    </div>
 
     <section class="about-final-cta" aria-labelledby="final-cta-heading">
       <div class="lct-container">

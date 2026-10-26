@@ -20,7 +20,7 @@ const features = [
   },
   {
     number: '04',
-    title: 'Budget clarity',
+    title: 'Budget Clarity',
     description: 'Compare Parts and keep track of your Budget as you build.',
     icon: 'S$',
   },

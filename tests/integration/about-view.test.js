@@ -31,7 +31,7 @@ describe('AboutView', () => {
     expect(text).toContain('3D Build Visualisation')
     expect(text).toContain('Switch Sound Preview')
     expect(text).toContain('Compatibility Checking')
-    expect(text).toContain('Budget clarity')
+    expect(text).toContain('Budget Clarity')
   })
 
   it('shows the store information and accessible map title', async () => {

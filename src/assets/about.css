@@ -1,5 +1,6 @@
 /* About page — uses the shared application tokens from main.css. */
-.about-page { --about-dark-surface: #15171c; }
+.about-page { overflow-x: clip; }
+.lct-balance { text-wrap: balance; }
 
 .about-page .lct-container {
   width: 100%;
@@ -39,10 +40,10 @@
 .about-hero__action { margin-top: 18px; }
 
 .about-keyboard-visual { position: relative; max-width: 470px; margin: 0 auto; padding: 50px 24px 64px; transform: rotate(-5deg); }
-.about-keyboard-visual__case { display: grid; grid-template-columns: repeat(13, minmax(0, 1fr)); gap: 7px; padding: 16px; border: 1px solid var(--about-dark-surface); border-radius: 22px; background: var(--about-dark-surface); box-shadow: 18px 22px 0 var(--accent), var(--shadow); }
+.about-keyboard-visual__case { display: grid; grid-template-columns: repeat(13, minmax(0, 1fr)); gap: 7px; padding: 16px; border: 1px solid var(--ink); border-radius: 22px; background: var(--ink); box-shadow: 18px 22px 0 var(--accent), var(--shadow); }
 .about-keyboard-visual__key { height: clamp(19px, 3vw, 31px); border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
 .about-keyboard-visual__key:nth-child(13n + 1), .about-keyboard-visual__key:nth-child(19), .about-keyboard-visual__key:nth-child(48) { background: var(--accent-soft); }
-.about-keyboard-visual__key:nth-child(49) { grid-column: span 5; }
+.about-keyboard-visual__key:nth-child(44) { grid-column: span 5; }
 .about-keyboard-visual__badge { position: absolute; z-index: 1; top: 14px; right: 12px; padding: 7px 12px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-family: var(--mono); font-size: 12px; font-weight: 600; }
 .about-keyboard-visual__shadow { position: absolute; z-index: -1; right: 24px; bottom: 40px; left: 40px; height: 24px; border-radius: 50%; background: rgb(18 21 28 / 16%); filter: blur(12px); }
 
@@ -69,9 +70,18 @@
 .about-store__map-note { position: absolute; right: 14px; bottom: 14px; max-width: 280px; margin: 0; padding: 7px 10px; border-radius: 6px; background: color-mix(in srgb, var(--surface) 92%, transparent); color: var(--ink); font-size: 12px; }
 
 .about-final-cta { padding-top: 0; }
-.about-final-cta__panel { padding: clamp(32px, 6vw, 64px); border-radius: 24px; background: var(--about-dark-surface); color: #f1f2f4; text-align: center; }
+.about-final-cta__panel { padding: clamp(32px, 6vw, 64px); border: 1px solid var(--line); border-radius: 24px; background: var(--ink); color: var(--surface); text-align: center; }
 .about-final-cta__panel .eyebrow { color: var(--accent); }
-.about-final-cta__panel .lct-headline { max-width: 650px; margin: 10px auto 28px; color: #f1f2f4; }
+.about-final-cta__panel .lct-headline { max-width: 650px; margin: 10px auto 28px; color: var(--surface); }
+.about-final-cta__panel .ui-btn.primary { background: #fff; border-color: #fff; color: #12151c; box-shadow: 0 4px 14px rgb(0 0 0 / 20%); }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .about-keyboard-visual__case,
+  :root:not([data-theme="light"]) .about-final-cta__panel { background: var(--surface-2); border-color: var(--line); }
+}
+
+:root[data-theme="dark"] .about-keyboard-visual__case,
+:root[data-theme="dark"] .about-final-cta__panel { background: var(--surface-2); border-color: var(--line); }
 
 .lct-reveal { animation: lct-fade-up 500ms ease both; }
 @keyframes lct-fade-up { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
