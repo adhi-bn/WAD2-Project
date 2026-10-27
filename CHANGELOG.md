@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Google OAuth entry point and a guest-first Profile surface with saved Builds, explicit local guest-draft preservation on sign-out, and clear address/payment availability states.
 - Vercel SPA history fallback so direct links such as `/builder` resolve to the app shell.
+- Selected-switch Web Audio playback with linked self-recorded samples, mute/volume controls, accessible status and failure reporting (#17).
+- Linked dedicated Gazzew Boba recordings to U4 and U4T (#17).
+- Architectural Decision Record [`docs/adr/0006-team-recorded-audio-assets.md`](docs/adr/0006-team-recorded-audio-assets.md) documenting self-recorded switch-audio assets, profile coverage, and missing-variant handling (#17).
 - Responsive About Us page with keyboard visual, platform story, feature cards, store details, and Keyboard Builder calls to action.
 - Architectural Decision Record [`docs/adr/0008-hybrid-six-group-builder-architecture.md`](docs/adr/0008-hybrid-six-group-builder-architecture.md) establishing the 6-group hybrid keyboard builder architecture (Case, Plate, PCB, Switches, Keycaps, Add-ons), 3-layer 3D visual preview boundary, preselected Add-ons, and database-driven compatibility feedback.
 - Architectural Decision Record [`docs/adr/0007-temporary-8-part-catalog-schema.md`](docs/adr/0007-temporary-8-part-catalog-schema.md) documenting the temporary retention of the 8-part Supabase catalog schema as technical debt (superseded by ADR-0008).
@@ -22,12 +25,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Repository changelog in [`CHANGELOG.md`](CHANGELOG.md) tracking milestones and unreleased changes following Keep a Changelog 1.1.0.
 
 ### Changed
+- Switched the frontend and shared switch catalogues to MP3 recordings; removed the M4A originals after verifying all catalogue samples decode and play in Chromium.
+- Expanded the switch-audio player with pause/resume, seeking, playback progress, and responsive card controls; linked Gazzew Boba U4 to its dedicated recording (#17).
+- Moved the switch-audio card below the Switches description, compacted its controls, and replaced visible status text and the Mute label with accessible status and an icon (#17).
 - Superseded ADR-0007 with ADR-0008, formalizing team consensus to condense 8 physical layers into 6 Component Groups (Case, Plate, PCB, Switches, Keycaps, Add-ons) to eliminate desktop horizontal scrolling while bundling Foam, Stabilizers, and Cable into preselected Add-ons.
 - Aligned `CONTEXT.md`, `docs/specs/keyboard-builder.md`, and `docs/ARCHITECTURE.md` with ADR-0008, updating Build, Part, Barebones kit, Compatibility definitions, 6 Component Groups, 3-layer 3D visual preview boundary (Keycaps, Switches, Base/Case), 2D internal imagery, floating navigation shortcut, and red badge + top warning banner compatibility feedback.
 - Documented collaboration conventions, branching strategy, Conventional Commits, dependency management, and environment variable synchronization.
 - Standardized code documentation requirements across collaboration guides, mandating JSDoc docstrings for public exports/functions and inline comments for non-obvious logic when agents or contributors write code.
 
 ### Fixed
+- Restored switch-audio player styling in the active frontend stylesheet so controls render correctly in the builder.
+- Made switch-audio load/decode errors visible, guarded late decode results when the selected Part changes, delayed seek restarts until slider adjustment completes, and made the player safe for missing Part data.
+- Consolidated switch-audio styling under the governed design tokens, restored the mute control's 44px touch target, and corrected the story-section `.wrap` scope.
+- Kept volume changes audible after mute, removed toggle semantics from the changing Play/Pause action, and added the legacy WebKit AudioContext fallback.
+- Recreated closed Web Audio contexts, resumed interrupted contexts, kept playback progress out of rapid ARIA updates, and committed keyboard seeks with visible failure handling.
 
 ## [0.1.0] - 2026-10-18
 

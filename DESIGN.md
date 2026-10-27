@@ -254,7 +254,7 @@ Component classes live in the custom namespace (`ui-btn`, `scard`, `chip`, `tab`
 ### 3D preview and sound
 - The Three.js keyboard preview is **schematic/educational** (no photorealistic or engineering-accuracy claims, per spec). Content-section labels highlight layers on scroll.
 - **Fallbacks (required):** selected-part data must exist as plain HTML even with no WebGL; rendering pauses when hidden and tears down on unmount; reduced motion is honoured.
-- **Sound:** user-initiated Web Audio typing/switch demo with mute/volume, tied to the selected switch profile, with missing-sample and playback-error states. During initial integration the audio is a clearly-labelled placeholder (spec, Gate 5); final audio needs permitted or self-owned recordings.
+- **Sound:** user-initiated Web Audio typing/switch demo with mute/volume, tied to the selected switch profile, with missing-sample and playback-error states. Available samples are self-recorded demo audio per [ADR-0006](docs/adr/0006-team-recorded-audio-assets.md); do not claim acoustic or engineering accuracy.
 
 ### Deferred / not part of the system
 - No payment, checkout, order, shipping or inventory components (buying flow deferred; sandbox HitPay stays a retained planned requirement — visual and order-flow details await the buying decision, so no checkout components are committed in this guide).
