@@ -732,6 +732,30 @@ describe('createBuildPreviewScene Controller Interface', () => {
     scene.dispose()
   })
 
+  it('skips the drop animation on software-rendered GPUs (SwiftShader/CI runners)', () => {
+    const softwareRenderer = {
+      ...createMockRenderer({ canvas }),
+      // Reports a software rasteriser the way headless Chromium does.
+      getContext: () => ({
+        getExtension: (name) => (name === 'WEBGL_debug_renderer_info' ? { UNMASKED_RENDERER_WEBGL: 0x9246 } : null),
+        getParameter: () => 'ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)), SwiftShader driver)',
+      }),
+    }
+    const scene = createBuildPreviewScene({
+      canvas,
+      loadGlb: false,
+      rendererFactory: () => softwareRenderer,
+    })
+
+    scene.updateLayerPart('switches', PREVIEW_PART_PRESETS.switches[0], { animate: true })
+
+    // A software driver needs hundreds of ms per frame, so animating would stall
+    // the page; the layer settles immediately (one render) instead.
+    expect(scene.getLayerStates().switches.dropProgress).toBe(1)
+
+    scene.dispose()
+  })
+
   it('disposes resources and renderer without throwing', () => {
     const mockRenderer = createMockRenderer({ canvas })
     const scene = createBuildPreviewScene({

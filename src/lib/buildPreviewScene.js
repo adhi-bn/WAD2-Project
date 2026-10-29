@@ -156,6 +156,27 @@ export function isWebGLAvailable(target = (typeof document !== 'undefined' ? doc
 }
 
 /**
+ * Detects whether the underlying WebGL driver is a software rasteriser
+ * (SwiftShader/llvmpipe, as used by headless browsers and CI runners). Such
+ * drivers take hundreds of milliseconds per frame, so the drop animation must be
+ * skipped to keep the main thread responsive.
+ *
+ * @param {object} renderer - THREE.WebGLRenderer instance (or a test double).
+ * @returns {boolean} True when the driver reports software rendering.
+ */
+function isSoftwareRenderer(renderer) {
+  try {
+    const gl = renderer?.getContext?.()
+    const info = gl?.getExtension?.('WEBGL_debug_renderer_info')
+    const name = info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL) || '') : ''
+    return /swiftshader|llvmpipe|softpipe|software|basic render/i.test(name)
+  } catch {
+    // Mock renderers in tests do not expose a real context.
+    return false
+  }
+}
+
+/**
  * 3 active visual layers for the interactive Build preview per ADR-0008.
  * Internal layers (Plate, PCB, Foam, Stabilizers) are deliberately decoupled from the 3D scene
  * to avoid mesh-clipping and reduce triangle overhead on mobile and desktop viewports.
@@ -1345,6 +1366,11 @@ export function createBuildPreviewScene({
   let contextLost = false
   let animId = null
   let reducedMotion = Boolean(initialReducedMotion)
+  // Latched when the driver is software-rendered or a frame overruns the budget.
+  // From then on the preview applies state changes instantly (one render per
+  // change) instead of animating, so a slow GPU cannot stall the main thread.
+  let disableAnimations = false
+  const motionDisabled = () => reducedMotion || disableAnimations
   let mode = 'procedural'
   let currentPreset = 'isometric'
   let lastFrameTime = typeof performance !== 'undefined' ? performance.now() : Date.now()
@@ -1455,6 +1481,13 @@ export function createBuildPreviewScene({
     }
   }
 
+  // Software rasterisers (SwiftShader/llvmpipe in headless browsers and CI
+  // runners) cannot sustain the drop animation's frame rate — animating would
+  // block the main thread for seconds per Part selection.
+  if (renderer) {
+    disableAnimations = isSoftwareRenderer(renderer)
+  }
+
   // ACES Filmic Tone Mapping
   if (renderer) {
     try {
@@ -1494,15 +1527,15 @@ export function createBuildPreviewScene({
       onCameraPresetChange('custom')
     }
     activeControlFrames = 24
-    if (!reducedMotion) {
+    if (!motionDisabled()) {
       startAnimationLoop()
     }
   }
 
   const handleControlsChange = () => {
     activeControlFrames = 24
-    if (reducedMotion || animId === null) {
-      if (reducedMotion) {
+    if (motionDisabled() || animId === null) {
+      if (motionDisabled()) {
         requestSingleFrame()
       } else {
         startAnimationLoop()
@@ -1513,7 +1546,7 @@ export function createBuildPreviewScene({
   if (canvas && typeof canvas.addEventListener === 'function') {
     try {
       controls = new OrbitControls(camera, canvas)
-      controls.enableDamping = !reducedMotion
+      controls.enableDamping = !motionDisabled()
       controls.dampingFactor = 0.08
       controls.rotateSpeed = 0.35
       controls.zoomSpeed = 0.65
@@ -2372,7 +2405,7 @@ export function createBuildPreviewScene({
     const clampedDt = Number.isFinite(dt) ? Math.max(0, Math.min(dt, 2.0)) : 1 / 60
 
     // Smoothly interpolate explosion factor toward target (exploded = 1, combined = 0)
-    if (reducedMotion) {
+    if (motionDisabled()) {
       currentExplosionFactor = targetExplosionFactor
     } else {
       const diff = targetExplosionFactor - currentExplosionFactor
@@ -2391,7 +2424,7 @@ export function createBuildPreviewScene({
     for (const id of BUILD_PREVIEW_LAYER_IDS) {
       const layer = layers[id]
       if (layer.dropProgress < 1) {
-        if (reducedMotion) {
+        if (motionDisabled()) {
           layer.dropProgress = 1
         } else {
           layer.dropProgress = Math.min(1, layer.dropProgress + clampedDt / 0.42)
@@ -2426,7 +2459,7 @@ export function createBuildPreviewScene({
    * When static, settles to 0% CPU/GPU and pauses requestAnimationFrame.
    */
   function renderLoop() {
-    if (isDisposed || isPausedState || reducedMotion) {
+    if (isDisposed || isPausedState || motionDisabled()) {
       animId = null
       return
     }
@@ -2438,8 +2471,10 @@ export function createBuildPreviewScene({
 
     // Software-rendered or very weak GPUs can take hundreds of milliseconds per
     // frame, which stretches a 0.42s drop animation into a multi-second main-thread
-    // stall. Snap to the settled state instead of animating when a frame is slow.
+    // stall. Snap to the settled state and stop animating for the rest of the
+    // session (the driver is not going to get faster).
     if (slowFrame) {
+      disableAnimations = true
       currentExplosionFactor = targetExplosionFactor
       for (const id of BUILD_PREVIEW_LAYER_IDS) {
         layers[id].dropProgress = 1
@@ -2450,6 +2485,7 @@ export function createBuildPreviewScene({
       activeControlFrames--
     }
 
+    // `step` already renders the frame for this tick, so a settled loop just stops.
     step(dt)
 
     if (isAnimating()) {
@@ -2457,8 +2493,6 @@ export function createBuildPreviewScene({
         animId = requestAnimationFrame(renderLoop)
       }
     } else {
-      // Settled to static state: render one clean final frame and sleep (0% CPU/GPU)
-      requestSingleFrame()
       animId = null
     }
   }
@@ -2467,14 +2501,14 @@ export function createBuildPreviewScene({
    * Starts the continuous requestAnimationFrame loop.
    */
   function startAnimationLoop() {
-    if (animId !== null || isDisposed || isPausedState || reducedMotion) return
+    if (animId !== null || isDisposed || isPausedState || motionDisabled()) return
     lastFrameTime = typeof performance !== 'undefined' ? performance.now() : Date.now()
     if (typeof requestAnimationFrame === 'function') {
       animId = requestAnimationFrame(renderLoop)
     }
   }
 
-  if (renderer && !reducedMotion) {
+  if (renderer && !motionDisabled()) {
     startAnimationLoop()
   } else {
     requestSingleFrame()
@@ -2624,14 +2658,14 @@ export function createBuildPreviewScene({
     }
 
     // Trigger vertical drop animation for this changed layer only when selected (REV-9)
-    if (normalized.isSelected && animate && !reducedMotion) {
+    if (normalized.isSelected && animate && !motionDisabled()) {
       layers[normSlot].dropProgress = 0
     } else {
       layers[normSlot].dropProgress = 1
       layers[normSlot].group.position.y = currentExplosionFactor * layers[normSlot].explodedY
     }
 
-    if (reducedMotion || isPausedState) {
+    if (motionDisabled() || isPausedState) {
       requestSingleFrame()
     } else {
       startAnimationLoop()
@@ -2675,7 +2709,7 @@ export function createBuildPreviewScene({
    */
   function setExploded(exploded, { animate = true } = {}) {
     targetExplosionFactor = exploded ? 1.0 : 0.0
-    if (reducedMotion || !animate) {
+    if (motionDisabled() || !animate) {
       currentExplosionFactor = targetExplosionFactor
       for (const id of BUILD_PREVIEW_LAYER_IDS) {
         const layer = layers[id]
@@ -2828,9 +2862,9 @@ export function createBuildPreviewScene({
       if (isDisposed) return
       reducedMotion = Boolean(isReduced)
       if (controls) {
-        controls.enableDamping = !reducedMotion
+        controls.enableDamping = !motionDisabled()
       }
-      if (reducedMotion) {
+      if (motionDisabled()) {
         if (animId !== null && typeof cancelAnimationFrame === 'function') {
           cancelAnimationFrame(animId)
           animId = null
@@ -2912,7 +2946,7 @@ export function createBuildPreviewScene({
      */
     resume() {
       isPausedState = false
-      if (!reducedMotion && isAnimating()) {
+      if (!motionDisabled() && isAnimating()) {
         startAnimationLoop()
       } else {
         requestSingleFrame()
