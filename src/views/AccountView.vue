@@ -3,8 +3,10 @@
 import { ref, computed, nextTick, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabaseReady } from '../lib/supabase.js'
-import { total, money } from '../logic/builder.js'
-import { state, signIn, signUp, signOut, signInWithGoogle, refreshSaved, deleteSaved, buildFromIds, loadBuild, restoreGuestDraft, resolveAccountTransition } from '../store.js'
+import { money } from '../logic/builder.js'
+import { state, signIn, signUp, signOut, signInWithGoogle, refreshSaved, deleteSaved, openSavedBuild, restoreGuestDraft, resolveAccountTransition } from '../store.js'
+import { revalidateSavedBuild } from '../domain/saved-build.js'
+import { catalog, CATS, META } from '../data/catalog.js'
 
 const router = useRouter()
 const mode = ref('signin')
@@ -13,6 +15,8 @@ const password = ref('')
 const busy = ref(false)
 const err = ref('')
 const info = ref('')
+const libraryError = ref('')
+const deletingId = ref(null)
 const signingInWithGoogle = ref(false)
 const confirmSignOut = ref(false)
 const googleButton = ref(null)
@@ -20,7 +24,10 @@ const signOutButton = ref(null)
 const transitionDialog = ref(null)
 const confirmSignOutDialog = ref(null)
 
-const saved = computed(() => state.savedBuilds.map((s) => ({ ...s, price: total(buildFromIds(s.layout, s.part_ids)) })))
+const saved = computed(() => state.savedBuilds.map((savedBuild) => ({
+  ...savedBuild,
+  review: revalidateSavedBuild(savedBuild, catalog(savedBuild.layout)),
+})))
 
 onMounted(() => { if (state.user) refreshSaved() })
 
@@ -86,8 +93,18 @@ function dismissTransition() {
 }
 
 function open(s) {
-  loadBuild({ layout: s.layout, part_ids: s.part_ids })
-  router.push('/build')
+  libraryError.value = ''
+  const review = openSavedBuild(s)
+  // A drifted Build opens in the picker so its retained unavailable Part can be changed deliberately.
+  router.push(review.issues.length ? '/parts' : '/build')
+}
+
+async function removeSaved(id) {
+  libraryError.value = ''
+  deletingId.value = id
+  const result = await deleteSaved(id)
+  deletingId.value = null
+  if (result?.error) libraryError.value = result.error
 }
 
 function continueGuestDraft() {
@@ -176,17 +193,42 @@ function continueGuestDraft() {
           <div class="actions"><router-link to="/swipe" class="ui-btn primary">Start building →</router-link></div>
         </div>
 
+        <p v-if="libraryError" class="account-status is-error" role="alert">{{ libraryError }}</p>
+
         <div v-for="s in saved" :key="s.id" class="panel" style="margin-bottom: 12px">
           <div class="phead" style="margin-bottom: 0">
             <div>
               <div class="eyebrow">{{ s.layout }}% · saved {{ new Date(s.created_at).toLocaleDateString('en-SG') }}</div>
               <h3 style="margin: 0">{{ s.name }}</h3>
             </div>
-            <div class="amt mono">{{ money(s.price) }}</div>
+            <div class="amt mono">{{ s.review.total === null ? 'Budget unavailable' : money(s.review.total) }}</div>
           </div>
+          <div v-if="s.review.issues.length" class="saved-build-warning" role="status">
+            <strong>Needs review before purchase.</strong>
+            <ul>
+              <li v-for="issue in s.review.issues" :key="`${issue.group}-${issue.type}`">{{ issue.message }}</li>
+            </ul>
+            <p v-for="(alternatives, group) in s.review.alternatives" :key="group" class="saved-build-alternatives">
+              <template v-if="s.review.issues.some((issue) => issue.group === group) && alternatives.length">
+                Try: {{ alternatives.map((part) => part.name).join(', ') }}.
+              </template>
+            </p>
+          </div>
+          <details class="saved-build-parts">
+            <summary>View selected Parts</summary>
+            <dl>
+              <template v-for="group in CATS" :key="group">
+                <dt>{{ META[group].label }}</dt>
+                <dd :class="{ 'is-unavailable': s.review.build[group].unavailable }">
+                  {{ s.review.build[group].name }}
+                  <span v-if="s.review.build[group].unavailable"> · unavailable</span>
+                </dd>
+              </template>
+            </dl>
+          </details>
           <div class="actions">
-            <button type="button" class="ui-btn primary" @click="open(s)">Open</button>
-            <button type="button" class="ui-btn" @click="deleteSaved(s.id)">Delete</button>
+            <button type="button" class="ui-btn primary" @click="open(s)">{{ s.review.issues.length ? 'Review and open' : 'Open' }}</button>
+            <button type="button" class="ui-btn" :disabled="deletingId === s.id" @click="removeSaved(s.id)">{{ deletingId === s.id ? 'Deleting…' : 'Delete' }}</button>
           </div>
         </div>
 

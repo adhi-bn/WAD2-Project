@@ -5,7 +5,7 @@ import AccountView from '../../src/views/AccountView.vue'
 import App from '../../src/App.vue'
 import HomeView from '../../src/views/HomeView.vue'
 import { catalog, CATS } from '../../src/data/catalog.js'
-import { preserveGuestDraft, resolveAccountTransition, restoreGuestDraft, signOut, state } from '../../src/store.js'
+import { openSavedBuild, preserveGuestDraft, resolveAccountTransition, restoreGuestDraft, signOut, state } from '../../src/store.js'
 
 function makeRouter() {
   return createRouter({
@@ -24,6 +24,8 @@ afterEach(() => {
   state.rec = null
   state.guestDraft = null
   state.savedBuilds = []
+  state.editingSavedBuildId = null
+  state.editingSavedBuildName = ''
   state.ui.accountTransition = false
   Object.assign(state.ld, { used: false, prize: null, code: null, expires: 0, applied: false })
   localStorage.removeItem('lct_guest_draft')
@@ -101,6 +103,23 @@ describe('profile authentication surface', () => {
     expect(restoreGuestDraft()).toBe(true)
     expect(state.guestDraft).toBeNull()
     expect(localStorage.getItem('lct_guest_draft')).toBeNull()
+  })
+
+  it('keeps an opened Saved build in edit mode instead of treating it as a new Build', () => {
+    const parts = catalog('75')
+    const savedBuild = {
+      id: 'saved-build-a',
+      name: 'Office keyboard',
+      layout: '75',
+      part_ids: Object.fromEntries(CATS.map((group) => [group, parts[group][0].id])),
+      answers: { budget: 420 },
+      part_prices: Object.fromEntries(CATS.map((group) => [group, parts[group][0].price])),
+    }
+
+    openSavedBuild(savedBuild)
+
+    expect(state.editingSavedBuildId).toBe('saved-build-a')
+    expect(state.editingSavedBuildName).toBe('Office keyboard')
   })
 
 })

@@ -7,23 +7,33 @@ import { state, layout, discountOf, toast, addToCart, saveBuild } from '../store
 import ProfileChips from '../components/ProfileChips.vue'
 
 const router = useRouter()
-const buildName = ref('')
+const buildName = ref(state.editingSavedBuildName || '')
 const saving = ref(false)
 
 const b = computed(() => state.build)
 const L = computed(() => layout())
-const t = computed(() => total(b.value))
-const disc = computed(() => discountOf(t.value))
+const hasUnknownPrice = computed(() => CATS.some((group) => !Number.isFinite(b.value?.[group]?.price)))
+const t = computed(() => hasUnknownPrice.value ? null : total(b.value))
+const disc = computed(() => t.value === null ? 0 : discountOf(t.value))
+const needsSavedBuildReview = computed(() => Boolean(state.savedBuildReview?.issues?.length))
+const canAddToCart = computed(() => t.value !== null && !needsSavedBuildReview.value)
 const g = computed(() => grams(b.value))
-const left = computed(() => { const d = state.answers.budget - t.value; return d >= 0 ? `${money(d)} under budget` : `${money(-d)} over budget` })
-const pct = computed(() => Math.min(100, (t.value / state.answers.budget) * 100) + '%')
-const title = computed(() => `Your ${L.value}% ${b.value.case.frame === 'metal' ? 'aluminium' : b.value.case.frame === 'pcb' ? 'open-frame' : 'plastic'} keyboard`)
+const left = computed(() => {
+  if (t.value === null) return 'Budget unavailable until every Part has a current price'
+  const d = state.answers.budget - t.value
+  return d >= 0 ? `${money(d)} under budget` : `${money(-d)} over budget`
+})
+const pct = computed(() => t.value === null ? '0%' : Math.min(100, (t.value / state.answers.budget) * 100) + '%')
+const title = computed(() => {
+  if (b.value.case?.unavailable) return `Your ${L.value}% saved keyboard Build`
+  return `Your ${L.value}% ${b.value.case.frame === 'metal' ? 'aluminium' : b.value.case.frame === 'pcb' ? 'open-frame' : 'plastic'} keyboard`
+})
 
 // Plain-language ratings for sound, feel and weight.
 const perf = computed(() => {
   const x = b.value, sw = x.switches.type
   const soft = ['pcp', 'fr4p'].includes(x.plate.id), foam = x.foam.id
-  const loud = { silent: 1, linear: 2, tactile: 3, clicky: 5 }[sw] + (foam === 'none' && sw !== 'clicky' && sw !== 'silent' ? 1 : 0)
+  const loud = ({ silent: 1, linear: 2, tactile: 3, clicky: 5 }[sw] || 0) + (foam === 'none' && sw !== 'clicky' && sw !== 'silent' ? 1 : 0)
   const sound = sw === 'silent' ? 'Near-silent, soft bottom-out. Fine for shared offices and late-night calls.'
     : sw === 'clicky' ? 'A loud click on every press. Great on your own, noisy for people nearby.'
     : soft && foam !== 'none' ? 'Deep, muted "thock". The soft plate and foam round off the sound.'
@@ -34,7 +44,7 @@ const perf = computed(() => {
   const wt = `About ${kg(g.value)}. ${wn <= 2 ? 'Easy to throw in a bag.' : wn === 3 ? 'Stays put, still portable.' : 'Desk-bound and very solid.'}`
   return [
     { k: 'Loudness', n: loud, d: sound },
-    { k: 'Typing feel', n: { linear: 3, tactile: 4, clicky: 4, silent: 3 }[sw], d: feel },
+    { k: 'Typing feel', n: { linear: 3, tactile: 4, clicky: 4, silent: 3 }[sw] || 0, d: feel },
     { k: 'Weight', n: wn, d: wt },
   ]
 })
@@ -51,7 +61,7 @@ const checks = computed(() => {
 })
 
 function copyList() {
-  const txt = CATS.map((c) => `${META[c].label}: ${b.value[c].name} (${b.value[c].price ? money(b.value[c].price) : 'included'})`).join('\n') + `\nTotal: ${money(t.value)}`
+  const txt = CATS.map((c) => `${META[c].label}: ${b.value[c].name} (${Number.isFinite(b.value[c].price) ? money(b.value[c].price) : 'unavailable'})`).join('\n') + `\nTotal: ${t.value === null ? 'unavailable' : money(t.value)}`
   navigator.clipboard?.writeText(txt).then(() => toast('Parts list copied'), () => toast('Copy is blocked here. Select the table to copy it.'))
 }
 
@@ -64,6 +74,10 @@ async function saveNow() {
   toast(res.error || 'Build saved to your account.')
 }
 function addNow() {
+  if (!canAddToCart.value) {
+    toast('Review the changed Parts before adding this Saved build to your cart.')
+    return
+  }
   addToCart(title2.value)
   router.push('/cart')
 }
@@ -78,9 +92,22 @@ function addNow() {
           <h1>{{ title }}</h1>
           <ProfileChips />
         </div>
+        <div class="save-build-top">
+          <label for="buildName" class="eyebrow">Name and save this Build</label>
+          <div class="actions">
+            <input id="buildName" v-model="buildName" class="form-control" :placeholder="title" aria-label="Name for this build" />
+            <button type="button" class="ui-btn primary" :disabled="saving" @click="saveNow">{{ saving ? 'Saving…' : state.editingSavedBuildId ? 'Update build' : 'Save build' }}</button>
+          </div>
+          <p v-if="!state.user" class="fine">Sign in to save it to your Profile.</p>
+        </div>
       </div>
       <div class="sumgrid">
         <div class="panel">
+          <div v-if="hasUnknownPrice || needsSavedBuildReview" class="saved-build-warning" role="status">
+            <strong>This Saved build needs review.</strong>
+            <template v-if="hasUnknownPrice">A previously selected Part is no longer available or has no current price. Choose an available Part before using its Budget or checkout preview.</template>
+            <template v-else>A selected Part, price, or compatibility rule has changed. Review the Parts before using the cart or checkout preview.</template>
+          </div>
           <div style="max-width: 520px; margin: 0 auto 16px" v-html="kbSVG(L)"></div>
           <div class="scroll">
             <table class="tbl">
@@ -89,10 +116,10 @@ function addNow() {
                 <tr v-for="c in CATS" :key="c">
                   <td>{{ META[c].label }}</td>
                   <td>{{ b[c].name }}<span class="sub">{{ spec(c, b[c]) }}</span></td>
-                  <td class="r">{{ b[c].price ? money(b[c].price) : 'Included' }}</td>
+                  <td class="r">{{ !Number.isFinite(b[c].price) ? 'Unavailable' : b[c].price ? money(b[c].price) : 'Included' }}</td>
                 </tr>
               </tbody>
-              <tfoot><tr><td></td><td>Total</td><td class="r">{{ disc > 0 ? `${money2(t - disc)} after voucher` : money(t) }}</td></tr></tfoot>
+              <tfoot><tr><td></td><td>Total</td><td class="r">{{ t === null ? 'Unavailable' : disc > 0 ? `${money2(t - disc)} after voucher` : money(t) }}</td></tr></tfoot>
             </table>
           </div>
           <div class="actions">
@@ -100,16 +127,14 @@ function addNow() {
             <button type="button" class="ui-btn" @click="copyList">Copy parts list</button>
           </div>
           <div class="actions" style="margin-top: 12px">
-            <input v-model="buildName" class="form-control" style="max-width: 260px" :placeholder="title" aria-label="Name for this build" />
-            <button type="button" class="ui-btn" :disabled="saving" @click="saveNow">{{ saving ? 'Saving…' : 'Save build' }}</button>
-            <button type="button" class="ui-btn primary" @click="addNow">Add to cart →</button>
+            <button type="button" class="ui-btn primary" :disabled="!canAddToCart" @click="addNow">{{ canAddToCart ? 'Add to cart →' : 'Review Parts to add to cart' }}</button>
           </div>
         </div>
 
         <div style="display: grid; gap: 16px">
           <div class="panel">
-            <div class="bigtotal"><span class="eyebrow">Total</span><span class="amt">{{ disc > 0 ? money2(t - disc) : money(t) }}</span></div>
-            <div class="meter" :class="{ over: t > state.answers.budget }"><i :style="{ width: pct }"></i></div>
+            <div class="bigtotal"><span class="eyebrow">Total</span><span class="amt">{{ t === null ? 'Unavailable' : disc > 0 ? money2(t - disc) : money(t) }}</span></div>
+            <div class="meter" :class="{ over: t !== null && t > state.answers.budget }"><i :style="{ width: pct }"></i></div>
             <div class="meterlab"><span>{{ left }}</span><span>Budget {{ money(state.answers.budget) }}</span></div>
             <div v-if="disc > 0" class="vline"><span>{{ state.ld.code }} voucher</span><span class="mono">−{{ money2(disc) }}</span></div>
             <div class="perf">

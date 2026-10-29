@@ -33,6 +33,8 @@ describe('branded shell', () => {
     expect(wrapper.find('.brand').text()).toContain('Le Chaton Typers')
     expect(wrapper.find('a.navlink[href="/"]').text()).toContain('Home')
     expect(wrapper.find('a.navlink[href="/builder"]').text()).toContain('Builder')
+    expect(wrapper.find('footer a[href="/privacy"]').text()).toBe('Privacy')
+    expect(wrapper.find('footer a[href="/terms"]').text()).toBe('Terms')
   })
 
   it('lets a guest reach the builder route (no auth gate)', async () => {

@@ -34,7 +34,10 @@ create table if not exists saved_builds (
   name        text not null,
   layout      text not null check (layout in ('60','75','100')),
   part_ids    jsonb not null,
-  created_at  timestamptz not null default now()
+  answers     jsonb not null default '{}'::jsonb, -- quiz preferences and target Budget
+  part_prices jsonb not null default '{}'::jsonb, -- historical prices for drift reporting
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
 );
 
 -- Discount codes. Rows are created by the server (service role) only.
@@ -79,6 +82,9 @@ create policy "own saved builds" on saved_builds for all
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "own orders" on orders for select
   using (auth.uid() = user_id);
+
+-- Authenticated browser users still pass through the RLS ownership policy.
+grant select, insert, update, delete on saved_builds to authenticated;
 
 -- No public policies on vouchers or order writes: edge functions use the service role.
 

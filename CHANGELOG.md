@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Saved-build snapshots now retain the selected eight Parts, quiz preferences, target Budget, and historical prices; reopening flags catalogue drift and offers alternatives without silently replacing a Part (#12).
+- Saved-build Supabase migration adding the snapshot fields, update timestamp, and explicit per-account RLS policies (#12).
 - Google OAuth entry point and a guest-first Profile surface with saved Builds, explicit local guest-draft preservation on sign-out, and clear address/payment availability states.
 - Vercel SPA history fallback so direct links such as `/builder` resolve to the app shell.
 - Selected-switch Web Audio playback with linked self-recorded samples, mute/volume controls, accessible status and failure reporting (#17).

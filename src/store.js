@@ -4,6 +4,7 @@ import { catalog, CATS } from './data/catalog.js'
 import { PRIZES } from './data/fatcat.js'
 import { recommend, autoFix, total, money } from './logic/builder.js'
 import { supabase, supabaseReady } from './lib/supabase.js'
+import { revalidateSavedBuild, snapshotBuild } from './domain/saved-build.js'
 
 const saved = (() => { try { return JSON.parse(localStorage.getItem('lct_ld') || '{}') } catch (e) { return {} } })()
 const savedCart = (() => { try { return JSON.parse(localStorage.getItem('lct_cart') || '[]') } catch (e) { return [] } })()
@@ -23,6 +24,9 @@ export const state = reactive({
   ld: Object.assign({ used: false, prize: null, code: null, expires: 0, applied: false }, saved), // lucky draw
   user: null, // signed-in Supabase user, or null
   savedBuilds: [], // the signed-in user's saved builds
+  savedBuildReview: null, // current-catalogue result for a reopened Saved build
+  editingSavedBuildId: null, // existing Saved build being edited, or null for a new Build
+  editingSavedBuildName: '',
   guestDraft: savedGuestDraft, // an explicitly preserved local Build, never uploaded automatically
 })
 
@@ -36,6 +40,9 @@ let isSigningOut = false
  */
 function clearAccountState() {
   state.savedBuilds = []
+  state.savedBuildReview = null
+  state.editingSavedBuildId = null
+  state.editingSavedBuildName = ''
   Object.assign(state.ld, { used: false, prize: null, code: null, expires: 0, applied: false })
   saveLD()
 }
@@ -50,6 +57,8 @@ function discardCurrentBuild() {
   state.cat = null
   state.rec = null
   state.biscuit = false
+  state.editingSavedBuildId = null
+  state.editingSavedBuildName = ''
 }
 
 export const layout = () => state.answers.layout || '75'
@@ -67,6 +76,8 @@ export function finishQuiz() {
   state.rec = recommend(A, state.cat)
   state.build = { ...state.rec }
   state.biscuit = false
+  state.editingSavedBuildId = null
+  state.editingSavedBuildName = ''
   state.reached.build = false
   state.reached.buy = false
 }
@@ -77,6 +88,9 @@ export function choose(cat, id) {
   b[cat] = state.cat[cat].find((o) => o.id === id)
   const notes = autoFix(b, state.cat, cat)
   state.build = b
+  // Editing a reopened Build is deliberate; its historical drift report no longer
+  // describes the in-progress draft after the customer makes a new selection.
+  state.savedBuildReview = null
   const d = total(b) - before
   toast(notes.length ? notes.join(' ') : d === 0 ? 'No change to your total.' : `Total ${d > 0 ? 'up' : 'down'} ${money(Math.abs(d))}. Now ${money(total(b))}.`)
 }
@@ -125,6 +139,9 @@ export function loadBuild(item, { fromBiscuit = false } = {}) {
   // The parts page compares each part with the recommended build, so a loaded build needs one too.
   state.rec = { ...state.build }
   state.biscuit = fromBiscuit
+  state.savedBuildReview = null
+  state.editingSavedBuildId = null
+  state.editingSavedBuildName = ''
   state.reached.build = false
 }
 
@@ -180,10 +197,10 @@ export async function refreshSaved() {
   if (!supabase || !state.user) { state.savedBuilds = []; return }
   const revision = sessionRevision
   const userId = state.user.id
-  const { data, error } = await supabase.from('saved_builds').select('id, name, layout, part_ids, created_at').order('created_at', { ascending: false })
+  const { data, error } = await supabase.from('saved_builds').select('id, name, layout, part_ids, answers, part_prices, created_at, updated_at').order('updated_at', { ascending: false })
   // An account change while the request was pending must not populate the next profile.
   if (revision !== sessionRevision || state.user?.id !== userId) return
-  if (error) { toast('Could not load your saved builds.'); return }
+  if (error) { toast(`Could not load your saved Builds: ${error.message}`); return }
   state.savedBuilds = data
 }
 /**
@@ -209,9 +226,24 @@ export async function saveBuild(name) {
   if (state.ui.accountTransition) return { error: 'Choose what to do with the previous account Build before saving.' }
   const revision = sessionRevision
   const userId = state.user.id
-  const { error } = await supabase.from('saved_builds').insert({ user_id: state.user.id, name, layout: layout(), part_ids: idsOf(state.build) })
+  const snapshot = snapshotBuild(state.build, state.answers)
+  const payload = {
+    user_id: state.user.id,
+    name,
+    layout: layout(),
+    part_ids: snapshot.partIds,
+    answers: snapshot.answers,
+    part_prices: snapshot.partPrices,
+  }
+  const request = state.editingSavedBuildId
+    ? supabase.from('saved_builds').update(payload).eq('id', state.editingSavedBuildId).eq('user_id', userId).select('id, name').single()
+    : supabase.from('saved_builds').insert(payload).select('id, name').single()
+  const { data, error } = await request
   if (revision !== sessionRevision || state.user?.id !== userId) return { error: 'Your account changed before the Build could be saved.' }
-  if (error) return { error: 'Your build could not be saved. Please try again.' }
+  if (error) return { error: `Your Build could not be saved: ${error.message}` }
+  // Remember the newly created row too, so a second save updates it instead of duplicating it.
+  state.editingSavedBuildId = data.id
+  state.editingSavedBuildName = data.name
   await refreshSaved()
   return {}
 }
@@ -222,12 +254,34 @@ export async function saveBuild(name) {
  * @returns {Promise<void>}
  */
 export async function deleteSaved(id) {
-  if (!supabase || !state.user) return
+  if (!supabase || !state.user) return { error: 'Sign in to delete a saved Build.' }
   const revision = sessionRevision
   const userId = state.user.id
-  await supabase.from('saved_builds').delete().eq('id', id).eq('user_id', userId)
+  const { error } = await supabase.from('saved_builds').delete().eq('id', id).eq('user_id', userId)
   if (revision !== sessionRevision || state.user?.id !== userId) return
+  if (error) return { error: `Your saved Build could not be deleted: ${error.message}` }
   await refreshSaved()
+  return {}
+}
+
+/**
+ * Rechecks and opens a Saved build without silently repairing changed Parts.
+ *
+ * @param {object} savedBuild - A row from the active account's saved-build library.
+ * @returns {{issues: Array<object>, total: number|null, purchaseReady: boolean}} Current catalogue review details.
+ */
+export function openSavedBuild(savedBuild) {
+  const review = revalidateSavedBuild(savedBuild, catalog(savedBuild.layout))
+  state.answers = { ...state.answers, ...review.answers, layout: savedBuild.layout }
+  state.cat = catalog(savedBuild.layout)
+  state.build = review.build
+  state.rec = { ...review.build }
+  state.biscuit = false
+  state.savedBuildReview = review
+  state.editingSavedBuildId = savedBuild.id
+  state.editingSavedBuildName = savedBuild.name
+  state.reached.build = false
+  return review
 }
 export async function signIn(email, password) {
   if (!supabase) return { error: 'Accounts are not set up yet.' }
