@@ -10,6 +10,7 @@ import CheckoutView from '../views/CheckoutView.vue'
 import ConfirmView from '../views/ConfirmView.vue'
 import AccountView from '../views/AccountView.vue'
 import AboutView from '../views/AboutView.vue'
+import CompareBuildsView from '../views/CompareBuildsView.vue'
 import PrivacyView from '../views/PrivacyView.vue'
 import TermsView from '../views/TermsView.vue'
 
@@ -27,6 +28,7 @@ const router = createRouter({
     { path: '/account', name: 'account', component: AccountView },
     // Builder picks live in PartsView; keep the old URL working.
     { path: '/builder', redirect: '/parts' },
+    { path: '/compare', name: 'compare', component: CompareBuildsView },
     { path: '/about', name: 'about', component: AboutView },
     { path: '/privacy', name: 'privacy', component: PrivacyView },
     { path: '/terms', name: 'terms', component: TermsView },
