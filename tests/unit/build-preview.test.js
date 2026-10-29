@@ -1434,5 +1434,3 @@ describe('Top-Printed vs Side-Printed Keycap Legends & Multi-Layout Overlay', ()
     expect(isSideLegendMesh(explicitLegendMesh)).toBe(true)
   })
 })
-
-
