@@ -83,12 +83,9 @@ describe('PartsView (Builder integration)', () => {
     expect(newTotal).toBeDefined()
   })
 
-  it('passes domainBuild props with fallback to state.build into BuildPreviewCanvas', async () => {
+  it('populates useBuildStore immediately on mount and passes props into BuildPreviewCanvas', async () => {
     const router = createTestRouter()
     finishQuiz()
-
-    const customBarebones = { id: 'bb-custom', name: 'Custom Barebones Base', price: 150 }
-    setSlot('barebones', customBarebones)
 
     const wrapper = mount(PartsView, {
       global: { plugins: [router] },
@@ -96,9 +93,22 @@ describe('PartsView (Builder integration)', () => {
     await flushPromises()
 
     const preview = wrapper.findComponent(BuildPreviewCanvas)
-    expect(preview.props('barebones')).toEqual(customBarebones)
+    // AC-R10: useBuildStore is populated immediately on mount from state.build
+    expect(domainBuild.barebones).toEqual(state.build.case)
+    expect(domainBuild.switches).toEqual(state.build.switches)
+    expect(domainBuild.keycaps).toEqual(state.build.keycaps)
+
+    expect(preview.props('barebones')).toEqual(state.build.case)
     expect(preview.props('switches')).toEqual(state.build.switches)
     expect(preview.props('keycaps')).toEqual(state.build.keycaps)
+
+    // Select alternative case and verify useBuildStore updates reactively on part pick
+    const altCase = state.cat.case.find((c) => c.id !== state.build.case.id)
+    choose('case', altCase.id)
+    await flushPromises()
+
+    expect(domainBuild.barebones.id).toBe(altCase.id)
+    expect(preview.props('barebones').id).toBe(altCase.id)
   })
 
   it('renders all part tabs and allows navigating between them', async () => {

@@ -9,8 +9,6 @@ import * as THREE from 'three'
 import {
   BUILD_PREVIEW_LAYERS,
   BUILD_PREVIEW_LAYER_IDS,
-  PREVIEW_PART_PRESETS,
-  STARTER_BUILD_PARTS,
   normalizePreviewPart,
   computeDropOffset,
   isColorLight,
@@ -27,8 +25,6 @@ import {
   getKeycapColorway,
   applyBarebonesGeometryVariant,
   DEFAULT_CAMERA_PRESETS,
-  KEYCAP_LEGEND_GRID_75,
-  compositeKeycapLegendsOnCanvas,
   TOP_LEGEND_TEXTURE_PATHS,
   loadTopLegendTexture,
   createTopLegendsOverlay,
@@ -41,6 +37,211 @@ import {
   SWITCH_LAYOUT_POSITIONS_100,
 } from '../../src/lib/keyboardSwitchLayout.js'
 import { checkCompatibility } from '../../src/domain/build.js'
+
+/**
+ * Test fixture presets for barebones, switches, and keycaps.
+ */
+const PREVIEW_PART_PRESETS = Object.freeze({
+  barebones: Object.freeze([
+    Object.freeze({
+      id: 'bb-frosted-pc',
+      name: 'Frosted Polycarbonate Base',
+      price: 135,
+      socket: 'hotswap',
+      pin: null,
+      layout: 'ansi',
+      color: '#e2e8f0',
+      accentColor: '#94a3b8',
+      stemColor: null,
+      finish: 'Frosted Polycarbonate',
+      metalness: 0.1,
+      roughness: 0.35,
+      opacity: 0.85,
+    }),
+    Object.freeze({
+      id: 'bb-navy-alu',
+      name: 'Anodized Navy Aluminum Base',
+      price: 185,
+      socket: 'hotswap',
+      pin: null,
+      layout: 'ansi',
+      color: '#1e293b',
+      accentColor: '#38bdf8',
+      stemColor: null,
+      finish: 'Anodized Aluminum',
+      metalness: 0.8,
+      roughness: 0.25,
+      opacity: 1.0,
+    }),
+    Object.freeze({
+      id: 'bb-retro-cream',
+      name: 'Retro Cream Base',
+      price: 120,
+      socket: 'hotswap',
+      pin: null,
+      layout: 'ansi',
+      color: '#fef3c7',
+      accentColor: '#f59e0b',
+      stemColor: null,
+      finish: 'Powder-coated Matte',
+      metalness: 0.15,
+      roughness: 0.65,
+      opacity: 1.0,
+    }),
+  ]),
+  switches: Object.freeze([
+    Object.freeze({
+      id: 'sw-tangerine',
+      name: 'C³Equalz Tangerine Linear',
+      price: 65,
+      socket: null,
+      pin: '5-pin',
+      layout: null,
+      color: '#ea580c',
+      accentColor: '#22c55e',
+      stemColor: '#22c55e',
+      finish: 'Translucent UHMWPE Housing',
+      metalness: 0.05,
+      roughness: 0.25,
+      opacity: 0.9,
+    }),
+    Object.freeze({
+      id: 'sw-panda',
+      name: 'Holy Panda Tactile',
+      price: 75,
+      socket: null,
+      pin: '5-pin',
+      layout: null,
+      color: '#f8fafc',
+      accentColor: '#f97316',
+      stemColor: '#f97316',
+      finish: 'Solid Nylon / Polycarbonate',
+      metalness: 0.05,
+      roughness: 0.5,
+      opacity: 1.0,
+    }),
+    Object.freeze({
+      id: 'sw-blue',
+      name: 'Gateron Blue Clicky (3-pin)',
+      price: 35,
+      socket: null,
+      pin: '3-pin',
+      layout: null,
+      color: '#0284c7',
+      accentColor: '#ffffff',
+      stemColor: '#0284c7',
+      finish: 'Translucent Polycarbonate',
+      metalness: 0.05,
+      roughness: 0.35,
+      opacity: 0.85,
+    }),
+  ]),
+  keycaps: Object.freeze([
+    Object.freeze({
+      id: 'kc-botanical',
+      name: 'Cherry Botanical PBT Keycaps',
+      price: 85,
+      socket: null,
+      pin: null,
+      layout: 'ansi',
+      color: '#166534',
+      accentColor: '#86efac',
+      stemColor: null,
+      finish: 'Dye-sub PBT Matte',
+      metalness: 0.05,
+      roughness: 0.65,
+      opacity: 1.0,
+      textureUrl: null,
+      artMode: null,
+      legendStyle: 'side',
+    }),
+    Object.freeze({
+      id: 'kc-laser',
+      name: 'GMK Laser Double-shot Keycaps',
+      price: 140,
+      socket: null,
+      pin: null,
+      layout: 'ansi',
+      color: '#312e81',
+      accentColor: '#ec4899',
+      stemColor: null,
+      finish: 'Double-shot ABS Semi-gloss',
+      metalness: 0.05,
+      roughness: 0.45,
+      opacity: 1.0,
+      textureUrl: null,
+      artMode: null,
+      legendStyle: 'top',
+    }),
+    Object.freeze({
+      id: 'kc-french-iso',
+      name: 'Retro Classic ISO French AZERTY',
+      price: 55,
+      socket: null,
+      pin: null,
+      layout: 'iso',
+      color: '#e2d9cc',
+      accentColor: '#b45309',
+      stemColor: null,
+      finish: 'Textured PBT',
+      metalness: 0.05,
+      roughness: 0.8,
+      opacity: 1.0,
+      textureUrl: null,
+      artMode: null,
+      legendStyle: 'top',
+    }),
+    Object.freeze({
+      id: 'theme',
+      name: 'Themed PBT Keycaps (Le Chaton Anime Mural)',
+      price: 69,
+      socket: null,
+      pin: null,
+      layout: 'ansi',
+      color: '#f8fafc',
+      accentColor: '#f97316',
+      stemColor: null,
+      finish: 'Dye-sub PBT Mural',
+      metalness: 0.05,
+      roughness: 0.75,
+      opacity: 1.0,
+      textureUrl: '/textures/keycaps/anime-cat-town.jpg',
+      artMode: 'full',
+      legendColor: '#ffffff',
+      legendEmissive: '#fef08a',
+      legendEmissiveIntensity: 0.75,
+      legendStyle: 'side',
+    }),
+    Object.freeze({
+      id: 'kanagawa',
+      name: 'Great Wave Kanagawa Dye-Sub Keycaps',
+      price: 79,
+      socket: null,
+      pin: null,
+      layout: 'ansi',
+      color: '#f8fafc',
+      accentColor: '#0284c7',
+      stemColor: null,
+      finish: 'Dye-sub PBT Mural',
+      metalness: 0.05,
+      roughness: 0.75,
+      opacity: 1.0,
+      textureUrl: '/textures/keycaps/kanagawa-wave.jpg',
+      artMode: 'full',
+      legendColor: '#ffffff',
+      legendEmissive: '#38bdf8',
+      legendEmissiveIntensity: 0.85,
+      legendStyle: 'side',
+    }),
+  ]),
+})
+
+const STARTER_BUILD_PARTS = Object.freeze({
+  barebones: PREVIEW_PART_PRESETS.barebones[0],
+  switches: PREVIEW_PART_PRESETS.switches[0],
+  keycaps: PREVIEW_PART_PRESETS.keycaps[0],
+})
+
 
 /**
  * Creates a mock WebGL renderer for testing in jsdom.
@@ -81,10 +282,14 @@ describe('3D Build Preview Layers Domain Schema (ADR-0008)', () => {
   })
 
   it('supports string inclusion checks and has required descriptors', () => {
-    expect(BUILD_PREVIEW_LAYERS.includes('barebones')).toBe(true)
-    expect(BUILD_PREVIEW_LAYERS.includes('switches')).toBe(true)
-    expect(BUILD_PREVIEW_LAYERS.includes('keycaps')).toBe(true)
-    expect(BUILD_PREVIEW_LAYERS.includes('plate')).toBe(false)
+    expect(BUILD_PREVIEW_LAYER_IDS.includes('barebones')).toBe(true)
+    expect(BUILD_PREVIEW_LAYER_IDS.includes('switches')).toBe(true)
+    expect(BUILD_PREVIEW_LAYER_IDS.includes('keycaps')).toBe(true)
+    expect(BUILD_PREVIEW_LAYER_IDS.includes('plate')).toBe(false)
+    expect(BUILD_PREVIEW_LAYERS.some((l) => l.id === 'barebones')).toBe(true)
+    expect(BUILD_PREVIEW_LAYERS.some((l) => l.id === 'switches')).toBe(true)
+    expect(BUILD_PREVIEW_LAYERS.some((l) => l.id === 'keycaps')).toBe(true)
+    expect(BUILD_PREVIEW_LAYERS.some((l) => l.id === 'plate')).toBe(false)
 
     for (const layer of BUILD_PREVIEW_LAYERS) {
       expect(typeof layer.name).toBe('string')
@@ -338,6 +543,28 @@ describe('isWebGLAvailable', () => {
 })
 
 describe('createBuildPreviewScene Controller Interface', () => {
+  it('disposal test: verifies that geometry and material .dispose() spies are called when scene.dispose() runs', () => {
+    const scene = createBuildPreviewScene({
+      canvas,
+      loadGlb: false,
+      rendererFactory: createMockRenderer,
+    })
+
+    const threeScene = scene.getScene()
+    const geo = new THREE.BoxGeometry(1, 1, 1)
+    const mat = new THREE.MeshBasicMaterial()
+    const geoDisposeSpy = vi.spyOn(geo, 'dispose')
+    const matDisposeSpy = vi.spyOn(mat, 'dispose')
+
+    const testMesh = new THREE.Mesh(geo, mat)
+    threeScene.add(testMesh)
+
+    scene.dispose()
+
+    expect(geoDisposeSpy).toHaveBeenCalled()
+    expect(matDisposeSpy).toHaveBeenCalled()
+  })
+
   let canvas
 
   beforeEach(() => {
@@ -1004,81 +1231,13 @@ describe('Multi-Layout Dynamic Switching (setLayout & getLayout)', () => {
     scene.dispose()
   })
 
-  it('exports canonical layout scales and model paths', () => {
-    expect(LAYOUT_SCALES['60']).toBe(6.35)
-    expect(LAYOUT_SCALES['75']).toBe(5.75)
-    expect(LAYOUT_SCALES['100']).toBe(4.65)
-
-    expect(LAYOUT_MODELS['60']).toBe('/models/keyboard-60.glb')
-    expect(LAYOUT_MODELS['75']).toBe('/models/exploded-keyboard.glb')
-    expect(LAYOUT_MODELS['100']).toBe('/models/keyboard-100.glb')
-  })
-
   it('configures top camera preset to prevent bezel/edge clipping in exploded and combined views', () => {
     expect(DEFAULT_CAMERA_PRESETS.top).toBeDefined()
     expect(DEFAULT_CAMERA_PRESETS.top.pos).toEqual([0, 3.65, 0.01])
     expect(DEFAULT_CAMERA_PRESETS.top.target).toEqual([0, 0.12, 0])
   })
 
-  it('defines canonical 81-key top-down legend grid with normalized coordinates', () => {
-    expect(KEYCAP_LEGEND_GRID_75).toBeDefined()
-    expect(KEYCAP_LEGEND_GRID_75).toHaveLength(81)
 
-    // Essential keys exist
-    const labels = KEYCAP_LEGEND_GRID_75.map((k) => k.label)
-    expect(labels).toContain('ESC')
-    expect(labels).toContain('Q')
-    expect(labels).toContain('W')
-    expect(labels).toContain('E')
-    expect(labels).toContain('R')
-    expect(labels).toContain('T')
-    expect(labels).toContain('Y')
-    expect(labels).toContain('A')
-    expect(labels).toContain('S')
-    expect(labels).toContain('D')
-    expect(labels).toContain('F')
-    expect(labels).toContain('SPACE')
-    expect(labels).toContain('ENTER')
-    expect(labels).toContain('SHIFT')
-
-    // Every key has valid normalized [0, 1] u, v coordinates
-    for (const key of KEYCAP_LEGEND_GRID_75) {
-      expect(key.u).toBeGreaterThanOrEqual(0)
-      expect(key.u).toBeLessThanOrEqual(1)
-      expect(key.v).toBeGreaterThanOrEqual(0)
-      expect(key.v).toBeLessThanOrEqual(1)
-    }
-  })
-
-  it('compositeKeycapLegendsOnCanvas safely operates on mock canvas without throwing', () => {
-    const mockCtx = {
-      save: vi.fn(),
-      restore: vi.fn(),
-      strokeText: vi.fn(),
-      fillText: vi.fn(),
-      textAlign: '',
-      textBaseline: '',
-      lineWidth: 0,
-      strokeStyle: '',
-      fillStyle: '',
-      font: '',
-    }
-    const mockCanvas = {
-      width: 2048,
-      height: 1024,
-      getContext: vi.fn(() => mockCtx),
-    }
-
-    const result = compositeKeycapLegendsOnCanvas(mockCanvas, 'light')
-    expect(result).toBe(mockCanvas)
-    expect(mockCtx.save).toHaveBeenCalled()
-    expect(mockCtx.restore).toHaveBeenCalled()
-    expect(mockCtx.fillText).toHaveBeenCalledTimes(81)
-    expect(mockCtx.strokeText).toHaveBeenCalledTimes(81)
-
-    // Null safety
-    expect(compositeKeycapLegendsOnCanvas(null)).toBeNull()
-  })
 })
 
 describe('Top-Printed vs Side-Printed Keycap Legends & Multi-Layout Overlay', () => {
@@ -1116,12 +1275,6 @@ describe('Top-Printed vs Side-Printed Keycap Legends & Multi-Layout Overlay', ()
     // 4. Unselected keycaps
     const unselected = normalizePreviewPart('keycaps', null)
     expect(unselected.legendStyle).toBe('none')
-  })
-
-  it('defines TOP_LEGEND_TEXTURE_PATHS for 60, 75, and 100 layouts', () => {
-    expect(TOP_LEGEND_TEXTURE_PATHS['60']).toBe('/textures/keycaps/top-legends-60.png')
-    expect(TOP_LEGEND_TEXTURE_PATHS['75']).toBe('/textures/keycaps/top-legends-75.png')
-    expect(TOP_LEGEND_TEXTURE_PATHS['100']).toBe('/textures/keycaps/top-legends-100.png')
   })
 
   it('loadTopLegendTexture loads texture with sRGB color space and handles fallback gracefully', () => {

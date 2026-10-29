@@ -1,12 +1,10 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { CATS, META } from '../data/catalog.js'
 import { money, money2, signed, total, grams, kg, spec, reason, preferred, bestFit, whyText } from '../logic/builder.js'
 import { state, layout, setLayout, choose, discountOf, activeVoucher, timeLeft, finishQuiz } from '../store.js'
-import { build as domainBuild } from '../stores/build.js'
-// ProfileChips renders the same quiz-answer chips inline here via `otherChips`;
-// it stays mounted on SummaryView (/build) where it has no inline equivalent.
+import { build as domainBuild, setSlot } from '../stores/build.js'
 import SwitchAudioPreview from '../components/SwitchAudioPreview.vue'
 import BuildPreviewCanvas from '../components/BuildPreviewCanvas.vue'
 
@@ -16,6 +14,23 @@ const router = useRouter()
 const catIdx = ref(0)
 const cat = computed(() => CATS[catIdx.value])
 const b = computed(() => state.build)
+
+// Watch reactive build state and sync active domainBuild slots on part selection (AC-R5, AC-R10)
+watch(
+  () => [b.value?.case, b.value?.switches, b.value?.keycaps],
+  ([newCase, newSwitches, newKeycaps]) => {
+    if (newCase && domainBuild.barebones?.id !== newCase.id) {
+      setSlot('barebones', newCase)
+    }
+    if (newSwitches && domainBuild.switches?.id !== newSwitches.id) {
+      setSlot('switches', newSwitches)
+    }
+    if (newKeycaps && domainBuild.keycaps?.id !== newKeycaps.id) {
+      setSlot('keycaps', newKeycaps)
+    }
+  },
+  { deep: true, immediate: true },
+)
 const cur = computed(() => b.value[cat.value])
 const answers = computed(() => ({ ...state.answers, layout: layout() }))
 const fit = computed(() => bestFit(cat.value, state.cat, b.value, state.rec))
@@ -227,5 +242,12 @@ onBeforeUnmount(() => document.body.classList.remove('hasbar'))
 .summary-pills button.pill:focus-visible {
   outline: 2px solid var(--accent, #3346ff);
   outline-offset: 2px;
+}
+
+@media (min-width: 1080px) {
+  #parts .layout,
+  .layout {
+    grid-template-columns: minmax(0, 1fr) 390px;
+  }
 }
 </style>

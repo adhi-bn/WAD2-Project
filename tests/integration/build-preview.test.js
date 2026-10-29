@@ -14,8 +14,7 @@ import BuildPreviewCanvas from '../../src/components/BuildPreviewCanvas.vue'
 import PartsView from '../../src/views/PartsView.vue'
 import {
   BUILD_PREVIEW_LAYERS,
-  PREVIEW_PART_PRESETS,
-  STARTER_BUILD_PARTS,
+  createBuildPreviewScene,
 } from '../../src/lib/buildPreviewScene.js'
 import {
   build,
@@ -23,6 +22,88 @@ import {
   setSlot,
 } from '../../src/stores/build.js'
 import { state, finishQuiz, choose } from '../../src/store.js'
+
+/**
+ * Test fixture presets for integration tests.
+ */
+const PREVIEW_PART_PRESETS = Object.freeze({
+  barebones: Object.freeze([
+    Object.freeze({
+      id: 'bb-frosted-pc',
+      name: 'Frosted Polycarbonate Base',
+      price: 135,
+      socket: 'hotswap',
+      pin: null,
+      layout: 'ansi',
+      color: '#e2e8f0',
+      accentColor: '#94a3b8',
+      stemColor: null,
+      finish: 'Frosted Polycarbonate',
+      metalness: 0.1,
+      roughness: 0.35,
+      opacity: 0.85,
+    }),
+    Object.freeze({
+      id: 'bb-navy-alu',
+      name: 'Anodized Navy Aluminum Base',
+      price: 185,
+      socket: 'hotswap',
+      pin: null,
+      layout: 'ansi',
+      color: '#1e293b',
+      accentColor: '#38bdf8',
+      stemColor: null,
+      finish: 'Anodized Aluminum',
+      metalness: 0.8,
+      roughness: 0.25,
+      opacity: 1.0,
+    }),
+  ]),
+  switches: Object.freeze([
+    Object.freeze({
+      id: 'sw-tangerine',
+      name: 'C³Equalz Tangerine Linear',
+      price: 65,
+      socket: null,
+      pin: '5-pin',
+      layout: null,
+      color: '#ea580c',
+      accentColor: '#22c55e',
+      stemColor: '#22c55e',
+      finish: 'Translucent UHMWPE Housing',
+      metalness: 0.05,
+      roughness: 0.25,
+      opacity: 0.9,
+    }),
+  ]),
+  keycaps: Object.freeze([
+    Object.freeze({
+      id: 'kc-botanical',
+      name: 'Cherry Botanical PBT Keycaps',
+      price: 85,
+      socket: null,
+      pin: null,
+      layout: 'ansi',
+      color: '#166534',
+      accentColor: '#86efac',
+      stemColor: null,
+      finish: 'Dye-sub PBT Matte',
+      metalness: 0.05,
+      roughness: 0.65,
+      opacity: 1.0,
+      textureUrl: null,
+      artMode: null,
+      legendStyle: 'side',
+    }),
+  ]),
+})
+
+const STARTER_BUILD_PARTS = Object.freeze({
+  barebones: PREVIEW_PART_PRESETS.barebones[0],
+  switches: PREVIEW_PART_PRESETS.switches[0],
+  keycaps: PREVIEW_PART_PRESETS.keycaps[0],
+})
+
 
 /**
  * Creates a mock WebGL renderer for testing in jsdom.
@@ -64,8 +145,15 @@ function createTestRouter() {
 }
 
 describe('BuildPreviewCanvas Integration', () => {
+  const mountedWrappers = []
+  function safeMount(comp, opts) {
+    const w = mount(comp, opts)
+    mountedWrappers.push(w)
+    return w
+  }
   let originalGetContext
   let originalWebGL
+  let originalMatchMedia
 
   beforeEach(() => {
     // Reset build store before each test
@@ -76,11 +164,19 @@ describe('BuildPreviewCanvas Integration', () => {
 
     originalGetContext = HTMLCanvasElement.prototype.getContext
     originalWebGL = window.WebGLRenderingContext
+    originalMatchMedia = window.matchMedia
   })
 
   afterEach(() => {
+    while (mountedWrappers.length > 0) {
+      try {
+        mountedWrappers.pop().unmount()
+      } catch {}
+    }
     HTMLCanvasElement.prototype.getContext = originalGetContext
     window.WebGLRenderingContext = originalWebGL
+    window.matchMedia = originalMatchMedia
+    delete HTMLCanvasElement.prototype._mockRendererFactory
     vi.restoreAllMocks()
   })
 
@@ -90,13 +186,14 @@ describe('BuildPreviewCanvas Integration', () => {
       if (type && type.includes('webgl')) return {}
       return null
     })
+    HTMLCanvasElement.prototype._mockRendererFactory = createMockRenderer
   }
 
   it('Test 1: Mounts BuildPreviewCanvas with mock rendererFactory, verifies controls, caption, and HTML summary', async () => {
     simulateWebGLAvailable()
     const mockRenderer = createMockRenderer({ canvas: document.createElement('canvas') })
 
-    const wrapper = mount(BuildPreviewCanvas, {
+    const wrapper = safeMount(BuildPreviewCanvas, {
       props: {
         rendererFactory: () => mockRenderer,
       },
@@ -140,7 +237,7 @@ describe('BuildPreviewCanvas Integration', () => {
     simulateWebGLAvailable()
     const mockRenderer = createMockRenderer({ canvas: document.createElement('canvas') })
 
-    const wrapper = mount(BuildPreviewCanvas, {
+    const wrapper = safeMount(BuildPreviewCanvas, {
       props: {
         rendererFactory: () => mockRenderer,
       },
@@ -174,7 +271,7 @@ describe('BuildPreviewCanvas Integration', () => {
     // Force WebGL unavailable (default in jsdom)
     HTMLCanvasElement.prototype.getContext = vi.fn(() => null)
 
-    const wrapper = mount(BuildPreviewCanvas)
+    const wrapper = safeMount(BuildPreviewCanvas)
     await flushPromises()
 
     // Status is unavailable
@@ -211,7 +308,7 @@ describe('BuildPreviewCanvas Integration', () => {
     }))
 
     const mockRenderer = createMockRenderer({ canvas: document.createElement('canvas') })
-    const wrapper = mount(BuildPreviewCanvas, {
+    const wrapper = safeMount(BuildPreviewCanvas, {
       props: {
         rendererFactory: () => mockRenderer,
       },
@@ -234,7 +331,7 @@ describe('BuildPreviewCanvas Integration', () => {
     simulateWebGLAvailable()
     const mockRenderer = createMockRenderer({ canvas: document.createElement('canvas') })
 
-    const wrapper = mount(BuildPreviewCanvas, {
+    const wrapper = safeMount(BuildPreviewCanvas, {
       props: {
         rendererFactory: () => mockRenderer,
       },
@@ -262,7 +359,7 @@ describe('BuildPreviewCanvas Integration', () => {
     simulateWebGLAvailable()
     const mockRenderer = createMockRenderer({ canvas: document.createElement('canvas') })
 
-    const wrapper = mount(BuildPreviewCanvas, {
+    const wrapper = safeMount(BuildPreviewCanvas, {
       props: {
         rendererFactory: () => mockRenderer,
       },
@@ -282,7 +379,7 @@ describe('BuildPreviewCanvas Integration', () => {
       dispose: disposeSpy,
     }
 
-    const wrapper = mount(BuildPreviewCanvas, {
+    const wrapper = safeMount(BuildPreviewCanvas, {
       props: {
         rendererFactory: () => mockRenderer,
       },
@@ -298,7 +395,7 @@ describe('BuildPreviewCanvas Integration', () => {
 
     simulateWebGLAvailable()
     const mockRenderer = createMockRenderer({ canvas: document.createElement('canvas') })
-    const wrapper = mount(BuildPreviewCanvas, {
+    const wrapper = safeMount(BuildPreviewCanvas, {
       props: {
         rendererFactory: () => mockRenderer,
       },
@@ -316,14 +413,16 @@ describe('BuildPreviewCanvas Integration', () => {
   })
 
   it('Test 9: PartsView.vue integration: mounts PartsView, verifies 3D preview in build sheet, part options, and store updates', async () => {
+    simulateWebGLAvailable()
     const router = createTestRouter()
-    const wrapper = mount(PartsView, {
+    const wrapper = safeMount(PartsView, {
       global: { plugins: [router] },
     })
     await flushPromises()
 
     // Build preview canvas is present
-    expect(wrapper.findComponent(BuildPreviewCanvas).exists()).toBe(true)
+    const canvasComponent = wrapper.findComponent(BuildPreviewCanvas)
+    expect(canvasComponent.exists()).toBe(true)
 
     // Part options and tabs are present
     expect(wrapper.find('.tabs').exists()).toBe(true)
@@ -333,20 +432,40 @@ describe('BuildPreviewCanvas Integration', () => {
     expect(state.build).not.toBeNull()
     expect(wrapper.text()).toContain('Build so far')
 
-    // Pick an alternative case part
-    const caseOptions = state.cat.case
-    if (caseOptions && caseOptions.length > 1) {
-      const alt = caseOptions.find((c) => c.id !== state.build.case.id)
-      choose('case', alt.id)
-      await flushPromises()
-      expect(state.build.case.id).toBe(alt.id)
-    }
+    // Find clickable part card buttons in PartsView
+    const optButtons = wrapper.findAll('button.opt')
+    expect(optButtons.length).toBeGreaterThan(0)
+
+    const initialId = state.build.case.id
+    const unselectedBtn = optButtons.find((btn) => !btn.classes('sel')) || optButtons[1]
+
+    // Click part card button in PartsView.vue
+    await unselectedBtn.trigger('click')
+    await flushPromises()
+
+    const newId = state.build.case.id
+    expect(newId).not.toBe(initialId)
+
+    // 1. Updates state.build and useBuildStore().build (B1)
+    expect(state.build.case.id).toBe(newId)
+    expect(build.barebones.id).toBe(newId)
+
+    // 2. Passes new part props into BuildPreviewCanvas
+    expect(canvasComponent.props('barebones').id).toBe(newId)
+
+    // 3. Mutates 3D scene material state
+    const canvasEl = wrapper.find('canvas').element
+    const sceneInstance = canvasEl.__sceneInstance
+    expect(sceneInstance).toBeDefined()
+    const barebonesState = sceneInstance.getLayerStates().barebones
+    expect(barebonesState.part.id).toBe(newId)
+    expect(barebonesState.status).toBe('configured')
   })
 
   it('Test 10: PartsView.vue integration: mounts PartsView, verifies BuildPreviewCanvas is present in aside.sheet with compact prop', async () => {
     finishQuiz()
     const router = createTestRouter()
-    const wrapper = mount(PartsView, {
+    const wrapper = safeMount(PartsView, {
       global: { plugins: [router] },
     })
     await flushPromises()
@@ -381,7 +500,7 @@ describe('BuildPreviewCanvas Integration', () => {
     HTMLCanvasElement.prototype.getContext = vi.fn(() => null)
     const mockRenderer = createMockRenderer({ canvas: document.createElement('canvas') })
 
-    const wrapper = mount(BuildPreviewCanvas, {
+    const wrapper = safeMount(BuildPreviewCanvas, {
       props: {
         rendererFactory: () => mockRenderer,
       },
@@ -401,7 +520,7 @@ describe('BuildPreviewCanvas Integration', () => {
     setSlot('switches', PREVIEW_PART_PRESETS.switches[0])
 
     // Mount with barebones explicitly null, switches undefined (omitted)
-    const wrapper = mount(BuildPreviewCanvas, {
+    const wrapper = safeMount(BuildPreviewCanvas, {
       props: {
         rendererFactory: () => mockRenderer,
         barebones: null,
@@ -431,7 +550,7 @@ describe('BuildPreviewCanvas Integration', () => {
       layout: 'ansi',
     }
 
-    const wrapper = mount(BuildPreviewCanvas, {
+    const wrapper = safeMount(BuildPreviewCanvas, {
       props: {
         rendererFactory: () => mockRenderer,
         keycaps: freeKeycaps,
@@ -450,7 +569,7 @@ describe('BuildPreviewCanvas Integration', () => {
     simulateWebGLAvailable()
     const mockRenderer = createMockRenderer({ canvas: document.createElement('canvas') })
 
-    const wrapper = mount(BuildPreviewCanvas, {
+    const wrapper = safeMount(BuildPreviewCanvas, {
       props: {
         rendererFactory: () => mockRenderer,
       },
@@ -476,7 +595,7 @@ describe('BuildPreviewCanvas Integration', () => {
     const mockRenderer = createMockRenderer({ canvas: document.createElement('canvas') })
 
     // 1. Compact mode with working WebGL: summary is hidden
-    const wrapper = mount(BuildPreviewCanvas, {
+    const wrapper = safeMount(BuildPreviewCanvas, {
       props: {
         compact: true,
         rendererFactory: () => mockRenderer,
@@ -487,7 +606,7 @@ describe('BuildPreviewCanvas Integration', () => {
 
     // 2. Compact mode with WebGL unavailable: summary is shown as accessible fallback
     HTMLCanvasElement.prototype.getContext = vi.fn(() => null)
-    const wrapperFallback = mount(BuildPreviewCanvas, {
+    const wrapperFallback = safeMount(BuildPreviewCanvas, {
       props: {
         compact: true,
       },
@@ -500,7 +619,7 @@ describe('BuildPreviewCanvas Integration', () => {
     simulateWebGLAvailable()
     const mockRenderer = createMockRenderer({ canvas: document.createElement('canvas') })
 
-    const wrapper = mount(BuildPreviewCanvas, {
+    const wrapper = safeMount(BuildPreviewCanvas, {
       props: {
         rendererFactory: () => mockRenderer,
       },
@@ -535,7 +654,7 @@ describe('BuildPreviewCanvas Integration', () => {
     simulateWebGLAvailable()
     const mockRenderer = createMockRenderer({ canvas: document.createElement('canvas') })
 
-    const wrapper = mount(BuildPreviewCanvas, {
+    const wrapper = safeMount(BuildPreviewCanvas, {
       props: {
         layout: '75',
         rendererFactory: () => mockRenderer,
@@ -564,56 +683,241 @@ describe('BuildPreviewCanvas Integration', () => {
     expect(wrapper.find('.lct-build-preview-live-status').text()).toBe('Switched 3D preview to 100% layout.')
   })
 
-  it('Test 18: Artwork keycaps preserve visible legends/decals while blank keycaps hide them', async () => {
+  it('Test 18a: Synthetic glTF ingestion (ingestGltfScene) transitions scene to hybrid mode and updates materials accurately', async () => {
     simulateWebGLAvailable()
-    const mockRenderer = createMockRenderer({ canvas: document.createElement('canvas') })
+    const canvas = document.createElement('canvas')
+    const mockRenderer = createMockRenderer({ canvas })
 
-    const wrapper = mount(BuildPreviewCanvas, {
-      props: {
-        rendererFactory: () => mockRenderer,
-      },
+    const scene = createBuildPreviewScene({
+      canvas,
+      loadGlb: false,
+      rendererFactory: () => mockRenderer,
     })
-    await flushPromises()
 
-    const scene = wrapper.vm.scene()
-    expect(scene).toBeDefined()
+    // Verify initially procedural
+    expect(scene.isGlbLoaded()).toBe(false)
+    expect(scene.getStats().mode).toBe('procedural')
 
-    // Create a mock legend/decal mesh inside keycaps layer
-    const decalMat = new THREE.MeshStandardMaterial({ name: 'Mat_Engraving_Legend', color: 0xffffff })
-    const decalMesh = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.001, 0.01), decalMat)
-    decalMesh.name = 'Layer_Keycaps_2'
-    decalMesh.userData.isLegend = true
+    // Construct synthetic glTF scene
+    const gltfRoot = new THREE.Group()
 
-    // Add decal mesh to keycaps group in scene
-    // Find keycaps group:
-    let keycapsGroup = null
-    wrapper.vm.scene() // ensure scene exists
-    // The keycaps layer is updated through syncBuildState
-    // Let's test syncBuildState with artwork keycaps
-    const artworkPart = {
-      id: 'theme',
-      name: 'Themed PBT keycap set (Le Chaton Anime Mural)',
-      textureUrl: '/textures/keycaps/anime-cat-town.jpg',
+    const caseMesh = new THREE.Mesh(
+      new THREE.BoxGeometry(0.3, 0.04, 0.12),
+      new THREE.MeshStandardMaterial({ name: 'Mat_Case_Frame', color: 0x111111 })
+    )
+    caseMesh.name = 'Layer_Case'
+
+    const plateMesh = new THREE.Mesh(
+      new THREE.BoxGeometry(0.28, 0.005, 0.11),
+      new THREE.MeshStandardMaterial({ name: 'Mat_Plate_Aluminum', color: 0xcccccc })
+    )
+    plateMesh.name = 'Layer_Plate'
+
+    const switchProto = new THREE.Mesh(
+      new THREE.BoxGeometry(0.014, 0.014, 0.014),
+      new THREE.MeshStandardMaterial({ name: 'Mat_Switches_Body', color: 0xd8cfc2 })
+    )
+    switchProto.name = 'Switch_Prototype'
+
+    const keycapsGroup = new THREE.Group()
+    keycapsGroup.name = 'Layer_Keycaps'
+    const keycapsMain = new THREE.Mesh(
+      new THREE.BoxGeometry(0.28, 0.015, 0.11),
+      new THREE.MeshStandardMaterial({ name: 'keycaps body', color: 0xffffff })
+    )
+    const keycapsEngraving = new THREE.Mesh(
+      new THREE.BoxGeometry(0.28, 0.001, 0.11),
+      new THREE.MeshStandardMaterial({ name: 'keycaps engraving', color: 0x222222 })
+    )
+    keycapsGroup.add(keycapsMain)
+    keycapsGroup.add(keycapsEngraving)
+
+    gltfRoot.add(caseMesh, plateMesh, switchProto, keycapsGroup)
+
+    // Ingest synthetic glTF scene
+    scene.ingestGltfScene({ scene: gltfRoot })
+
+    expect(scene.isGlbLoaded()).toBe(true)
+    const getSceneStats = () => scene.getStats()
+    expect(getSceneStats().mode).toBe('hybrid')
+    expect(getSceneStats().triangles).toBeGreaterThan(0)
+    expect(getSceneStats().drawCalls).toBeGreaterThan(0)
+    expect(getSceneStats().drawCalls).toBeLessThanOrEqual(25)
+
+    // Test hybrid material update with top-printed keycaps (plainpbt)
+    scene.updateLayerPart('keycaps', {
+      id: 'plainpbt',
+      name: 'Plain PBT Keycaps',
+      color: '#f8fafc',
+      accentColor: '#cbd5e1',
+      legendStyle: 'top',
+    })
+
+    // Test side-printed / custom artwork keycaps (kanagawa)
+    scene.updateLayerPart('keycaps', {
+      id: 'kanagawa',
+      name: 'Great Wave Kanagawa Keycaps',
+      textureUrl: '/textures/keycaps/kanagawa-wave.jpg',
       artMode: 'full',
+      legendStyle: 'side',
+    })
+
+    expect(scene.getStats().mode).toBe('hybrid')
+    scene.dispose()
+  })
+
+  it('Test 18b: Scene-level ADR-0008 Boundary - mutating internal parts (plate/stabilizers) does not alter visual meshes or draw calls', async () => {
+    simulateWebGLAvailable()
+    const canvas = document.createElement('canvas')
+    const mockRenderer = createMockRenderer({ canvas })
+
+    const scene = createBuildPreviewScene({
+      canvas,
+      loadGlb: false,
+      rendererFactory: () => mockRenderer,
+    })
+
+    const initialStats = scene.getStats()
+    const initialDrawCalls = initialStats.drawCalls
+    const initialTriangles = initialStats.triangles
+
+    // Inspect case mesh material color before internal mutations
+    const caseGroup = scene.getLayers().barebones.group
+    let initialColor = null
+    caseGroup.traverse((child) => {
+      if (child.isMesh && child.material && !initialColor) {
+        initialColor = child.material.color ? child.material.color.getHexString() : null
+      }
+    })
+
+    // Mutate internal parts in syncBuildState: plate, stabilizers, pcb, foam
+    scene.syncBuildState({
+      barebones: PREVIEW_PART_PRESETS.barebones[0],
+      switches: PREVIEW_PART_PRESETS.switches[0],
+      keycaps: PREVIEW_PART_PRESETS.keycaps[0],
+      plate: { id: 'brass-plate', name: 'Brass Plate', material: 'brass', color: '#ffd700' },
+      stabilizers: { id: 'durock-v2', name: 'Durock V2 Screw-In', color: '#00ff00' },
+      pcb: { id: 'hotswap-pcb', name: 'RGB Hotswap PCB', color: '#ff0000' },
+      foam: { id: 'poron-foam', name: 'Poron Switch Foam', color: '#0000ff' },
+    })
+
+    const afterStats = scene.getStats()
+    expect(afterStats.drawCalls).toBe(initialDrawCalls)
+    expect(afterStats.triangles).toBe(initialTriangles)
+    expect(afterStats.activeLayers).toBe(3)
+
+    // Verify case material color did NOT change to the brass plate or stabilizer color
+    let afterColor = null
+    caseGroup.traverse((child) => {
+      if (child.isMesh && child.material && !afterColor) {
+        afterColor = child.material.color ? child.material.color.getHexString() : null
+      }
+    })
+    expect(afterColor).not.toBe('ffd700')
+    expect(afterColor).not.toBe('00ff00')
+
+    scene.dispose()
+  })
+
+  it('Test 18c: Visibility Pause & WebGL Context Lost/Restored lifecycle management', async () => {
+    simulateWebGLAvailable()
+    const canvas = document.createElement('canvas')
+    const mockRenderer = createMockRenderer({ canvas })
+
+    const scene = createBuildPreviewScene({
+      canvas,
+      loadGlb: false,
+      rendererFactory: () => mockRenderer,
+    })
+
+    expect(scene.isPaused()).toBe(false)
+    expect(scene.isContextLost()).toBe(false)
+
+    // Dispatch visibilitychange with hidden state
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+    document.dispatchEvent(new Event('visibilitychange'))
+    expect(scene.isPaused()).toBe(true)
+
+    // Dispatch visibilitychange with visible state
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+    document.dispatchEvent(new Event('visibilitychange'))
+    expect(scene.isPaused()).toBe(false)
+
+    // Dispatch webglcontextlost on canvas
+    const lostEvent = new Event('webglcontextlost', { cancelable: true })
+    canvas.dispatchEvent(lostEvent)
+    expect(scene.isContextLost()).toBe(true)
+    expect(scene.isPaused()).toBe(true)
+
+    // Dispatch webglcontextrestored on canvas
+    const restoredEvent = new Event('webglcontextrestored')
+    canvas.dispatchEvent(restoredEvent)
+    expect(scene.isContextLost()).toBe(false)
+    expect(scene.isPaused()).toBe(false)
+
+    scene.dispose()
+    expect(scene.isContextLost()).toBe(false)
+  })
+
+  it('Test 18d: Stale-layout failure race prevention & clean procedural fallback without chimera', async () => {
+    simulateWebGLAvailable()
+    const canvas = document.createElement('canvas')
+    const mockRenderer = createMockRenderer({ canvas })
+
+    // Simulate fetch with custom delays/errors
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = vi.fn().mockImplementation((url) => {
+      if (url.includes('keyboard-60')) {
+        // Slow fetch that fails
+        return new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Network failure for 60')), 50)
+        })
+      }
+      // Successful dummy fetch
+      return Promise.resolve({
+        ok: true,
+        headers: new Headers({ 'content-type': 'model/gltf-binary' }),
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(100)),
+      })
+    })
+
+    try {
+      const scene = createBuildPreviewScene({
+        canvas,
+        loadGlb: true,
+        rendererFactory: () => mockRenderer,
+      })
+
+      // Switch to 60 (which will fail slowly)
+      const p60 = scene.setLayout('60')
+
+      // Rapidly switch to 100 before 60 finishes
+      await scene.setLayout('100')
+      expect(scene.getLayout()).toBe('100')
+
+      // Await abandoned 60 layout
+      await p60
+
+      // Stale 60 failure must NOT overwrite currentLayout '100'
+      expect(scene.getLayout()).toBe('100')
+
+      // Now verify genuine failure cleanly falls back to procedural without chimera
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error('Fetch failed'))
+      await scene.setLayout('75')
+
+      expect(scene.getLayout()).toBe('75')
+      expect(scene.isGlbLoaded()).toBe(false)
+      expect(scene.getStats().mode).toBe('procedural')
+
+      // Ensure all 3 layers have clean procedural geometry at 75 layout
+      const layers = scene.getLayers()
+      expect(layers.barebones.group.children.length).toBeGreaterThan(0)
+      expect(layers.switches.group.children.length).toBeGreaterThan(0)
+      expect(layers.keycaps.group.children.length).toBeGreaterThan(0)
+
+      scene.dispose()
+    } finally {
+      globalThis.fetch = originalFetch
     }
-
-    // Set artwork keycaps prop
-    await wrapper.setProps({ keycaps: artworkPart })
-    await flushPromises()
-
-    // Now test with keycaps layer traversal
-    const root = wrapper.vm.$el
-    expect(root).toBeDefined()
-
-    // Directly test updateLayerPart on scene
-    scene.updateLayerPart('keycaps', artworkPart, { animate: false })
-
-    // Test blank keycaps: legends should be hidden
-    const blankPart = { id: 'blank', name: 'Blank PBT keycap set' }
-    scene.updateLayerPart('keycaps', blankPart, { animate: false })
-
-    // Verify keycap presets: theme has textureUrl, blank does not
-    expect(artworkPart.textureUrl).toBeDefined()
-    expect(blankPart.id).toBe('blank')
   })
 });

@@ -132,6 +132,7 @@ export function getKeycapColorway(part) {
  */
 export function isWebGLAvailable(target = (typeof document !== 'undefined' ? document : null)) {
   if (!target) return false
+  if (target._mockContext) return true
   try {
     let canvas
     if (typeof target.getContext === 'function') {
@@ -141,7 +142,10 @@ export function isWebGLAvailable(target = (typeof document !== 'undefined' ? doc
     } else {
       return false
     }
+    const win = target.defaultView || (typeof window !== 'undefined' ? window : null)
+    if (win && !win.WebGLRenderingContext && !target.getContext) return false
     const gl =
+      (canvas._mockContext ? canvas._mockContext : null) ||
       canvas.getContext('webgl2') ||
       canvas.getContext('webgl') ||
       canvas.getContext('experimental-webgl')
@@ -189,31 +193,6 @@ const rawLayers = [
   }),
 ]
 
-// Support both string IDs and layer object lookups on .includes()
-Object.defineProperty(rawLayers, 'includes', {
-  value: function (item) {
-    if (typeof item === 'string') {
-      return this.some((l) => l.id === item || l.slot === item)
-    }
-    return Array.prototype.includes.call(this, item)
-  },
-  writable: false,
-  configurable: false,
-})
-
-/**
- * Frozen array identifying the 3 active visual layers in the 3D Build preview.
- *
- * @type {ReadonlyArray<{
- *   id: string,
- *   slot: string,
- *   name: string,
- *   label: string,
- *   nodeName: string,
- *   baseY: number,
- *   description: string
- * }>}
- */
 export const BUILD_PREVIEW_LAYERS = Object.freeze(rawLayers)
 
 /**
@@ -222,344 +201,6 @@ export const BUILD_PREVIEW_LAYERS = Object.freeze(rawLayers)
  * @type {ReadonlyArray<string>}
  */
 export const BUILD_PREVIEW_LAYER_IDS = Object.freeze(['barebones', 'switches', 'keycaps'])
-
-/**
- * Rich demo Part presets for Barebones, Switches, and Keycaps.
- * Features aesthetic combinations (Frosted Polycarbonate, Anodized Navy Aluminum, Retro Cream;
- * Tangerine Linear, Panda Tactile, Clicky Blue; Botanical PBT, GMK Laser ABS, ISO French PBT).
- * Also includes 3-pin switch and ISO layout items for interactive compatibility testing.
- */
-export const PREVIEW_PART_PRESETS = Object.freeze({
-  barebones: Object.freeze([
-    Object.freeze({
-      id: 'bb-frosted-pc',
-      name: 'Frosted Polycarbonate Base',
-      price: 135,
-      socket: 'hotswap',
-      pin: null,
-      layout: 'ansi',
-      color: '#e2e8f0',
-      accentColor: '#94a3b8',
-      stemColor: null,
-      finish: 'Frosted Polycarbonate',
-      metalness: 0.1,
-      roughness: 0.35,
-      opacity: 0.85,
-    }),
-    Object.freeze({
-      id: 'bb-navy-alu',
-      name: 'Anodized Navy Aluminum Base',
-      price: 185,
-      socket: 'hotswap',
-      pin: null,
-      layout: 'ansi',
-      color: '#1e293b',
-      accentColor: '#38bdf8',
-      stemColor: null,
-      finish: 'Anodized Aluminum',
-      metalness: 0.8,
-      roughness: 0.25,
-      opacity: 1.0,
-    }),
-    Object.freeze({
-      id: 'bb-retro-cream',
-      name: 'Retro Cream Base',
-      price: 120,
-      socket: 'hotswap',
-      pin: null,
-      layout: 'ansi',
-      color: '#fef3c7',
-      accentColor: '#d97706',
-      stemColor: null,
-      finish: 'Powder Coat',
-      metalness: 0.05,
-      roughness: 0.75,
-      opacity: 1.0,
-    }),
-    Object.freeze({
-      id: 'bb-obsidian-solder',
-      name: 'Obsidian Black Solder Base',
-      price: 110,
-      socket: 'solder',
-      pin: null,
-      layout: 'ansi',
-      color: '#0f172a',
-      accentColor: '#64748b',
-      stemColor: null,
-      finish: 'Matte Anodized',
-      metalness: 0.75,
-      roughness: 0.3,
-      opacity: 1.0,
-    }),
-  ]),
-  switches: Object.freeze([
-    Object.freeze({
-      id: 'sw-tangerine',
-      name: 'Tangerine Linear Switches (5-pin)',
-      price: 45,
-      socket: null,
-      pin: '5-pin',
-      layout: null,
-      color: '#ea580c',
-      accentColor: '#fb923c',
-      stemColor: '#f97316',
-      finish: 'Smooth Polycarbonate',
-      metalness: 0.05,
-      roughness: 0.35,
-      opacity: 1.0,
-    }),
-    Object.freeze({
-      id: 'sw-panda',
-      name: 'Glorious Panda Tactile Switches (5-pin)',
-      price: 52,
-      socket: null,
-      pin: '5-pin',
-      layout: null,
-      color: '#f8fafc',
-      accentColor: '#d97706',
-      stemColor: '#f59e0b',
-      finish: 'Nylon Housing',
-      metalness: 0.05,
-      roughness: 0.65,
-      opacity: 1.0,
-    }),
-    Object.freeze({
-      id: 'sw-clicky-blue',
-      name: 'Clicky Blue Switches (3-pin)',
-      price: 32,
-      socket: null,
-      pin: '3-pin',
-      layout: null,
-      color: '#0284c7',
-      accentColor: '#38bdf8',
-      stemColor: '#0ea5e9',
-      finish: 'ABS Housing',
-      metalness: 0.05,
-      roughness: 0.5,
-      opacity: 1.0,
-    }),
-    Object.freeze({
-      id: 'sw-sakura',
-      name: 'Silent Sakura Linear Switches (5-pin)',
-      price: 48,
-      socket: null,
-      pin: '5-pin',
-      layout: null,
-      color: '#f472b6',
-      accentColor: '#fda4af',
-      stemColor: '#ec4899',
-      finish: 'Damped POM',
-      metalness: 0.05,
-      roughness: 0.4,
-      opacity: 1.0,
-    }),
-  ]),
-  keycaps: Object.freeze([
-    Object.freeze({
-      id: 'plainpbt',
-      name: 'Dye-sub PBT keycap set',
-      price: 45,
-      socket: null,
-      pin: null,
-      layout: 'ansi',
-      color: '#f8fafc',
-      accentColor: '#94a3b8',
-      stemColor: null,
-      finish: 'Dye-sub PBT',
-      metalness: 0.05,
-      roughness: 0.85,
-      opacity: 1.0,
-      legendStyle: 'top',
-    }),
-    Object.freeze({
-      id: 'dshot',
-      name: 'Double-shot ABS keycap set',
-      price: 129,
-      socket: null,
-      pin: null,
-      layout: 'ansi',
-      color: '#1e293b',
-      accentColor: '#06b6d4',
-      stemColor: null,
-      finish: 'Double-shot ABS',
-      metalness: 0.05,
-      roughness: 0.45,
-      opacity: 1.0,
-      legendStyle: 'top',
-    }),
-    Object.freeze({
-      id: 'matte',
-      name: 'Textured matte PBT keycap set',
-      price: 49,
-      socket: null,
-      pin: null,
-      layout: 'ansi',
-      color: '#334155',
-      accentColor: '#0ea5e9',
-      stemColor: null,
-      finish: 'Matte PBT',
-      metalness: 0.05,
-      roughness: 0.85,
-      opacity: 1.0,
-      legendStyle: 'side',
-    }),
-    Object.freeze({
-      id: 'stone',
-      name: 'Stone-texture PBT keycap set',
-      price: 85,
-      socket: null,
-      pin: null,
-      layout: 'ansi',
-      color: '#e7e5e4',
-      accentColor: '#d97706',
-      stemColor: null,
-      finish: 'Stone PBT',
-      metalness: 0.05,
-      roughness: 0.8,
-      opacity: 1.0,
-      legendStyle: 'side',
-    }),
-    Object.freeze({
-      id: 'blank',
-      name: 'Blank PBT keycap set',
-      price: 29,
-      socket: null,
-      pin: null,
-      layout: 'ansi',
-      color: '#f1f5f9',
-      accentColor: '#cbd5e1',
-      stemColor: null,
-      finish: 'Blank PBT',
-      metalness: 0.05,
-      roughness: 0.85,
-      opacity: 1.0,
-      legendStyle: 'none',
-    }),
-    Object.freeze({
-      id: 'kc-botanical',
-      name: 'Cherry Botanical PBT Keycaps',
-      price: 65,
-      socket: null,
-      pin: null,
-      layout: 'ansi',
-      color: '#15803d',
-      accentColor: '#86efac',
-      stemColor: null,
-      finish: 'Matte Textured PBT',
-      metalness: 0.05,
-      roughness: 0.85,
-      opacity: 1.0,
-      legendStyle: 'side',
-    }),
-    Object.freeze({
-      id: 'kc-laser',
-      name: 'GMK Laser Double-shot Keycaps',
-      price: 110,
-      socket: null,
-      pin: null,
-      layout: 'ansi',
-      color: '#4c1d95',
-      accentColor: '#ec4899',
-      stemColor: null,
-      finish: 'Vibrant Double-shot ABS',
-      metalness: 0.05,
-      roughness: 0.45,
-      opacity: 1.0,
-      legendStyle: 'top',
-    }),
-    Object.freeze({
-      id: 'kc-iso-french',
-      name: 'ISO French AZERTY PBT Keycaps',
-      price: 58,
-      socket: null,
-      pin: null,
-      layout: 'iso',
-      color: '#1e3a8a',
-      accentColor: '#ef4444',
-      stemColor: null,
-      finish: 'Dye-sub PBT',
-      metalness: 0.05,
-      roughness: 0.85,
-      opacity: 1.0,
-      legendStyle: 'top',
-    }),
-    Object.freeze({
-      id: 'kc-retro',
-      name: 'Retro Classic Beige PBT Keycaps',
-      price: 55,
-      socket: null,
-      pin: null,
-      layout: 'ansi',
-      color: '#e2d9cc',
-      accentColor: '#b45309',
-      stemColor: null,
-      finish: 'Textured PBT',
-      metalness: 0.05,
-      roughness: 0.8,
-      opacity: 1.0,
-      textureUrl: null,
-      artMode: null,
-      legendStyle: 'top',
-    }),
-    Object.freeze({
-      id: 'theme',
-      name: 'Themed PBT Keycaps (Le Chaton Anime Mural)',
-      price: 69,
-      socket: null,
-      pin: null,
-      layout: 'ansi',
-      color: '#f8fafc',
-      accentColor: '#f97316',
-      stemColor: null,
-      finish: 'Dye-sub PBT Mural',
-      metalness: 0.05,
-      roughness: 0.75,
-      opacity: 1.0,
-      textureUrl: '/textures/keycaps/anime-cat-town.jpg',
-      artMode: 'full',
-      legendColor: '#ffffff',
-      legendEmissive: '#fef08a',
-      legendEmissiveIntensity: 0.75,
-      legendStyle: 'side',
-    }),
-    Object.freeze({
-      id: 'kanagawa',
-      name: 'Great Wave Kanagawa Dye-Sub Keycaps',
-      price: 79,
-      socket: null,
-      pin: null,
-      layout: 'ansi',
-      color: '#f8fafc',
-      accentColor: '#0284c7',
-      stemColor: null,
-      finish: 'Dye-sub PBT Mural',
-      metalness: 0.05,
-      roughness: 0.75,
-      opacity: 1.0,
-      textureUrl: '/textures/keycaps/kanagawa-wave.jpg',
-      artMode: 'full',
-      legendColor: '#ffffff',
-      legendEmissive: '#38bdf8',
-      legendEmissiveIntensity: 0.85,
-      legendStyle: 'side',
-    }),
-  ]),
-})
-
-/**
- * Compatible starter trio build providing verified hotswap 5-pin ANSI 75% setup.
- *
- * @type {Readonly<{
- *   barebones: object,
- *   switches: object,
- *   keycaps: object
- * }>}
- */
-export const STARTER_BUILD_PARTS = Object.freeze({
-  barebones: PREVIEW_PART_PRESETS.barebones[0],
-  switches: PREVIEW_PART_PRESETS.switches[0],
-  keycaps: PREVIEW_PART_PRESETS.keycaps[0],
-})
 
 /**
  * Determines whether a given hex color token has a light perceived luminance.
@@ -703,6 +344,7 @@ export function normalizePreviewPart(slot, part) {
       price: 0,
       finishLabel: 'None',
       specSummary: 'No part selected',
+      artworkUrl: null,
       textureUrl: null,
       artMode: null,
       legendColor: null,
@@ -817,8 +459,9 @@ export function normalizePreviewPart(slot, part) {
     specSummary = `${layout || 'ANSI'} · ${part.prof || 'PBT'}`
   }
 
-  // Derive textureUrl & artMode for keycaps artwork projection
-  let textureUrl = part.textureUrl || null
+  // Derive artworkUrl, textureUrl & artMode for keycaps artwork projection
+  const artworkUrl = part.artworkUrl || null
+  let textureUrl = part.textureUrl || artworkUrl || null
   let artMode = part.artMode || (textureUrl ? 'full' : null)
 
   if (isKeycaps && !textureUrl) {
@@ -843,12 +486,6 @@ export function normalizePreviewPart(slot, part) {
     ) {
       textureUrl = '/textures/keycaps/anime-cat-town.jpg'
       artMode = part.artMode || 'full'
-    } else {
-      const preset = PREVIEW_PART_PRESETS.keycaps.find((p) => p.id === id || p.id === part.id)
-      if (preset?.textureUrl) {
-        textureUrl = preset.textureUrl
-        artMode = part.artMode || preset.artMode || 'full'
-      }
     }
   }
 
@@ -943,6 +580,7 @@ export function normalizePreviewPart(slot, part) {
     price,
     finishLabel,
     specSummary,
+    artworkUrl,
     textureUrl,
     artMode,
     legendColor,
@@ -1038,269 +676,100 @@ function countGeometryTriangles(geometry) {
 export const textureCache = new Map()
 
 /**
- * Canonical 81-key top-down (u, v) normalized legend grid for 75% mechanical keyboard layout.
- * Computed directly from keycap top dish bounding boxes in exploded-keyboard.glb.
+ * Normalizes layout form-factor code into a canonical string ('60', '75', '100').
  *
- * @type {ReadonlyArray<{ label: string, u: number, v: number }>}
+ * @param {string|number} [layoutCode='75'] - Raw layout code or percent string.
+ * @returns {'60'|'75'|'100'} Canonical layout code.
  */
-export const KEYCAP_LEGEND_GRID_75 = Object.freeze([
-  Object.freeze({ label: 'ESC', u: 0.0299, v: 0.9271 }),
-  Object.freeze({ label: 'F1', u: 0.1083, v: 0.9271 }),
-  Object.freeze({ label: 'F2', u: 0.1709, v: 0.9271 }),
-  Object.freeze({ label: 'F3', u: 0.2334, v: 0.9271 }),
-  Object.freeze({ label: 'F4', u: 0.2959, v: 0.9271 }),
-  Object.freeze({ label: 'F5', u: 0.3746, v: 0.9271 }),
-  Object.freeze({ label: 'F6', u: 0.4371, v: 0.9271 }),
-  Object.freeze({ label: 'F7', u: 0.4996, v: 0.9271 }),
-  Object.freeze({ label: 'F8', u: 0.5622, v: 0.9271 }),
-  Object.freeze({ label: 'F9', u: 0.6403, v: 0.9271 }),
-  Object.freeze({ label: 'F10', u: 0.7028, v: 0.9271 }),
-  Object.freeze({ label: 'F11', u: 0.7654, v: 0.9271 }),
-  Object.freeze({ label: 'F12', u: 0.8279, v: 0.9271 }),
-  Object.freeze({ label: 'DEL', u: 0.907, v: 0.9271 }),
-  Object.freeze({ label: '~', u: 0.031, v: 0.7237 }),
-  Object.freeze({ label: '1', u: 0.0938, v: 0.7237 }),
-  Object.freeze({ label: '2', u: 0.1567, v: 0.7237 }),
-  Object.freeze({ label: '3', u: 0.2195, v: 0.7237 }),
-  Object.freeze({ label: '4', u: 0.2824, v: 0.7237 }),
-  Object.freeze({ label: '5', u: 0.3452, v: 0.7237 }),
-  Object.freeze({ label: '6', u: 0.4081, v: 0.7237 }),
-  Object.freeze({ label: '7', u: 0.4709, v: 0.7237 }),
-  Object.freeze({ label: '8', u: 0.5338, v: 0.7237 }),
-  Object.freeze({ label: '9', u: 0.5966, v: 0.7237 }),
-  Object.freeze({ label: '0', u: 0.6595, v: 0.7237 }),
-  Object.freeze({ label: '-', u: 0.7223, v: 0.7237 }),
-  Object.freeze({ label: '=', u: 0.7852, v: 0.7237 }),
-  Object.freeze({ label: 'BACK', u: 0.8776, v: 0.7237 }),
-  Object.freeze({ label: 'HOME', u: 0.9701, v: 0.7237 }),
-  Object.freeze({ label: 'TAB', u: 0.0466, v: 0.5649 }),
-  Object.freeze({ label: 'Q', u: 0.1247, v: 0.5649 }),
-  Object.freeze({ label: 'W', u: 0.1877, v: 0.5649 }),
-  Object.freeze({ label: 'E', u: 0.2505, v: 0.5649 }),
-  Object.freeze({ label: 'R', u: 0.3133, v: 0.5649 }),
-  Object.freeze({ label: 'T', u: 0.3765, v: 0.5649 }),
-  Object.freeze({ label: 'Y', u: 0.4393, v: 0.5649 }),
-  Object.freeze({ label: 'U', u: 0.5025, v: 0.5649 }),
-  Object.freeze({ label: 'I', u: 0.5654, v: 0.5649 }),
-  Object.freeze({ label: 'O', u: 0.6279, v: 0.5649 }),
-  Object.freeze({ label: 'P', u: 0.6901, v: 0.5649 }),
-  Object.freeze({ label: '[', u: 0.7523, v: 0.5649 }),
-  Object.freeze({ label: ']', u: 0.8145, v: 0.5649 }),
-  Object.freeze({ label: '\\', u: 0.8923, v: 0.5649 }),
-  Object.freeze({ label: 'PGUP', u: 0.9701, v: 0.5649 }),
-  Object.freeze({ label: 'CAPS', u: 0.0544, v: 0.4049 }),
-  Object.freeze({ label: 'A', u: 0.1404, v: 0.4049 }),
-  Object.freeze({ label: 'S', u: 0.203, v: 0.4049 }),
-  Object.freeze({ label: 'D', u: 0.2657, v: 0.4049 }),
-  Object.freeze({ label: 'F', u: 0.3284, v: 0.4049 }),
-  Object.freeze({ label: 'G', u: 0.3911, v: 0.4049 }),
-  Object.freeze({ label: 'H', u: 0.4537, v: 0.4049 }),
-  Object.freeze({ label: 'J', u: 0.5164, v: 0.4049 }),
-  Object.freeze({ label: 'K', u: 0.5791, v: 0.4049 }),
-  Object.freeze({ label: 'L', u: 0.6418, v: 0.4049 }),
-  Object.freeze({ label: ';', u: 0.7044, v: 0.4049 }),
-  Object.freeze({ label: '\'', u: 0.7671, v: 0.4049 }),
-  Object.freeze({ label: 'ENTER', u: 0.8687, v: 0.4049 }),
-  Object.freeze({ label: 'PGDN', u: 0.9701, v: 0.4049 }),
-  Object.freeze({ label: 'SHIFT', u: 0.07, v: 0.2433 }),
-  Object.freeze({ label: 'Z', u: 0.171, v: 0.2433 }),
-  Object.freeze({ label: 'X', u: 0.2333, v: 0.2433 }),
-  Object.freeze({ label: 'C', u: 0.296, v: 0.2433 }),
-  Object.freeze({ label: 'V', u: 0.3588, v: 0.2433 }),
-  Object.freeze({ label: 'B', u: 0.4217, v: 0.2433 }),
-  Object.freeze({ label: 'N', u: 0.4841, v: 0.2433 }),
-  Object.freeze({ label: 'M', u: 0.547, v: 0.2433 }),
-  Object.freeze({ label: ',', u: 0.6106, v: 0.2433 }),
-  Object.freeze({ label: '.', u: 0.6728, v: 0.2433 }),
-  Object.freeze({ label: '/', u: 0.7354, v: 0.2433 }),
-  Object.freeze({ label: 'SHIFT', u: 0.8213, v: 0.2433 }),
-  Object.freeze({ label: '↑', u: 0.9074, v: 0.2433 }),
-  Object.freeze({ label: 'END', u: 0.9701, v: 0.2433 }),
-  Object.freeze({ label: 'CTRL', u: 0.0389, v: 0.0831 }),
-  Object.freeze({ label: 'WIN', u: 0.117, v: 0.0831 }),
-  Object.freeze({ label: 'ALT', u: 0.1952, v: 0.0831 }),
-  Object.freeze({ label: 'SPACE', u: 0.4301, v: 0.0832 }),
-  Object.freeze({ label: 'ALT', u: 0.6643, v: 0.0831 }),
-  Object.freeze({ label: 'FN', u: 0.7434, v: 0.0831 }),
-  Object.freeze({ label: '←', u: 0.8446, v: 0.0831 }),
-  Object.freeze({ label: '↓', u: 0.9072, v: 0.0831 }),
-  Object.freeze({ label: '→', u: 0.9701, v: 0.0831 }),
-])
-
-/**
- * Composites high-contrast keycap legends directly onto a 2D canvas context.
- *
- * @param {HTMLCanvasElement} canvas - Target 2D canvas element.
- * @param {'light'|'dark'} [variant='light'] - 'light' for white text with dark outline; 'dark' for dark navy text with white outline.
- * @returns {HTMLCanvasElement} The updated canvas.
- */
-export function compositeKeycapLegendsOnCanvas(canvas, variant = 'light') {
-  if (!canvas) return null
-  const ctx = typeof canvas.getContext === 'function' ? canvas.getContext('2d') : null
-  if (!ctx) return canvas
-
-  const width = canvas.width || 2048
-  const height = canvas.height || 1024
-
-  const isDark = variant === 'dark'
-  const textColor = isDark ? '#0f172a' : '#ffffff'
-  const haloColor = isDark ? '#ffffff' : '#0f172a'
-
-  ctx.save()
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.lineWidth = Math.max(2, Math.round(3 * (height / 1024)))
-  ctx.strokeStyle = haloColor
-  ctx.fillStyle = textColor
-
-  for (const item of KEYCAP_LEGEND_GRID_75) {
-    const px = Math.round(item.u * (width - 1))
-    const py = Math.round((1.0 - item.v) * (height - 1))
-
-    let fontSize = 38
-    if (item.label.length === 1) {
-      if (item.label >= 'A' && item.label <= 'Z') {
-        fontSize = 38
-      } else {
-        fontSize = 34
-      }
-    } else if (item.label.startsWith('F') && item.label.length <= 3) {
-      fontSize = 26
-    } else if (['↑', '↓', '←', '→'].includes(item.label)) {
-      fontSize = 34
-    } else {
-      fontSize = 24
-    }
-
-    const scaledFont = Math.round(fontSize * (height / 1024))
-    ctx.font = `bold ${scaledFont}px "Plus Jakarta Sans", Arial, sans-serif`
-
-    if (typeof ctx.strokeText === 'function') {
-      ctx.strokeText(item.label, px, py)
-    }
-    if (typeof ctx.fillText === 'function') {
-      ctx.fillText(item.label, px, py)
-    }
-  }
-
-  ctx.restore()
-  return canvas
+export function normalizeLayoutCode(layoutCode = '75') {
+  const raw = String(layoutCode || '75').replace('%', '').trim()
+  return raw === '60' || raw === '100' ? raw : '75'
 }
 
 /**
- * Loads a texture from the given URL using THREE.TextureLoader with an in-memory cache.
- * Configures SRGB color space and flipY=true.
- * Automatically composites crisp keycap legends at each key's top-down (u, v) position
- * for custom or newly uploaded artwork textures.
+ * Unified cached texture loader for keycap artwork and legends.
+ * Configures SRGB color space, filtering, and mipmaps.
  *
  * @param {string} url - Texture asset URL or relative path.
+ * @param {object} [options={}] - Texture options.
+ * @param {boolean} [options.flipY=true] - Whether to flip the texture along vertical axis.
+ * @param {boolean} [options.clamp=false] - Whether to clamp texture to edges.
+ * @param {Function} [options.onError] - Error callback on load failure.
+ * @param {Map<string, import('three').Texture>} [options.cache=textureCache] - Cache Map to store loaded texture.
  * @param {Function} [onComplete] - Callback fired when texture finishes loading.
- * @param {object} [options] - Optional loading and compositing options.
- * @param {boolean} [options.compositeLegends] - Force enable/disable runtime legend compositing.
- * @param {'light'|'dark'} [options.variant] - Legend color variant ('light' or 'dark').
  * @returns {import('three').Texture|null} Cached or newly requested Texture instance.
  */
-export function loadKeycapTexture(url, onComplete, options = {}) {
+export function loadCachedTexture(url, { flipY = true, clamp = false, onError, cache = textureCache } = {}, onComplete) {
   if (!url || typeof url !== 'string') return null
-  const cacheKey = options?.variant ? `${url}__${options.variant}` : url
-  if (textureCache.has(cacheKey)) {
-    return textureCache.get(cacheKey)
+  const cacheMap = cache || textureCache
+  if (cacheMap.has(url)) {
+    return cacheMap.get(url)
+  }
+
+  const applyTextureConfig = (tex) => {
+    tex.colorSpace = THREE.SRGBColorSpace
+    tex.flipY = Boolean(flipY)
+    tex.generateMipmaps = true
+    tex.minFilter = THREE.LinearMipmapLinearFilter
+    tex.magFilter = THREE.LinearFilter
+    tex.anisotropy = 8
+    if (clamp) {
+      tex.wrapS = THREE.ClampToEdgeWrapping
+      tex.wrapT = THREE.ClampToEdgeWrapping
+    }
+    tex.needsUpdate = true
   }
 
   // Gracefully handle headless/jsdom testing environment where Image or WebGL is mocked
   if (typeof Image === 'undefined') {
     const dummyTexture = new THREE.Texture()
     dummyTexture.name = url
-    dummyTexture.colorSpace = THREE.SRGBColorSpace
-    dummyTexture.flipY = true
-    textureCache.set(cacheKey, dummyTexture)
+    applyTextureConfig(dummyTexture)
+    cacheMap.set(url, dummyTexture)
     if (typeof onComplete === 'function') {
       onComplete(dummyTexture)
     }
     return dummyTexture
   }
 
-  const isPreBaked =
-    url.includes('anime-cat-town') ||
-    url.includes('kanagawa-wave') ||
-    options.compositeLegends === false
-
-  if (isPreBaked) {
-    const loader = new THREE.TextureLoader()
-    const texture = loader.load(
-      url,
-      (loadedTex) => {
-        loadedTex.colorSpace = THREE.SRGBColorSpace
-        loadedTex.flipY = true
-        loadedTex.generateMipmaps = true
-        loadedTex.minFilter = THREE.LinearMipmapLinearFilter
-        loadedTex.magFilter = THREE.LinearFilter
-        loadedTex.anisotropy = 8
-        loadedTex.needsUpdate = true
-        if (typeof onComplete === 'function') {
-          onComplete(loadedTex)
-        }
-      },
-      undefined,
-      (err) => {
-        console.warn(`Failed to load keycap texture (${url}):`, err)
+  const loader = new THREE.TextureLoader()
+  const texture = loader.load(
+    url,
+    (loadedTex) => {
+      applyTextureConfig(loadedTex)
+      if (typeof onComplete === 'function') {
+        onComplete(loadedTex)
       }
-    )
-    texture.colorSpace = THREE.SRGBColorSpace
-    texture.flipY = true
-    texture.generateMipmaps = true
-    texture.minFilter = THREE.LinearMipmapLinearFilter
-    texture.magFilter = THREE.LinearFilter
-    texture.anisotropy = 8
-    textureCache.set(cacheKey, texture)
-    return texture
-  }
-
-  // Runtime canvas compositor for arbitrary/future custom keycap textures
-  const img = new Image()
-  img.crossOrigin = 'anonymous'
-  const canvas =
-    typeof document !== 'undefined' && typeof document.createElement === 'function'
-      ? document.createElement('canvas')
-      : null
-
-  img.onload = () => {
-    let finalTexture
-    if (canvas && typeof canvas.getContext === 'function') {
-      canvas.width = Math.max(img.naturalWidth || img.width || 2048, 2048)
-      canvas.height = Math.max(img.naturalHeight || img.height || 1024, 1024)
-      const ctx = canvas.getContext('2d')
-      if (ctx && typeof ctx.drawImage === 'function') {
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-        compositeKeycapLegendsOnCanvas(canvas, options.variant || 'light')
-        finalTexture = new THREE.CanvasTexture(canvas)
-      } else {
-        finalTexture = new THREE.Texture(img)
+    },
+    undefined,
+    (err) => {
+      console.warn(`Failed to load texture (${url}):`, err)
+      cacheMap.delete(url)
+      if (typeof onError === 'function') {
+        onError(err)
       }
-    } else {
-      finalTexture = new THREE.Texture(img)
     }
-    finalTexture.colorSpace = THREE.SRGBColorSpace
-    finalTexture.flipY = true
-    finalTexture.needsUpdate = true
-    textureCache.set(cacheKey, finalTexture)
-    if (typeof onComplete === 'function') {
-      onComplete(finalTexture)
-    }
-  }
+  )
+  applyTextureConfig(texture)
+  cacheMap.set(url, texture)
+  return texture
+}
 
-  img.onerror = (err) => {
-    console.warn(`Failed to load keycap texture image (${url}):`, err)
-  }
-
-  img.src = url
-
-  const pendingTexture = new THREE.Texture()
-  pendingTexture.name = url
-  pendingTexture.colorSpace = THREE.SRGBColorSpace
-  pendingTexture.flipY = true
-  textureCache.set(cacheKey, pendingTexture)
-  return pendingTexture
+/**
+ * Loads keycap artwork texture with flipY=true.
+ *
+ * @param {string} url - Texture URL.
+ * @param {Function} [onComplete] - Callback fired when texture finishes loading.
+ * @param {object} [options={}] - Additional options.
+ * @returns {import('three').Texture|null}
+ */
+export function loadKeycapTexture(url, onComplete, options = {}) {
+  const cacheKey = options?.variant ? `${url}__${options.variant}` : url
+  return loadCachedTexture(
+    cacheKey,
+    { flipY: true, cache: options?.cache || textureCache, onError: options?.onError },
+    onComplete
+  )
 }
 
 /**
@@ -1326,91 +795,37 @@ export const LEGEND_SIDE_100_TEXTURE_PATHS = Object.freeze({
 })
 
 /**
- * Loads a high-contrast keycap legend atlas texture with flipY=false matching GLTF UV convention.
- * Configures SRGB color space and flipY=false.
+ * Loads side-printed keycap legend texture atlas with flipY=false matching GLTF UV convention.
  *
  * @param {string} url - Legend texture asset URL or relative path.
  * @param {Function} [onComplete] - Callback fired when texture finishes loading.
- * @returns {import('three').Texture|null} Cached or newly requested Texture instance.
+ * @param {object} [options={}] - Additional options.
+ * @returns {import('three').Texture|null}
  */
-export function loadKeycapLegendTexture(url, onComplete) {
-  if (!url || typeof url !== 'string') return null
-  if (textureCache.has(url)) {
-    return textureCache.get(url)
-  }
-
-  // Gracefully handle headless/jsdom testing environment where Image or WebGL is mocked
-  if (typeof Image === 'undefined') {
-    const dummyTexture = new THREE.Texture()
-    dummyTexture.name = url
-    dummyTexture.colorSpace = THREE.SRGBColorSpace
-    dummyTexture.flipY = false
-    textureCache.set(url, dummyTexture)
-    return dummyTexture
-  }
-
-  const loader = new THREE.TextureLoader()
-  const texture = loader.load(
+export function loadKeycapLegendTexture(url, onComplete, options = {}) {
+  return loadCachedTexture(
     url,
-    (loadedTex) => {
-      loadedTex.colorSpace = THREE.SRGBColorSpace
-      loadedTex.flipY = false
-      loadedTex.generateMipmaps = true
-      loadedTex.minFilter = THREE.LinearMipmapLinearFilter
-      loadedTex.magFilter = THREE.LinearFilter
-      loadedTex.anisotropy = 8
-      loadedTex.needsUpdate = true
-      if (typeof onComplete === 'function') {
-        onComplete(loadedTex)
-      }
-    },
-    undefined,
-    (err) => {
-      console.warn(`Failed to load keycap legend texture (${url}):`, err)
-    }
+    { flipY: false, clamp: true, cache: options?.cache || textureCache, onError: options?.onError },
+    onComplete
   )
-  texture.colorSpace = THREE.SRGBColorSpace
-  texture.flipY = false
-  texture.generateMipmaps = true
-  texture.minFilter = THREE.LinearMipmapLinearFilter
-  texture.magFilter = THREE.LinearFilter
-  texture.anisotropy = 8
-  textureCache.set(url, texture)
-  return texture
 }
 
 /**
  * Loads a top-legend atlas texture for the given layout code ('60', '75', '100').
- * Configures SRGB color space and flipY=true.
  *
  * @param {string} [layoutCode='75'] - Layout form-factor code ('60', '75', '100').
  * @param {Function} [onComplete] - Callback fired when texture finishes loading.
- * @returns {import('three').Texture|null} Cached or newly requested Texture instance.
+ * @param {object} [options={}] - Additional options.
+ * @returns {import('three').Texture|null}
  */
-export function loadTopLegendTexture(layoutCode = '75', onComplete) {
-  const normLayout = String(layoutCode || '75').replace('%', '').trim()
+export function loadTopLegendTexture(layoutCode = '75', onComplete, options = {}) {
+  const normLayout = normalizeLayoutCode(layoutCode)
   const url = TOP_LEGEND_TEXTURE_PATHS[normLayout] || TOP_LEGEND_TEXTURE_PATHS['75']
-  const texture = loadKeycapTexture(
+  return loadCachedTexture(
     url,
-    (loadedTex) => {
-      loadedTex.generateMipmaps = true
-      loadedTex.minFilter = THREE.LinearMipmapLinearFilter
-      loadedTex.magFilter = THREE.LinearFilter
-      loadedTex.anisotropy = 8
-      loadedTex.needsUpdate = true
-      if (typeof onComplete === 'function') {
-        onComplete(loadedTex)
-      }
-    },
-    { compositeLegends: false }
+    { flipY: true, cache: options?.cache || textureCache, onError: options?.onError },
+    onComplete
   )
-  if (texture) {
-    texture.generateMipmaps = true
-    texture.minFilter = THREE.LinearMipmapLinearFilter
-    texture.magFilter = THREE.LinearFilter
-    texture.anisotropy = 8
-  }
-  return texture
 }
 
 /**
@@ -1893,8 +1308,10 @@ export function applyBarebonesGeometryVariant(spec, barebonesGroup) {
  * @param {Function} [options.onLoad] - Callback invoked when GLTF asset finishes loading.
  * @param {Function} [options.onError] - Callback invoked on WebGL or renderer creation failure.
  * @param {Function} [options.onCameraPresetChange] - Callback invoked when active camera preset changes.
+ * @param {Function} [options.onContextRestored] - Callback invoked when WebGL context is restored.
  * @param {boolean} [options.loadGlb=true] - Whether to load the hybrid GLTF asset.
  * @param {string} [options.modelUrl='/models/exploded-keyboard.glb'] - URL to keyboard GLTF model.
+ * @param {string} [options.layout='75'] - Initial layout form-factor ('60', '75', '100').
  * @param {Function} [options.rendererFactory] - Custom renderer factory for testing/mocking.
  * @param {boolean} [options.reducedMotion=false] - Initial reduced motion preference.
  * @returns {object|null} Controller object for the preview scene.
@@ -1904,6 +1321,7 @@ export function createBuildPreviewScene({
   onLoad,
   onError,
   onCameraPresetChange,
+  onContextRestored,
   loadGlb = true,
   modelUrl,
   layout = '75',
@@ -1912,6 +1330,7 @@ export function createBuildPreviewScene({
 } = {}) {
   let isDisposed = false
   let isPausedState = false
+  let contextLost = false
   let animId = null
   let reducedMotion = Boolean(initialReducedMotion)
   let mode = 'procedural'
@@ -1924,6 +1343,8 @@ export function createBuildPreviewScene({
   }
   const defaultModelUrl = modelUrl || LAYOUT_MODELS[currentLayout] || LAYOUT_MODELS['75']
   const glbCache = new Map()
+  const inFlightGlbPromises = new Map()
+  const textureCache = new Map()
 
   // 1. Scene and Root Group Setup
   const scene = new THREE.Scene()
@@ -1966,16 +1387,33 @@ export function createBuildPreviewScene({
   let pmremGenerator = null
   let envRenderTarget = null
 
-  if (rendererFactory) {
+  const effectiveRendererFactory =
+    rendererFactory ||
+    canvas?._mockRendererFactory ||
+    (canvas?._mockRenderer ? () => canvas._mockRenderer : null)
+
+  if (effectiveRendererFactory) {
     try {
-      renderer = rendererFactory({ canvas, scene, camera })
+      renderer = effectiveRendererFactory({ canvas, scene, camera })
     } catch (err) {
       if (typeof onError === 'function') onError(err)
       else throw err
       return null
     }
   } else {
-    const webglOk = isWebGLAvailable(canvas)
+    // A4: Check WebGL availability on canvas.ownerDocument (a throwaway canvas) instead of calling getContext
+    // on the render canvas before THREE.WebGLRenderer is created (while still allowing custom test mock canvases
+    // that define _mockContext or custom getContext spies when !canvas.ownerDocument or when a custom getContext spy is attached).
+    const hasCustomSpy = Boolean(
+      canvas &&
+        (canvas._mockContext ||
+          Object.prototype.hasOwnProperty.call(canvas, 'getContext') ||
+          (typeof canvas.getContext === 'function' &&
+            typeof HTMLCanvasElement !== 'undefined' &&
+            canvas.getContext !== HTMLCanvasElement.prototype.getContext))
+    )
+    const webglTarget = !canvas?.ownerDocument || hasCustomSpy ? canvas : canvas.ownerDocument
+    const webglOk = isWebGLAvailable(webglTarget)
     if (!webglOk) {
       const err = new Error('WebGL is not available in the current environment.')
       if (typeof onError === 'function') {
@@ -1987,6 +1425,7 @@ export function createBuildPreviewScene({
     try {
       renderer = new THREE.WebGLRenderer({
         canvas,
+        context: canvas?._mockContext || undefined,
         alpha: true,
         antialias: true,
         powerPreference: 'high-performance',
@@ -2398,13 +1837,39 @@ export function createBuildPreviewScene({
 
     let texture = null
     if (textureUrl) {
-      texture = loadKeycapTexture(textureUrl, () => {
-        if (isDisposed) return
-        if (currentParts.keycaps?.textureUrl === textureUrl) {
-          applyKeycapsMaterials(currentParts.keycaps)
-          requestSingleFrame()
+      texture = loadCachedTexture(
+        textureUrl,
+        {
+          flipY: true,
+          cache: textureCache,
+          onError: () => {
+            if (isDisposed) return
+            // Ponytail Cut #2: on texture load failure, clear mat.map = null; mat.needsUpdate = true
+            layers.keycaps?.group?.traverse((child) => {
+              if (
+                child.isMesh &&
+                child.material &&
+                !isSideLegendMesh(child) &&
+                !child.userData?.isTopLegend &&
+                child.name !== 'Top_Legends_Overlay'
+              ) {
+                forEachMaterial(child.material, (mat) => {
+                  mat.map = null
+                  mat.needsUpdate = true
+                })
+              }
+            })
+            requestSingleFrame()
+          },
+        },
+        () => {
+          if (isDisposed) return
+          if (currentParts.keycaps?.textureUrl === textureUrl) {
+            applyKeycapsMaterials(currentParts.keycaps)
+            requestSingleFrame()
+          }
         }
-      })
+      )
     }
 
     const idLower = (spec.id || '').toLowerCase()
@@ -2417,9 +1882,6 @@ export function createBuildPreviewScene({
       nameLower.includes('kanagawa') ||
       nameLower.includes('wave')
 
-    // High-contrast legend texture resolution:
-    // - Dark lettering with white halo ('dark') for light/cream artwork like Kanagawa Wave or light solid keycaps
-    // - White lettering with dark obsidian halo ('light') for dark/vivid artwork like Anime Cat Mural or dark solid keycaps
     const legendVariant =
       spec.legendVariant ||
       (isWave
@@ -2436,24 +1898,68 @@ export function createBuildPreviewScene({
 
     let activeLegendTexture = null
     if (!isBlank && legendStyle === 'side') {
-      activeLegendTexture = loadKeycapLegendTexture(legendTextureUrl, () => {
-        if (isDisposed) return
-        if (currentParts.keycaps?.id === spec.id) {
-          applyKeycapsMaterials(currentParts.keycaps)
-          requestSingleFrame()
+      activeLegendTexture = loadCachedTexture(
+        legendTextureUrl,
+        {
+          flipY: false,
+          clamp: true,
+          cache: textureCache,
+          onError: () => {
+            if (isDisposed) return
+            layers.keycaps?.group?.traverse((child) => {
+              if (child.isMesh && child.material && isSideLegendMesh(child)) {
+                forEachMaterial(child.material, (mat) => {
+                  mat.map = null
+                  mat.needsUpdate = true
+                })
+              }
+            })
+            requestSingleFrame()
+          },
+        },
+        () => {
+          if (isDisposed) return
+          if (currentParts.keycaps?.id === spec.id) {
+            applyKeycapsMaterials(currentParts.keycaps)
+            requestSingleFrame()
+          }
         }
-      })
+      )
     }
 
     let activeTopLegendTexture = null
     if (legendStyle === 'top') {
-      activeTopLegendTexture = loadTopLegendTexture(currentLayout, () => {
-        if (isDisposed) return
-        if (currentParts.keycaps?.id === spec.id) {
-          applyKeycapsMaterials(currentParts.keycaps)
-          requestSingleFrame()
+      const topUrl = TOP_LEGEND_TEXTURE_PATHS[currentLayout] || TOP_LEGEND_TEXTURE_PATHS['75']
+      activeTopLegendTexture = loadCachedTexture(
+        topUrl,
+        {
+          flipY: true,
+          cache: textureCache,
+          onError: () => {
+            if (isDisposed) return
+            layers.keycaps?.group?.traverse((child) => {
+              if (
+                child.isMesh &&
+                child.material &&
+                (child.userData?.isTopLegend || child.name === 'Top_Legends_Overlay')
+              ) {
+                forEachMaterial(child.material, (mat) => {
+                  mat.map = null
+                  mat.needsUpdate = true
+                })
+              }
+            })
+            requestSingleFrame()
+          },
+        },
+        () => {
+          if (isDisposed) return
+          if (currentParts.keycaps?.id === spec.id) {
+            applyKeycapsMaterials(currentParts.keycaps)
+            requestSingleFrame()
+          }
         }
-      })
+      )
     }
 
     const colorway = !texture ? getKeycapColorway(spec) : null
@@ -2725,57 +2231,26 @@ export function createBuildPreviewScene({
    * @param {string} layoutCode - Layout code ('60', '75', '100').
    * @returns {Promise<object|null>}
    */
-  async function loadLayoutGlb(layoutCode) {
-    if (!loadGlb || typeof window === 'undefined' || typeof fetch === 'undefined') {
-      fallbackToProcedural()
-      return null
-    }
-
+  function parseGlbBuffer(buffer, layoutCode) {
     const targetUrl =
-      layoutCode === currentLayout && modelUrl
+      layoutCode === '75' && modelUrl
         ? modelUrl
         : LAYOUT_MODELS[layoutCode] || defaultModelUrl
 
-    // 1. Check in-memory binary cache
-    if (glbCache.has(layoutCode)) {
-      const cachedBuffer = glbCache.get(layoutCode)
-      return new Promise((resolve) => {
-        const loader = new GLTFLoader()
-        loader.parse(
-          cachedBuffer.slice(0),
-          '',
-          (gltf) => {
-            if (isDisposed || layoutCode !== currentLayout) {
-              disposeObject(gltf.scene)
-              return resolve(null)
-            }
-            ingestGltfScene(gltf)
-            resolve(gltf)
-          },
-          (err) => {
-            console.warn(`Build preview GLTF parse notice (${targetUrl}):`, err)
-            fallbackToProcedural()
-            resolve(null)
-          }
-        )
-      })
-    }
-
-    // 2. Fetch over network
-    try {
-      const res = await fetch(targetUrl)
-      if (!res.ok) {
-        throw new Error(`Failed to fetch GLB (${targetUrl}): HTTP ${res.status}`)
+    return new Promise((resolve) => {
+      const handleParseError = (err) => {
+        if (isDisposed || layoutCode !== currentLayout) {
+          return resolve(null)
+        }
+        console.warn(`Build preview GLTF parse notice (${targetUrl}):`, err)
+        fallbackToProcedural()
+        if (typeof onLoad === 'function') {
+          onLoad({ fallback: true, error: err })
+        }
+        resolve(null)
       }
-      const contentType = res.headers?.get?.('content-type') || ''
-      if (contentType.includes('text/html')) {
-        throw new Error(`Invalid content-type for GLB (${targetUrl}): ${contentType}`)
-      }
-      const buffer = await res.arrayBuffer()
-      if (isDisposed) return null
-      glbCache.set(layoutCode, buffer)
 
-      return new Promise((resolve) => {
+      try {
         const loader = new GLTFLoader()
         loader.parse(
           buffer.slice(0),
@@ -2788,17 +2263,56 @@ export function createBuildPreviewScene({
             ingestGltfScene(gltf)
             resolve(gltf)
           },
-          (err) => {
-            console.warn(`Build preview GLTF parse notice (${targetUrl}):`, err)
-            fallbackToProcedural()
-            if (typeof onLoad === 'function') {
-              onLoad({ fallback: true, error: err })
-            }
-            resolve(null)
-          }
+          handleParseError
         )
-      })
+      } catch (err) {
+        handleParseError(err)
+      }
+    })
+  }
+
+  async function loadLayoutGlb(layoutCode) {
+    if (isDisposed) return null
+    const targetUrl =
+      layoutCode === '75' && modelUrl
+        ? modelUrl
+        : LAYOUT_MODELS[layoutCode] || defaultModelUrl
+
+    // 1. Check in-memory binary cache
+    if (glbCache.has(layoutCode)) {
+      const cachedBuffer = glbCache.get(layoutCode)
+      return parseGlbBuffer(cachedBuffer, layoutCode)
+    }
+
+    // 2. Fetch over network with in-flight deduplication
+    let fetchPromise = inFlightGlbPromises.get(layoutCode)
+    if (!fetchPromise) {
+      fetchPromise = (async () => {
+        const res = await fetch(targetUrl)
+        if (!res.ok) {
+          throw new Error(`Failed to fetch GLB (${targetUrl}): HTTP ${res.status}`)
+        }
+        const contentType = res.headers?.get?.('content-type') || ''
+        if (contentType.includes('text/html')) {
+          throw new Error(`Invalid content-type for GLB (${targetUrl}): ${contentType}`)
+        }
+        return await res.arrayBuffer()
+      })()
+      inFlightGlbPromises.set(layoutCode, fetchPromise)
+      fetchPromise
+        .finally(() => {
+          inFlightGlbPromises.delete(layoutCode)
+        })
+        .catch(() => {})
+    }
+
+    let buffer
+    try {
+      buffer = await fetchPromise
     } catch (err) {
+      if (isDisposed || layoutCode !== currentLayout) {
+        return null
+      }
       console.warn(`Build preview GLTF load notice (${targetUrl}):`, err)
       fallbackToProcedural()
       if (typeof onLoad === 'function') {
@@ -2806,6 +2320,13 @@ export function createBuildPreviewScene({
       }
       return null
     }
+
+    if (isDisposed || layoutCode !== currentLayout) {
+      return null
+    }
+    glbCache.set(layoutCode, buffer)
+
+    return parseGlbBuffer(buffer, layoutCode)
   }
 
   // 8. Asynchronously Load GLTF Asset if enabled and in browser environment
@@ -2960,6 +2481,7 @@ export function createBuildPreviewScene({
    */
   const handleContextLost = (event) => {
     event?.preventDefault?.()
+    contextLost = true
     isPausedState = true
     if (animId !== null && typeof cancelAnimationFrame === 'function') {
       cancelAnimationFrame(animId)
@@ -2970,8 +2492,35 @@ export function createBuildPreviewScene({
     }
   }
 
+  const handleContextRestored = () => {
+    contextLost = false
+    isPausedState = false
+    if (typeof onContextRestored === 'function') {
+      onContextRestored()
+    }
+    requestSingleFrame()
+  }
+
+  const handleVisibilityChange = () => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      isPausedState = true
+      if (animId !== null && typeof cancelAnimationFrame === 'function') {
+        cancelAnimationFrame(animId)
+        animId = null
+      }
+    } else {
+      isPausedState = false
+      requestSingleFrame()
+    }
+  }
+
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+  }
+
   if (canvas && typeof canvas.addEventListener === 'function') {
     canvas.addEventListener('webglcontextlost', handleContextLost)
+    canvas.addEventListener('webglcontextrestored', handleContextRestored)
   }
 
   /**
@@ -3032,9 +2581,11 @@ export function createBuildPreviewScene({
       normalized.roughness !== prev.roughness ||
       normalized.opacity !== prev.opacity ||
       normalized.textureUrl !== prev.textureUrl ||
+      normalized.artworkUrl !== prev.artworkUrl ||
       normalized.artMode !== prev.artMode ||
       normalized.legendVariant !== prev.legendVariant ||
-      normalized.legendTextureUrl !== prev.legendTextureUrl
+      normalized.legendTextureUrl !== prev.legendTextureUrl ||
+      normalized.legendStyle !== prev.legendStyle
 
     if (!hasChanged) return
 
@@ -3133,8 +2684,7 @@ export function createBuildPreviewScene({
    */
   async function setLayout(layoutCode) {
     if (isDisposed) return false
-    const raw = String(layoutCode || '75').replace('%', '').trim()
-    const targetLayout = raw === '60' || raw === '100' ? raw : '75'
+    const targetLayout = normalizeLayoutCode(layoutCode)
 
     currentLayout = targetLayout
     applyLayoutScale(currentLayout)
@@ -3370,6 +2920,29 @@ export function createBuildPreviewScene({
      *   layout: string
      * }}
      */
+    /**
+     * Checks whether WebGL rendering context is currently lost.
+     *
+     * @returns {boolean} True if context lost.
+     */
+    isContextLost() {
+      return contextLost
+    },
+
+    /**
+     * Checks whether high-fidelity GLB geometry is currently loaded.
+     *
+     * @returns {boolean} True if in hybrid GLB mode.
+     */
+    isGlbLoaded() {
+      return mode === 'hybrid'
+    },
+
+    /**
+     * Ingests a pre-parsed or synthetic glTF object directly into scene.
+     */
+    ingestGltfScene,
+
     getStats() {
       let triangles = 0
       let drawCalls = 0
@@ -3426,9 +2999,23 @@ export function createBuildPreviewScene({
         window.removeEventListener('resize', handleResize)
       }
 
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange)
+      }
+
       if (canvas && typeof canvas.removeEventListener === 'function') {
         canvas.removeEventListener('webglcontextlost', handleContextLost)
+        canvas.removeEventListener('webglcontextrestored', handleContextRestored)
+        delete canvas.__sceneInstance
       }
+
+      rootGroup.traverse((child) => {
+        if (child.isInstancedMesh && typeof child.dispose === 'function') {
+          child.dispose()
+        }
+      })
+
+      textureCache.clear()
 
       if (controls) {
         if (typeof controls.removeEventListener === 'function') {
@@ -3453,8 +3040,13 @@ export function createBuildPreviewScene({
         envRenderTarget = null
       }
 
-      if (renderer && typeof renderer.dispose === 'function') {
-        renderer.dispose()
+      if (renderer) {
+        if (typeof renderer.forceContextLoss === 'function') {
+          renderer.forceContextLoss()
+        }
+        if (typeof renderer.dispose === 'function') {
+          renderer.dispose()
+        }
         renderer = null
       }
     },

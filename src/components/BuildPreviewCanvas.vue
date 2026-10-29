@@ -5,7 +5,7 @@
  * driven reactively by the Build store or explicit Part props, featuring OrbitControls,
  * camera angle presets, constant 3-layer exploded view with Combine/Explode toggle,
  * an explicit schematic non-claim caption, WebGL fallback detection,
- * and an accessible plain-HTML selected parts summary (ADR-0008).
+ * dynamic layout-aware spec summary, and an accessible plain-HTML selected parts summary (ADR-0008).
  */
 
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
@@ -15,6 +15,9 @@ import {
   normalizePreviewPart,
 } from '../lib/buildPreviewScene.js'
 import { build } from '../stores/build.js'
+
+// Monotonic instance counter for unique title IDs across component mounts (AC-R4)
+let instanceCounter = 0
 
 const props = defineProps({
   barebones: {
@@ -47,6 +50,9 @@ const props = defineProps({
   },
 })
 
+// Unique element ID for accessible title association (AC-R4)
+const titleId = `build-preview-title-${++instanceCounter}`
+
 // Currency formatter for plain-HTML summary
 const money = new Intl.NumberFormat('en-SG', {
   style: 'currency',
@@ -56,13 +62,14 @@ const money = new Intl.NumberFormat('en-SG', {
 
 const rootRef = ref(null)
 const canvasRef = ref(null)
-const status = ref('checking') // 'checking' | 'ready' | 'unavailable' | 'error'
+const status = ref('checking') // 'checking' | 'loading' | 'ready' | 'fallback' | 'unavailable' | 'error'
 const isFallback = ref(false)
 const errorMsg = ref('')
 const activePreset = ref('isometric')
 const isReducedMotion = ref(false)
 const isExplodedView = ref(true)
-const liveStatusText = ref('')
+const liveAnnouncement = ref('')
+const liveStatusText = liveAnnouncement
 
 let sceneInstance = null
 let observer = null
@@ -80,9 +87,37 @@ const activeKeycaps = computed(() =>
   props.keycaps !== undefined ? props.keycaps : build.keycaps
 )
 
-// Normalized part descriptors for plain-HTML accessibility summary
-const normBarebones = computed(() => normalizePreviewPart('barebones', activeBarebones.value))
-const normSwitches = computed(() => normalizePreviewPart('switches', activeSwitches.value))
+/**
+ * Layout-aware specification summary strings (AC-R4).
+ */
+const layoutSpec = computed(() => {
+  const clean = String(props.layout || '75').replace('%', '').trim()
+  if (clean === '60') {
+    return { switchCount: '61 switches', ansi: 'ANSI 60%' }
+  }
+  if (clean === '100') {
+    return { switchCount: '104 switches', ansi: 'ANSI 100%' }
+  }
+  return { switchCount: '81 switches', ansi: 'ANSI 75%' }
+})
+
+const specSummary = computed(() => layoutSpec.value)
+
+// Normalized part descriptors for plain-HTML accessibility summary with layout-aware spec strings
+const normBarebones = computed(() => {
+  const norm = normalizePreviewPart('barebones', activeBarebones.value)
+  if (norm.isSelected && norm.specSummary) {
+    norm.specSummary = norm.specSummary.replace(/ANSI\s+\d+%/i, layoutSpec.value.ansi)
+  }
+  return norm
+})
+const normSwitches = computed(() => {
+  const norm = normalizePreviewPart('switches', activeSwitches.value)
+  if (norm.isSelected && norm.specSummary) {
+    norm.specSummary = norm.specSummary.replace(/\d+\s+switches/i, layoutSpec.value.switchCount)
+  }
+  return norm
+})
 const normKeycaps = computed(() => normalizePreviewPart('keycaps', activeKeycaps.value))
 
 const activeLayers = computed(() => [
@@ -95,17 +130,16 @@ const activeLayers = computed(() => [
  * Screen-reader status announcement string for semantic status reporting (AC-14).
  */
 const statusAnnouncement = computed(() => {
-  if (liveStatusText.value) {
-    return liveStatusText.value
-  }
   let msg =
     status.value === 'ready'
       ? '3D Ready'
-      : status.value === 'checking'
+      : status.value === 'checking' || status.value === 'loading'
         ? 'Loading 3D...'
-        : status.value === 'unavailable'
-          ? '3D Unavailable'
-          : '3D Render error'
+        : status.value === 'fallback'
+          ? '3D Fallback'
+          : status.value === 'unavailable'
+            ? '3D Unavailable'
+            : '3D Render error'
   if (isReducedMotion.value) {
     msg += ' · Reduced motion active'
   }
@@ -125,14 +159,16 @@ watch(
   { deep: true },
 )
 
-// Watch layout prop and dynamically update scene layout
+// Watch layout prop and dynamically update scene layout; await setLayout FIRST before announcing (AC-R4, AC-R11)
 watch(
   () => props.layout,
   async (newLayout) => {
     if (!newLayout) return
     const cleanLayout = String(newLayout).replace('%', '').trim()
-    liveStatusText.value = `Switched 3D preview to ${cleanLayout}% layout.`
-    await sceneInstance?.setLayout?.(cleanLayout)
+    if (sceneInstance) {
+      await sceneInstance.setLayout?.(cleanLayout)
+      liveAnnouncement.value = `Switched 3D preview to ${cleanLayout}% layout.`
+    }
   },
 )
 
@@ -160,18 +196,6 @@ function resetView() {
 function toggleExplodedView() {
   isExplodedView.value = !isExplodedView.value
   sceneInstance?.setExploded(isExplodedView.value)
-}
-
-/**
- * Handles document visibility change events to pause/resume rendering when off-screen.
- */
-function handleVisibilityChange() {
-  if (!sceneInstance || typeof document === 'undefined') return
-  if (document.visibilityState === 'hidden') {
-    sceneInstance.pause()
-  } else if (isIntersecting) {
-    sceneInstance.resume()
-  }
 }
 
 /**
@@ -213,7 +237,8 @@ onMounted(() => {
     }
   }
 
-  if (!props.rendererFactory && !isWebGLAvailable(canvasRef.value)) {
+  const doc = canvasRef.value?.ownerDocument || (typeof document !== 'undefined' ? document : null)
+  if (!props.rendererFactory && !isWebGLAvailable(doc)) {
     status.value = 'unavailable'
     isFallback.value = true
     return
@@ -227,6 +252,8 @@ onMounted(() => {
         Boolean(window.location?.origin && window.location.origin !== 'null')
 
   try {
+    status.value = shouldLoadGlb ? 'loading' : 'ready'
+
     sceneInstance = createBuildPreviewScene({
       canvas: canvasRef.value,
       layout: props.layout,
@@ -236,18 +263,29 @@ onMounted(() => {
       onCameraPresetChange: (preset) => {
         activePreset.value = preset
       },
-      onLoad: () => {
-        status.value = 'ready'
+      onLoad: ({ fallback } = {}) => {
+        status.value = fallback ? 'fallback' : 'ready'
+        if (fallback) isFallback.value = true
+        if (!liveAnnouncement.value || liveAnnouncement.value === '3D preview ready.' || liveAnnouncement.value === '3D preview using procedural fallback.') {
+          liveAnnouncement.value = fallback
+            ? '3D preview using procedural fallback.'
+            : '3D preview ready.'
+        }
       },
       onError: (err) => {
         status.value = 'error'
         isFallback.value = true
         errorMsg.value = err?.message || 'WebGL error'
       },
+      onContextRestored: () => {
+        status.value = 'ready'
+        isFallback.value = false
+        liveAnnouncement.value = '3D preview restored.'
+      },
     })
 
     if (!sceneInstance) {
-      status.value = 'unavailable'
+      status.value = 'error'
       isFallback.value = true
       return
     }
@@ -256,7 +294,10 @@ onMounted(() => {
       canvasRef.value.__sceneInstance = sceneInstance
     }
 
-    status.value = 'ready'
+    if (!shouldLoadGlb) {
+      status.value = 'ready'
+    }
+
     sceneInstance.syncBuildState(
       {
         barebones: activeBarebones.value,
@@ -289,16 +330,9 @@ onMounted(() => {
     const target = rootRef.value || canvasRef.value
     if (target) observer.observe(target)
   }
-
-  if (typeof document !== 'undefined') {
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-  }
 })
 
 onUnmounted(() => {
-  if (typeof document !== 'undefined') {
-    document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }
   if (mediaQueryList) {
     if (mediaQueryList.removeEventListener) {
       mediaQueryList.removeEventListener('change', handleMotionChange)
@@ -324,6 +358,8 @@ defineExpose({
   activePreset,
   isExplodedView,
   liveStatusText,
+  liveAnnouncement,
+  specSummary,
   selectPreset,
   resetView,
   toggleExplodedView,
@@ -335,80 +371,91 @@ defineExpose({
     ref="rootRef"
     class="lct-build-preview-panel"
     :class="{ 'lct-build-preview-panel--compact': compact }"
-    aria-labelledby="build-preview-title"
+    :aria-labelledby="titleId"
   >
-    <!-- Header with semantic screen-reader status and compact toolbar -->
-    <div class="lct-build-preview-header">
-      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-        <h2 id="build-preview-title" class="lct-build-preview-title">3D Build Preview</h2>
+    <!-- Header with semantic screen-reader status and compact toolbar (AC-R1) -->
+    <div class="lct-build-preview-header lct-build-preview__header">
+      <!-- Row 1: Title and Status Badge on left, Reset View button on right -->
+      <div class="lct-build-preview__title-row">
+        <div class="lct-build-preview__title-group">
+          <h3 :id="titleId" class="lct-build-preview-title lct-build-preview__title">3D Build Preview</h3>
 
-        <!-- Visually-hidden status badge announcing ready state to screen-readers (AC-14) -->
-        <span
-          class="visually-hidden lct-build-preview-status-badge"
-          role="status"
-          aria-live="polite"
-          :data-status="status"
-        >
-          {{ statusAnnouncement }}
-        </span>
-        <span
-          class="visually-hidden lct-build-preview-live-status"
-          role="status"
-          aria-live="polite"
-        >
-          {{ liveStatusText }}
-        </span>
-
-        <!-- Sleek micro-pill toolbar buttons -->
-        <div class="lct-build-preview-controls" role="toolbar" aria-label="3D camera controls">
-          <button
-            type="button"
-            class="lct-preview-btn lct-btn-preset"
-            :class="{ active: activePreset === 'isometric' }"
-            :aria-pressed="activePreset === 'isometric'"
-            @click="selectPreset('isometric')"
+          <!-- Visually-hidden status badge announcing ready state to screen-readers (AC-14, AC-R4) -->
+          <span
+            class="lct-build-preview__sr-only lct-build-preview-status-badge"
+            role="status"
+            aria-live="polite"
+            :data-status="status"
+            data-testid="preview-status-badge"
           >
-            Isometric
-          </button>
-          <button
-            type="button"
-            class="lct-preview-btn lct-btn-preset"
-            :class="{ active: activePreset === 'top' }"
-            :aria-pressed="activePreset === 'top'"
-            @click="selectPreset('top')"
+            {{ statusAnnouncement }}
+          </span>
+          <span
+            class="lct-build-preview__sr-only lct-build-preview-live-status"
           >
-            Top-down
-          </button>
-          <button
-            type="button"
-            class="lct-preview-btn lct-btn-preset"
-            :class="{ active: activePreset === 'side' }"
-            :aria-pressed="activePreset === 'side'"
-            @click="selectPreset('side')"
-          >
-            Side profile
-          </button>
-          <button
-            type="button"
-            class="lct-preview-btn lct-btn-preset lct-preview-btn--accent"
-            :aria-pressed="!isExplodedView"
-            @click="toggleExplodedView"
-          >
-            {{ isExplodedView ? 'Combine layers' : 'Explode layers' }}
-          </button>
-          <button
-            type="button"
-            class="lct-preview-btn lct-btn-preset lct-btn-preset--reset"
-            @click="resetView"
-          >
-            Reset view
-          </button>
+            {{ liveStatusText }}
+          </span>
         </div>
+
+        <button
+          type="button"
+          class="lct-preview-btn lct-btn-preset lct-btn-preset--reset lct-build-preview__preset-btn lct-build-preview__reset-btn"
+          data-testid="reset-camera-btn"
+          @click="resetView"
+        >
+          Reset view
+        </button>
+      </div>
+
+      <!-- Row 2: Camera controls toolbar with 4 pills -->
+      <div
+        class="lct-build-preview-controls lct-build-preview__toolbar"
+        role="toolbar"
+        aria-label="3D camera controls"
+      >
+        <button
+          type="button"
+          class="lct-preview-btn lct-btn-preset lct-build-preview__preset-btn"
+          :class="{ active: activePreset === 'isometric' }"
+          :aria-pressed="activePreset === 'isometric'"
+          @click="selectPreset('isometric')"
+        >
+          Isometric
+        </button>
+        <button
+          type="button"
+          class="lct-preview-btn lct-btn-preset lct-build-preview__preset-btn"
+          :class="{ active: activePreset === 'top' }"
+          :aria-pressed="activePreset === 'top'"
+          @click="selectPreset('top')"
+        >
+          Top-down
+        </button>
+        <button
+          type="button"
+          class="lct-preview-btn lct-btn-preset lct-build-preview__preset-btn"
+          :class="{ active: activePreset === 'side' }"
+          :aria-pressed="activePreset === 'side'"
+          @click="selectPreset('side')"
+        >
+          Side profile
+        </button>
+        <button
+          type="button"
+          class="lct-preview-btn lct-btn-preset lct-preview-btn--accent lct-build-preview__preset-btn"
+          :aria-pressed="!isExplodedView"
+          @click="toggleExplodedView"
+        >
+          {{ isExplodedView ? 'Combine layers' : 'Explode layers' }}
+        </button>
       </div>
     </div>
 
     <!-- 3D Canvas Container -->
-    <div class="lct-build-preview-canvas-wrap lct-build-preview-viewport">
+    <div
+      v-show="!isFallback"
+      class="lct-build-preview-canvas-wrap lct-build-preview-viewport lct-build-preview__stage"
+    >
       <canvas
         ref="canvasRef"
         class="lct-build-preview-canvas"
@@ -436,46 +483,57 @@ defineExpose({
     </div>
 
     <!-- Plain-HTML Selected Parts Summary (accessible even with no WebGL) -->
-    <!-- In compact mode, only shown if WebGL failed (isFallback), because 'Build so far' already lists parts -->
+    <!-- In compact mode when WebGL is active, screen-reader text provides accessible summary (AC-R14) -->
     <div
-      v-if="!compact || isFallback"
       class="lct-build-preview-summary"
-      data-testid="build-preview-html-summary"
+      :class="{ 'lct-build-preview__sr-only': compact && !isFallback }"
+      data-testid="build-preview-summary"
     >
-      <h3 class="lct-summary-title">Selected Parts Summary</h3>
-      <ul class="lct-summary-list">
-        <li
-          v-for="layer in activeLayers"
-          :key="layer.id"
-          class="lct-summary-item"
-          :data-layer="layer.id"
-        >
-          <div class="lct-summary-item-left">
-            <span
-              class="lct-color-swatch"
-              :style="{ backgroundColor: layer.part.color }"
-              :title="'Color: ' + layer.part.color"
-              aria-hidden="true"
-            ></span>
-            <div class="lct-summary-details">
-              <span class="lct-summary-layer-label">{{ layer.label }}</span>
-              <span class="lct-summary-part-name">{{ layer.part.name }}</span>
-              <span v-if="layer.part.specSummary" class="lct-summary-part-spec">
-                {{ layer.part.specSummary }}
-              </span>
+      <div v-if="compact && !isFallback" class="lct-build-preview__sr-only">
+        <span v-for="layer in activeLayers" :key="layer.id">
+          {{ layer.label }}: {{ layer.part.name }}.
+        </span>
+      </div>
+
+      <div
+        v-if="!compact || isFallback"
+        data-testid="build-preview-html-summary"
+      >
+        <h3 class="lct-summary-title">Selected Parts Summary</h3>
+        <ul class="lct-summary-list">
+          <li
+            v-for="layer in activeLayers"
+            :key="layer.id"
+            class="lct-summary-item"
+            :data-layer="layer.id"
+          >
+            <div class="lct-summary-item-left">
+              <span
+                class="lct-color-swatch"
+                :style="{ backgroundColor: layer.part.color }"
+                :title="'Color: ' + layer.part.color"
+                aria-hidden="true"
+              ></span>
+              <div class="lct-summary-details">
+                <span class="lct-summary-layer-label">{{ layer.label }}</span>
+                <span class="lct-summary-part-name">{{ layer.part.name }}</span>
+                <span v-if="layer.part.specSummary" class="lct-summary-part-spec">
+                  {{ layer.part.specSummary }}
+                </span>
+              </div>
             </div>
-          </div>
-          <span class="lct-summary-part-price">
-            {{ formatPartPrice(layer.part) }}
-          </span>
-        </li>
-      </ul>
+            <span class="lct-summary-part-price">
+              {{ formatPartPrice(layer.part) }}
+            </span>
+          </li>
+        </ul>
+      </div>
     </div>
   </section>
 </template>
 
-<style>
-.visually-hidden {
+<style scoped>
+.lct-build-preview__sr-only {
   position: absolute !important;
   width: 1px !important;
   height: 1px !important;
@@ -512,24 +570,44 @@ defineExpose({
   gap: 10px;
 }
 
-.lct-build-preview-header {
+.lct-build-preview-header,
+.lct-build-preview__header {
   width: 100%;
 }
 
-.lct-build-preview-title {
+.lct-build-preview__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 0.75rem;
+  margin-bottom: 8px;
+}
+
+.lct-build-preview__title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lct-build-preview-title,
+.lct-build-preview__title {
   font-family: "Unbounded", "Arial Black", system-ui, sans-serif;
   font-size: 15px;
   font-weight: 600;
   margin: 0;
   color: var(--ink, #12151c);
   letter-spacing: -0.01em;
+  white-space: nowrap;
 }
 
 .lct-build-preview-panel--compact .lct-build-preview-title {
   font-size: 15px;
 }
 
-.lct-build-preview-controls {
+.lct-build-preview-controls,
+.lct-build-preview__toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -588,8 +666,10 @@ defineExpose({
   color: #ffffff;
 }
 
-.lct-btn-preset--reset {
-  margin-left: auto;
+.lct-btn-preset--reset,
+.lct-build-preview__reset-btn {
+  margin-left: 0;
+  flex-shrink: 0;
 }
 
 .lct-build-preview-canvas-wrap {
@@ -735,12 +815,6 @@ defineExpose({
 @media (max-width: 760px) {
   .lct-build-preview-canvas-wrap {
     height: 250px;
-  }
-}
-
-@media (min-width: 1080px) {
-  #parts .layout {
-    grid-template-columns: minmax(0, 1fr) 390px;
   }
 }
 </style>
