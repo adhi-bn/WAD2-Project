@@ -4,16 +4,23 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { readFileSync } from 'node:fs'
 import App from '../../src/App.vue'
 import HomeView from '../../src/views/HomeView.vue'
-import BuilderView from '../../src/views/BuilderView.vue'
+import PartsView from '../../src/views/PartsView.vue'
+import { state, finishQuiz } from '../../src/store.js'
 
 function makeRouter() {
-  return createRouter({
+  const router = createRouter({
     history: createMemoryHistory(),
     routes: [
       { path: '/', name: 'home', component: HomeView },
-      { path: '/builder', name: 'builder', component: BuilderView },
+      { path: '/parts', name: 'parts', component: PartsView },
+      { path: '/builder', redirect: '/parts' },
     ],
   })
+  router.beforeEach((to) => {
+    if (to.name === 'parts' && !state.build) finishQuiz()
+    return true
+  })
+  return router
 }
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8')
@@ -27,28 +34,32 @@ async function mountAt(path) {
 }
 
 describe('branded shell', () => {
-  it('renders the brand and the Home and Builder nav links', async () => {
+  it('renders the brand, Home nav link, and 2 Parts stage in the navbar', async () => {
     const { wrapper } = await mountAt('/')
 
     expect(wrapper.find('.brand').text()).toContain('Le Chaton Typers')
     expect(wrapper.find('a.navlink[href="/"]').text()).toContain('Home')
-    expect(wrapper.find('a.navlink[href="/builder"]').text()).toContain('Builder')
+    expect(wrapper.find('.stages').text()).toContain('2')
+    expect(wrapper.find('.stages').text()).toContain('Parts')
+    expect(wrapper.find('a.stg[href="/parts"]').exists()).toBe(true)
   })
 
-  it('lets a guest reach the builder route (no auth gate)', async () => {
+  it('lets a guest reach the parts route directly (or via /builder redirect) rendering PartsView and 3D preview', async () => {
     const { router, wrapper } = await mountAt('/')
 
     await router.push('/builder')
     await flushPromises()
 
-    expect(router.currentRoute.value.name).toBe('builder')
-    expect(wrapper.findComponent(BuilderView).exists()).toBe(true)
+    expect(router.currentRoute.value.path).toBe('/parts')
+    expect(wrapper.findComponent(PartsView).exists()).toBe(true)
+    expect(wrapper.text()).toContain('Build so far')
+    expect(wrapper.find('.lct-build-preview-panel').exists()).toBe(true)
   })
 
-  it('gives the home builder CTA the custom .ui-btn namespace', async () => {
+  it('gives the home parts/builder CTA the custom .ui-btn namespace', async () => {
     const { wrapper } = await mountAt('/')
 
-    expect(wrapper.find('a.ui-btn[href="/builder"]').exists()).toBe(true)
+    expect(wrapper.find('a.ui-btn[href="/parts"]').exists()).toBe(true)
   })
 
   it('keeps Bootstrap component classes and Tailwind out of the custom stylesheet', () => {

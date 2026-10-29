@@ -3,9 +3,14 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { CATS, META } from '../data/catalog.js'
 import { money, money2, signed, total, grams, kg, spec, reason, preferred, bestFit, whyText } from '../logic/builder.js'
-import { state, layout, choose, discountOf, activeVoucher, timeLeft } from '../store.js'
-import ProfileChips from '../components/ProfileChips.vue'
+import { state, layout, setLayout, choose, discountOf, activeVoucher, timeLeft, finishQuiz } from '../store.js'
+import { build as domainBuild } from '../stores/build.js'
+// ProfileChips renders the same quiz-answer chips inline here via `otherChips`;
+// it stays mounted on SummaryView (/build) where it has no inline equivalent.
 import SwitchAudioPreview from '../components/SwitchAudioPreview.vue'
+import BuildPreviewCanvas from '../components/BuildPreviewCanvas.vue'
+
+if (!state.build) finishQuiz()
 
 const router = useRouter()
 const catIdx = ref(0)
@@ -14,6 +19,20 @@ const b = computed(() => state.build)
 const cur = computed(() => b.value[cat.value])
 const answers = computed(() => ({ ...state.answers, layout: layout() }))
 const fit = computed(() => bestFit(cat.value, state.cat, b.value, state.rec))
+
+const layoutOptions = ['60', '75', '100']
+const currentLayout = computed(() => state.answers.layout || '75')
+const capital = (s) => (s ? s[0].toUpperCase() + s.slice(1) : '')
+const otherChips = computed(() => {
+  const A = state.answers
+  const one = (v, any, f) => (v ? { text: f(v), acc: true } : { text: any, acc: false })
+  return [
+    one(A.weight, 'Any weight', (v) => `${capital(v)} weight`),
+    one(A.frame, 'Any frame', (v) => `${v === 'pcb' ? 'PCB' : capital(v)} frame`),
+    one(A.keycap, 'Any keycaps', (v) => `${capital(v)} keycaps`),
+    one(A.switch, 'Any switches', (v) => `${capital(v)} switches`),
+  ]
+})
 
 // Three picks: one cheaper than the best fit, the best fit, and one pricier.
 const three = computed(() => {
@@ -53,7 +72,24 @@ onBeforeUnmount(() => document.body.classList.remove('hasbar'))
         <div>
           <div class="eyebrow">Step 2 · Choose your parts</div>
           <h1>Your keyboard, part by part</h1>
-          <ProfileChips />
+          <div class="summary-pills chips" role="group" aria-label="Layout selector and build profile">
+            <div class="layout-selector d-inline-flex gap-1" role="group" aria-label="Keyboard layout">
+              <button
+                v-for="opt in layoutOptions"
+                :key="opt"
+                type="button"
+                class="pill chip"
+                :class="{ pri: currentLayout === opt, acc: currentLayout === opt }"
+                :aria-pressed="currentLayout === opt"
+                :aria-label="`${opt}% layout`"
+                @click="setLayout(opt)"
+              >
+                {{ opt }}%
+              </button>
+            </div>
+            <span v-for="c in otherChips" :key="c.text" class="chip pill" :class="{ acc: c.acc }">{{ c.text }}</span>
+            <span class="chip pill mono">Budget {{ money(state.answers.budget) }}</span>
+          </div>
         </div>
         <router-link to="/swipe" class="ui-btn">Retake the quiz</router-link>
       </div>
@@ -109,6 +145,14 @@ onBeforeUnmount(() => document.body.classList.remove('hasbar'))
         </div>
 
         <aside class="sheet">
+          <BuildPreviewCanvas
+            :barebones="domainBuild.barebones ?? b?.case"
+            :switches="domainBuild.switches ?? b?.switches"
+            :keycaps="domainBuild.keycaps ?? b?.keycaps"
+            :layout="state.answers.layout || '75'"
+            compact
+            class="mb-3"
+          />
           <h3>Build so far</h3>
           <ol>
             <li v-for="c in CATS" :key="c"><span class="k">{{ META[c].short }}</span><span class="nm" :title="b[c].name">{{ b[c].name }}</span><span class="pr">{{ b[c].price ? money(b[c].price) : '—' }}</span></li>
@@ -136,3 +180,52 @@ onBeforeUnmount(() => document.body.classList.remove('hasbar'))
     </div>
   </section>
 </template>
+
+<style scoped>
+.summary-pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 12px;
+}
+.layout-selector {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.summary-pills .pill {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--line, #d6dae3);
+  color: var(--ink, #12151c);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  line-height: 1.4;
+  text-decoration: none;
+}
+.summary-pills button.pill:hover {
+  border-color: var(--accent, #3346ff);
+}
+.summary-pills .pill.pri {
+  background: var(--accent, #3346ff) !important;
+  border-color: var(--accent, #3346ff) !important;
+  color: var(--accent-ink, #ffffff) !important;
+}
+.summary-pills button.pill:not(.pri) {
+  background: var(--surface, #ffffff);
+  border-color: var(--line, #d6dae3);
+  color: var(--ink, #12151c);
+}
+.summary-pills button.pill:not(.pri):hover {
+  border-color: var(--accent, #3346ff);
+  background: var(--surface-2, #f4f5f9);
+}
+.summary-pills button.pill:focus-visible {
+  outline: 2px solid var(--accent, #3346ff);
+  outline-offset: 2px;
+}
+</style>

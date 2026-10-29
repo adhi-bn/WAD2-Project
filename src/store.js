@@ -54,6 +54,49 @@ function discardCurrentBuild() {
 
 export const layout = () => state.answers.layout || '75'
 
+/**
+ * Switches the active keyboard layout form-factor ('60', '75', or '100')
+ * and resynchronizes all existing build items against the new layout's catalog
+ * while preserving the customer's selected part IDs.
+ *
+ * @param {'60'|'75'|'100'|string} layoutCode - Target keyboard layout form-factor.
+ * @returns {void}
+ */
+export function setLayout(layoutCode) {
+  const code = String(layoutCode || '75').replace('%', '').trim()
+  const validLayout = code === '60' || code === '100' ? code : '75'
+  state.answers.layout = validLayout
+  state.cat = catalog(validLayout)
+
+  if (state.build) {
+    const nextBuild = {}
+    for (const c of CATS) {
+      const currentPart = state.build[c]
+      if (currentPart?.id) {
+        const matching = state.cat[c]?.find((o) => o.id === currentPart.id)
+        nextBuild[c] = matching || currentPart
+      } else if (state.cat[c]?.length > 0) {
+        nextBuild[c] = state.cat[c][0]
+      }
+    }
+    state.build = nextBuild
+  }
+
+  if (state.rec) {
+    const nextRec = {}
+    for (const c of CATS) {
+      const recPart = state.rec[c]
+      if (recPart?.id) {
+        const matching = state.cat[c]?.find((o) => o.id === recPart.id)
+        nextRec[c] = matching || recPart
+      } else if (state.cat[c]?.length > 0) {
+        nextRec[c] = state.cat[c][0]
+      }
+    }
+    state.rec = nextRec
+  }
+}
+
 let toastTimer
 export function toast(msg) {
   state.toast = msg

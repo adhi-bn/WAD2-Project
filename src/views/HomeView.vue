@@ -58,6 +58,7 @@ const layers = ['Keycaps', 'Switches', 'Plate', 'PCB', 'Foam', 'Case']
               Start swiping
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
             </router-link>
+            <router-link to="/parts" class="ui-btn">Skip quiz, pick parts myself →</router-link>
             <span class="fine">About 1 minute. No sign-up.</span>
           </div>
         </div>
@@ -106,7 +107,7 @@ const layers = ['Keycaps', 'Switches', 'Plate', 'PCB', 'Foam', 'Case']
           <p class="fine mt-2">Choose your <b>Barebones kit</b>, <b>Switches</b>, and <b>Keycaps</b>. Setting a budget warns when you go over, but never blocks you.</p>
           <div class="acts">
             <router-link to="/know" class="ui-btn">Know your keyboard →</router-link>
-            <router-link to="/builder" class="ui-btn">Direct to Builder →</router-link>
+            <router-link to="/parts" class="ui-btn">Direct to Builder →</router-link>
           </div>
         </div>
       </div>

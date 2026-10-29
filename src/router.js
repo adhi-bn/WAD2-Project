@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { state } from './store.js'
+import { state, finishQuiz } from './store.js'
 import HomeView from './views/HomeView.vue'
 import KnowView from './views/KnowView.vue'
 import QuizView from './views/QuizView.vue'
@@ -9,7 +9,6 @@ import CartView from './views/CartView.vue'
 import CheckoutView from './views/CheckoutView.vue'
 import ConfirmView from './views/ConfirmView.vue'
 import AccountView from './views/AccountView.vue'
-import BuilderView from './views/BuilderView.vue'
 import AboutView from './views/AboutView.vue'
 
 const router = createRouter({
@@ -24,7 +23,8 @@ const router = createRouter({
     { path: '/checkout', name: 'checkout', component: CheckoutView, meta: { needsCart: true } },
     { path: '/order/:id', name: 'order', component: ConfirmView },
     { path: '/account', name: 'account', component: AccountView },
-    { path: '/builder', name: 'builder', component: BuilderView },
+    // Builder picks live in PartsView; keep the old URL working.
+    { path: '/builder', redirect: '/parts' },
     { path: '/about', name: 'about', component: AboutView },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
@@ -36,6 +36,7 @@ const router = createRouter({
 // Parts and Build need a recommended build first, so send people to the swipe cards.
 // Checkout needs something in the cart.
 router.beforeEach((to) => {
+  if (to.name === 'parts' && !state.build) finishQuiz()
   if (to.meta.needsBuild && !state.build) return '/swipe'
   if (to.meta.needsCart && state.cart.length === 0) return '/cart'
   return true

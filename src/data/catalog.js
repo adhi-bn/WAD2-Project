@@ -41,9 +41,10 @@ export const BASE = {
     { id: 'blank', name: 'Blank PBT keycap set', style: 'plain', p: 29, prof: 'Cherry' },
     { id: 'plainpbt', name: 'Dye-sub PBT keycap set', style: 'plain', p: 45, prof: 'Cherry' },
     { id: 'matte', name: 'Textured matte PBT keycap set', style: 'textured', p: 49, prof: 'XDA' },
-    { id: 'theme', name: 'Themed PBT keycap set', style: 'styled', p: 69, prof: 'Cherry' },
+    { id: 'theme', name: 'Themed PBT keycap set (Le Chaton Anime Mural)', style: 'styled', p: 69, prof: 'Cherry', textureUrl: '/textures/keycaps/anime-cat-town.jpg', artMode: 'full' },
     { id: 'stone', name: 'Stone-texture PBT keycap set', style: 'textured', p: 85, prof: 'MOA' },
     { id: 'dshot', name: 'Double-shot ABS keycap set', style: 'styled', p: 129, prof: 'Cherry' },
+    { id: 'kanagawa', name: 'Great Wave Kanagawa dye-sub set', style: 'styled', p: 79, prof: 'Cherry', textureUrl: '/textures/keycaps/kanagawa-wave.jpg', artMode: 'full' },
   ],
   stabs: [
     { id: 'stock', name: 'Stock plate-mount stabilisers', pp: 1.2 },
