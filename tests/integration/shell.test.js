@@ -39,6 +39,8 @@ describe('branded shell', () => {
 
     expect(wrapper.find('.brand').text()).toContain('Le Chaton Typers')
     expect(wrapper.find('a.navlink[href="/"]').text()).toContain('Home')
+    expect(wrapper.find('footer a[href="/privacy"]').text()).toBe('Privacy')
+    expect(wrapper.find('footer a[href="/terms"]').text()).toBe('Terms')
     expect(wrapper.find('.stages').text()).toContain('2')
     expect(wrapper.find('.stages').text()).toContain('Parts')
     expect(wrapper.find('a.stg[href="/parts"]').exists()).toBe(true)

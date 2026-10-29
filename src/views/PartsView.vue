@@ -62,17 +62,24 @@ const three = computed(() => {
 const all = computed(() => [...state.cat[cat.value]].sort((a, z) => a.price - z.price))
 const prefAll = computed(() => preferred(cat.value, answers.value, state.cat))
 const tag = (o) => (o === fit.value ? 'Best fit for you' : o.price < fit.value.price ? 'Save' : o.price > fit.value.price ? 'Upgrade' : 'Alternative')
+const partPrice = (part) => !Number.isFinite(part?.price) ? 'Unavailable' : part.price ? money(part.price) : 'Included'
 const delta = (o) => {
   if (o === cur.value) return { cls: 'same', text: 'Selected' }
+  if (!Number.isFinite(cur.value?.price)) return { cls: 'same', text: 'Choose replacement' }
   const d = o.price - cur.value.price
   return { cls: d > 0 ? 'up' : d < 0 ? 'down' : 'same', text: signed(d) }
 }
 
-const t = computed(() => total(b.value))
-const disc = computed(() => discountOf(t.value))
-const left = computed(() => { const d = state.answers.budget - t.value; return d >= 0 ? `${money(d)} under budget` : `${money(-d)} over budget` })
-const pct = computed(() => Math.min(100, (t.value / state.answers.budget) * 100) + '%')
-const over = computed(() => t.value > state.answers.budget)
+const hasUnknownPrice = computed(() => CATS.some((group) => !Number.isFinite(b.value?.[group]?.price)))
+const t = computed(() => hasUnknownPrice.value ? null : total(b.value))
+const disc = computed(() => t.value === null ? 0 : discountOf(t.value))
+const left = computed(() => {
+  if (t.value === null) return 'Budget unavailable until every Part has a current price'
+  const d = state.answers.budget - t.value
+  return d >= 0 ? `${money(d)} under budget` : `${money(-d)} over budget`
+})
+const pct = computed(() => t.value === null ? '0%' : Math.min(100, (t.value / state.answers.budget) * 100) + '%')
+const over = computed(() => t.value !== null && t.value > state.answers.budget)
 
 function go(i) { catIdx.value = i; window.scrollTo({ top: 0, behavior: 'smooth' }) }
 function nextPart() { if (catIdx.value < CATS.length - 1) go(catIdx.value + 1); else router.push('/build') }
@@ -114,7 +121,7 @@ onBeforeUnmount(() => document.body.classList.remove('hasbar'))
           <div class="tabs" role="tablist">
             <button v-for="(c, i) in CATS" :key="c" type="button" class="tab" :class="{ on: i === catIdx }" role="tab" :aria-selected="i === catIdx" @click="catIdx = i">
               <span class="k">{{ String(i + 1).padStart(2, '0') }} · {{ META[c].short }}</span>
-              <span class="v">{{ money(b[c].price) }}</span>
+              <span class="v">{{ partPrice(b[c]) }}</span>
             </button>
           </div>
 
@@ -124,7 +131,7 @@ onBeforeUnmount(() => document.body.classList.remove('hasbar'))
             <p>{{ whyText(cat, b, answers) }}</p>
           </div>
 
-          <SwitchAudioPreview v-if="cat === 'switches'" :part="cur" />
+          <SwitchAudioPreview v-if="cat === 'switches' && !cur.unavailable" :part="cur" />
 
           <div class="row g-3">
             <div v-for="o in three" :key="o.id" class="col-12 col-md-4">
@@ -172,7 +179,7 @@ onBeforeUnmount(() => document.body.classList.remove('hasbar'))
           <ol>
             <li v-for="c in CATS" :key="c"><span class="k">{{ META[c].short }}</span><span class="nm" :title="b[c].name">{{ b[c].name }}</span><span class="pr">{{ b[c].price ? money(b[c].price) : '—' }}</span></li>
           </ol>
-          <div class="tot"><span>Total</span><span class="mono"><s v-if="disc > 0">{{ money(t) }}</s>{{ disc > 0 ? money2(t - disc) : money(t) }}</span></div>
+          <div class="tot"><span>Total</span><span class="mono"><s v-if="disc > 0">{{ money(t) }}</s>{{ t === null ? 'Unavailable' : disc > 0 ? money2(t - disc) : money(t) }}</span></div>
           <div v-if="disc > 0" class="vline"><span>{{ state.ld.code }} · {{ activeVoucher().name }}</span><span class="mono">−{{ money2(disc) }}</span></div>
           <div class="meter" :class="{ over }"><i :style="{ width: pct }"></i></div>
           <div class="meterlab"><span>{{ left }}</span><span>of {{ money(state.answers.budget) }}</span></div>
@@ -187,7 +194,7 @@ onBeforeUnmount(() => document.body.classList.remove('hasbar'))
             <template v-if="disc > 0">Build total with {{ state.ld.code }} · you save {{ money2(disc) }} · code expires in {{ timeLeft() }}</template>
             <template v-else>Build total · {{ left }} · about {{ kg(grams(b)) }}</template>
           </div>
-          <div class="amt">{{ disc > 0 ? money2(t - disc) : money(t) }}</div>
+          <div class="amt">{{ t === null ? 'Unavailable' : disc > 0 ? money2(t - disc) : money(t) }}</div>
           <div class="meter" :class="{ over }"><i :style="{ width: pct }"></i></div>
         </div>
         <router-link to="/build" class="ui-btn primary">Review build →</router-link>

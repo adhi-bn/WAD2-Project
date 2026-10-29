@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Saved-build snapshots now retain the selected eight Parts, quiz preferences, target Budget, and historical prices; reopening flags catalogue drift and offers alternatives without silently replacing a Part (#12).
+- Saved-build Supabase migration adding the snapshot fields, update timestamp, and explicit per-account RLS policies (#12).
 - Interactive part-by-part 3D Build Preview in [`src/components/BuildPreviewCanvas.vue`](src/components/BuildPreviewCanvas.vue) powered by [`src/lib/buildPreviewScene.js`](src/lib/buildPreviewScene.js) with Three.js `OrbitControls`, smooth vertical drop/snap assembly animation, real-time Part material/color/stem updates without additional `.glb` asset downloads on Part material swaps (lazy-loading per-layout `.glb` assets only when switching between 60%, 75%, and 100% form factors), camera preset views (`Isometric`, `Top-down`, `Side profile`), Combine/Explode layer toggle, accessible plain-HTML selected parts summary, and graceful WebGL failure fallback ([#22](https://github.com/adhi-bn/WAD2-Project/issues/22)).
 - Multi-layout 3D keyboard support across `60%`, `75%`, and `100%` form factors with layout switcher pills in [`src/views/PartsView.vue`](src/views/PartsView.vue), dynamic layout scale adjustments, and procedural barebones case silhouettes (`high-profile`, `low-profile`, `sandwich`) (#22).
 - Custom keycap artwork textures (*Le Chaton Anime Mural* and *Great Wave Kanagawa*) and dual Top-Printed (`wasd.blend` authentic font) vs. Side-Printed keycap legend variations (#22).

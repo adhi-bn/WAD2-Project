@@ -65,7 +65,15 @@ const countdown = computed(() => {
     <router-view />
   </main>
 
-  <footer><div class="wrap">Le Chaton Typers · test build · sample prices in Singapore dollars</div></footer>
+  <footer>
+    <div class="wrap site-footer">
+      <span>Le Chaton Typers · test build · sample prices in Singapore dollars</span>
+      <nav aria-label="Legal information">
+        <router-link to="/privacy">Privacy</router-link>
+        <router-link to="/terms">Terms</router-link>
+      </nav>
+    </div>
+  </footer>
 
   <FatCat />
   <div class="lct-toast" :class="{ 'is-show': state.toast }" role="status" aria-live="polite">{{ state.toast }}</div>
