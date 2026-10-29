@@ -1799,14 +1799,20 @@ export function createBuildPreviewScene({
         if (matName.includes('stem') || child.name === 'Switch_Stems_Fallback') {
           mat.color.set(part.stemColor || part.accentColor || part.color)
           mat.roughness = Math.max(0.2, part.roughness * 0.7)
-          mat.needsUpdate = true
         } else {
           mat.color.set(part.color)
           mat.metalness = part.metalness
           mat.roughness = part.roughness
           mat.opacity = part.opacity
-          mat.transparent = part.opacity < 1.0
-          mat.needsUpdate = true
+          // Color/roughness/metalness/opacity are uniforms. Only toggling
+          // `transparent` changes the program, so `needsUpdate` is reserved for
+          // that case — setting it unconditionally recompiles a shader per cloned
+          // switch material (81 instances), stalling the main thread for seconds.
+          const nextTransparent = part.opacity < 1.0
+          if (mat.transparent !== nextTransparent) {
+            mat.transparent = nextTransparent
+            mat.needsUpdate = true
+          }
         }
       })
     })
@@ -2420,8 +2426,19 @@ export function createBuildPreviewScene({
     }
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
     const rawDt = (now - lastFrameTime) / 1000
+    const slowFrame = now - lastFrameTime > 120
     const dt = Number.isFinite(rawDt) ? Math.max(0, Math.min(0.1, rawDt)) : 1 / 60
     lastFrameTime = now
+
+    // Software-rendered or very weak GPUs can take hundreds of milliseconds per
+    // frame, which stretches a 0.42s drop animation into a multi-second main-thread
+    // stall. Snap to the settled state instead of animating when a frame is slow.
+    if (slowFrame) {
+      currentExplosionFactor = targetExplosionFactor
+      for (const id of BUILD_PREVIEW_LAYER_IDS) {
+        layers[id].dropProgress = 1
+      }
+    }
 
     if (activeControlFrames > 0) {
       activeControlFrames--

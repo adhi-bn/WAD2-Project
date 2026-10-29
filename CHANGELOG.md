@@ -49,6 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Consolidated switch-audio styling under the governed design tokens, restored the mute control's 44px touch target, and corrected the story-section `.wrap` scope.
 - Kept volume changes audible after mute, removed toggle semantics from the changing Play/Pause action, and added the legacy WebKit AudioContext fallback.
 - Recreated closed Web Audio contexts, resumed interrupted contexts, kept playback progress out of rapid ARIA updates, and committed keyboard seeks with visible failure handling.
+- Removed per-material shader recompiles and the multi-second drop animation stall on software-rendered or weak GPUs in [`src/lib/buildPreviewScene.js`](src/lib/buildPreviewScene.js): switch materials only flag `needsUpdate` when transparency actually changes, and a frame slower than 120 ms snaps the assembly animation to its settled state.
 
 ## [0.1.0] - 2026-10-18
 
