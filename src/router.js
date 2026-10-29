@@ -11,6 +11,7 @@ import ConfirmView from './views/ConfirmView.vue'
 import AccountView from './views/AccountView.vue'
 import BuilderView from './views/BuilderView.vue'
 import AboutView from './views/AboutView.vue'
+import CompareBuildsView from './views/CompareBuildsView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -26,6 +27,7 @@ const router = createRouter({
     { path: '/account', name: 'account', component: AccountView },
     { path: '/builder', name: 'builder', component: BuilderView },
     { path: '/about', name: 'about', component: AboutView },
+    { path: '/compare', name: 'compare', component: CompareBuildsView },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
   scrollBehavior() {
