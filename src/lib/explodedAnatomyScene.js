@@ -10,6 +10,11 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { SWITCH_LAYOUT_POSITIONS, KEYBOARD_DIMENSIONS } from './keyboardSwitchLayout.js'
+import { isWebGLAvailable } from './webgl.js'
+
+// Re-exported for backwards compatibility with consumers/tests that import this
+// helper from the scene module rather than the shared webgl seam.
+export { isWebGLAvailable }
 
 /**
  * Module-level reusable Three.js color instances to prevent per-frame allocations during render loop and RGB updates.
@@ -105,37 +110,6 @@ export const ANATOMY_LAYERS = Object.freeze([
  * @type {ReadonlyArray<string>}
  */
 export const BAREBONES_BUNDLED_LAYER_IDS = Object.freeze(['plate', 'pcb', 'foam', 'case'])
-
-/**
- * Safely checks WebGL/WebGL2 context availability in the current environment.
- * Gracefully returns false in jsdom or headless environments where WebGL is unavailable.
- *
- * @param {Document|null} [doc=document] - Document context to create test canvas from.
- * @returns {boolean} True if WebGL or WebGL2 context can be acquired, false otherwise.
- */
-export function isWebGLAvailable(target = (typeof document !== 'undefined' ? document : null)) {
-  if (!target) return false
-  if (target._mockContext) return true
-  try {
-    let canvas
-    if (typeof target.getContext === 'function') {
-      canvas = target
-    } else if (typeof target.createElement === 'function') {
-      canvas = target.createElement('canvas')
-    } else {
-      return false
-    }
-    const win = target.defaultView || (typeof window !== 'undefined' ? window : null)
-    if (win && !win.WebGLRenderingContext && !target.getContext) return false
-    const gl =
-      canvas.getContext('webgl2') ||
-      canvas.getContext('webgl') ||
-      canvas.getContext('experimental-webgl')
-    return Boolean(gl)
-  } catch {
-    return false
-  }
-}
 
 /**
  * Computes the exploded layer separation factor across the guided part-by-part home journey.

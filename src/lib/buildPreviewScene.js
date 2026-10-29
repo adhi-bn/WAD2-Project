@@ -20,6 +20,11 @@ import {
   createSwitchMatrixInstances,
   buildProceduralFallbackLayers,
 } from './explodedAnatomyScene.js'
+import { isWebGLAvailable } from './webgl.js'
+
+// Re-exported for backwards compatibility with consumers/tests that import this
+// helper from the scene module rather than the shared webgl seam.
+export { isWebGLAvailable }
 
 /**
  * Layout form-factor canonical scales to frame each keyboard snugly without edge clipping.
@@ -121,38 +126,6 @@ export function getKeycapColorway(part) {
     }
   }
   return null
-}
-
-/**
- * Safely checks WebGL/WebGL2 context availability in the current environment.
- * Accepts a Document, HTMLCanvasElement, or defaults to global document.
- *
- * @param {Document|HTMLCanvasElement|null} [target] - Document or canvas to test.
- * @returns {boolean} True if WebGL or WebGL2 context can be acquired.
- */
-export function isWebGLAvailable(target = (typeof document !== 'undefined' ? document : null)) {
-  if (!target) return false
-  if (target._mockContext) return true
-  try {
-    let canvas
-    if (typeof target.getContext === 'function') {
-      canvas = target
-    } else if (typeof target.createElement === 'function') {
-      canvas = target.createElement('canvas')
-    } else {
-      return false
-    }
-    const win = target.defaultView || (typeof window !== 'undefined' ? window : null)
-    if (win && !win.WebGLRenderingContext && !target.getContext) return false
-    const gl =
-      (canvas._mockContext ? canvas._mockContext : null) ||
-      canvas.getContext('webgl2') ||
-      canvas.getContext('webgl') ||
-      canvas.getContext('experimental-webgl')
-    return Boolean(gl)
-  } catch {
-    return false
-  }
 }
 
 /**
@@ -1363,6 +1336,9 @@ export function createBuildPreviewScene({
 } = {}) {
   let isDisposed = false
   let isPausedState = false
+  // IntersectionObserver-fed flag. Combined with tab visibility it forms the
+  // single source of truth for pausing (see applyPauseState below).
+  let viewportIntersecting = true
   let contextLost = false
   let animId = null
   let reducedMotion = Boolean(initialReducedMotion)
@@ -2551,15 +2527,25 @@ export function createBuildPreviewScene({
 
   const handleContextRestored = () => {
     contextLost = false
-    isPausedState = false
     if (typeof onContextRestored === 'function') {
       onContextRestored()
     }
-    requestSingleFrame()
+    applyPauseState()
   }
 
-  const handleVisibilityChange = () => {
-    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+  /** @returns {boolean} True when the document is currently visible. */
+  function isTabVisible() {
+    return typeof document === 'undefined' ? true : document.visibilityState !== 'hidden'
+  }
+
+  /**
+   * Reconciles the paused state from tab visibility AND viewport intersection, so
+   * the scene never renders while off-screen or while the tab is hidden.
+   */
+  function applyPauseState() {
+    const shouldPause = !viewportIntersecting || !isTabVisible()
+    if (shouldPause === isPausedState) return
+    if (shouldPause) {
       isPausedState = true
       if (animId !== null && typeof cancelAnimationFrame === 'function') {
         cancelAnimationFrame(animId)
@@ -2567,8 +2553,16 @@ export function createBuildPreviewScene({
       }
     } else {
       isPausedState = false
-      requestSingleFrame()
+      if (!motionDisabled() && isAnimating()) {
+        startAnimationLoop()
+      } else {
+        requestSingleFrame()
+      }
     }
+  }
+
+  const handleVisibilityChange = () => {
+    applyPauseState()
   }
 
   if (typeof document !== 'undefined') {
@@ -2951,6 +2945,17 @@ export function createBuildPreviewScene({
       } else {
         requestSingleFrame()
       }
+    },
+
+    /**
+     * Updates whether the canvas is within the viewport (fed by IntersectionObserver).
+     * @param {boolean} value - True when the canvas is intersecting the viewport.
+     */
+    setIntersecting(value) {
+      const next = Boolean(value)
+      if (next === viewportIntersecting) return
+      viewportIntersecting = next
+      applyPauseState()
     },
 
     /**

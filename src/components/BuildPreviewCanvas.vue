@@ -317,11 +317,7 @@ onMounted(() => {
       (entries) => {
         for (const entry of entries) {
           isIntersecting = entry.isIntersecting
-          if (entry.isIntersecting) {
-            sceneInstance?.resume()
-          } else {
-            sceneInstance?.pause()
-          }
+          sceneInstance?.setIntersecting?.(isIntersecting)
         }
       },
       { threshold: 0, rootMargin: '300px 0px' },
