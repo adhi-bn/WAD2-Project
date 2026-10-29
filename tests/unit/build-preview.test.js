@@ -933,6 +933,21 @@ describe('Top-Down Keycap UV Projection & Artwork Texture Support', () => {
     }
   })
 
+  it('ensureTopDownKeycapUVs reuses the projection on repeat calls (no per-pick re-projection)', () => {
+    const group = new THREE.Group()
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.01, 0.02), new THREE.MeshStandardMaterial())
+    group.add(mesh)
+
+    const first = ensureTopDownKeycapUVs(group)
+    const firstUv = mesh.geometry.attributes.uv
+    const second = ensureTopDownKeycapUVs(group)
+
+    // Same bounds object and untouched uv attribute => cached, not re-projected
+    expect(second).toBe(first)
+    expect(mesh.geometry.attributes.uv).toBe(firstUv)
+    expect(group.userData.topDownBounds).toBe(first)
+  })
+
   it('ensureTopDownKeycapUVs handles empty groups gracefully without throwing', () => {
     const emptyGroup = new THREE.Group()
     expect(ensureTopDownKeycapUVs(emptyGroup)).toBeNull()

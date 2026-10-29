@@ -876,6 +876,8 @@ export function isSideLegendMesh(child, mat) {
  * For top-facing and upper-bevel vertices (`normal.y > 0.25` or upper 65% of vertex Y), UV coordinates
  * are projected planarly. Side skirt vertices wrap smoothly down the keycap skirts preserving 5-sided dye-sub aesthetics.
  * Also stores a per-vertex `isTopFace` attribute and `mesh.userData.topDownProjected = true`.
+ * The resulting bounds are memoised on `keycapGroup.userData.topDownBounds`; repeat calls with no
+ * unprojected meshes return them immediately (keycap geometry only changes on layout switch).
  *
  * @param {import('three').Group|import('three').Object3D} keycapGroup - Three.js Object3D / Group containing keycaps.
  * @returns {{ minX: number, maxX: number, minZ: number, maxZ: number, width: number, depth: number }|null} Bounding box summary or null.
@@ -902,6 +904,14 @@ export function ensureTopDownKeycapUVs(keycapGroup) {
       return true
     }
     return isSideLegendMesh(child)
+  }
+
+  // Keycap geometry is immutable between layout switches, so repeat calls (one
+  // per Part selection) reuse the previous projection rather than re-projecting
+  // every vertex of the whole board.
+  const cachedBounds = keycapGroup.userData?.topDownBounds
+  if (cachedBounds && meshes.every((m) => isDecalMesh(m) || m.userData?.topDownProjected)) {
+    return cachedBounds
   }
 
   const invGroupMatrix = new THREE.Matrix4().copy(keycapGroup.matrixWorld).invert()
@@ -972,7 +982,9 @@ export function ensureTopDownKeycapUVs(keycapGroup) {
     mesh.userData.topDownProjected = true
   }
 
-  return { minX, maxX, minZ, maxZ, width, depth }
+  const bounds = { minX, maxX, minZ, maxZ, width, depth }
+  if (keycapGroup.userData) keycapGroup.userData.topDownBounds = bounds
+  return bounds
 }
 
 /**
@@ -1823,12 +1835,15 @@ export function createBuildPreviewScene({
    * Supports both solid PBR materials, 4-Zone colorways, and 5-sided dye-sub top-down planar artwork textures.
    *
    * @param {object} part - Normalized Part descriptor.
+   * @param {object} [options] - Repaint options.
+   * @param {boolean} [options.textureFailed] - Skip the artwork texture and paint plain colourway
+   *   colours; used to repaint after that texture failed to load (avoids a retry loop).
    */
-  function applyKeycapsMaterials(part) {
+  function applyKeycapsMaterials(part, { textureFailed = false } = {}) {
     const spec = normalizePreviewPart('keycaps', part)
     const isLight = isColorLight(spec.color)
     const opacity = Number.isFinite(spec.opacity) ? spec.opacity : spec.isSelected ? 1.0 : 0.42
-    const textureUrl = spec.textureUrl || null
+    const textureUrl = textureFailed ? null : spec.textureUrl || null
     const artMode = spec.artMode || (textureUrl ? 'full' : null)
     const isBlank = spec.id === 'blank' || spec.legendStyle === 'none'
     const legendStyle = spec.legendStyle || (isBlank ? 'none' : 'top')
@@ -1850,21 +1865,12 @@ export function createBuildPreviewScene({
           cache: textureCache,
           onError: () => {
             if (isDisposed) return
-            // Ponytail Cut #2: on texture load failure, clear mat.map = null; mat.needsUpdate = true
-            layers.keycaps?.group?.traverse((child) => {
-              if (
-                child.isMesh &&
-                child.material &&
-                !isSideLegendMesh(child) &&
-                !child.userData?.isTopLegend &&
-                child.name !== 'Top_Legends_Overlay'
-              ) {
-                forEachMaterial(child.material, (mat) => {
-                  mat.map = null
-                  mat.needsUpdate = true
-                })
-              }
-            })
+            // Stale failure: the user already picked different keycaps, so this
+            // texture no longer owns the materials.
+            if (currentParts.keycaps?.textureUrl !== textureUrl) return
+            // Repaint without the texture so keycaps fall back to their colourway
+            // colours; clearing only `map` would leave them flat white.
+            applyKeycapsMaterials(currentParts.keycaps, { textureFailed: true })
             requestSingleFrame()
           },
         },

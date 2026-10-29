@@ -63,13 +63,18 @@ const money = new Intl.NumberFormat('en-SG', {
 const rootRef = ref(null)
 const canvasRef = ref(null)
 const status = ref('checking') // 'checking' | 'loading' | 'ready' | 'fallback' | 'unavailable' | 'error'
-const isFallback = ref(false)
 const errorMsg = ref('')
 const activePreset = ref('isometric')
 const isReducedMotion = ref(false)
 const isExplodedView = ref(true)
 const liveAnnouncement = ref('')
 const liveStatusText = liveAnnouncement
+
+// Whether the canvas has something to draw. `fallback` still renders procedural
+// geometry, so a failed/missing `.glb` must keep the canvas visible (ADR-0003
+// guarantees a procedural fallback when assets are unavailable). Only a missing
+// or broken WebGL context leaves nothing to render.
+const hasLiveScene = computed(() => status.value !== 'unavailable' && status.value !== 'error')
 
 let sceneInstance = null
 let observer = null
@@ -240,7 +245,6 @@ onMounted(() => {
   const doc = canvasRef.value?.ownerDocument || (typeof document !== 'undefined' ? document : null)
   if (!props.rendererFactory && !isWebGLAvailable(doc)) {
     status.value = 'unavailable'
-    isFallback.value = true
     return
   }
 
@@ -265,7 +269,6 @@ onMounted(() => {
       },
       onLoad: ({ fallback } = {}) => {
         status.value = fallback ? 'fallback' : 'ready'
-        if (fallback) isFallback.value = true
         if (!liveAnnouncement.value || liveAnnouncement.value === '3D preview ready.' || liveAnnouncement.value === '3D preview using procedural fallback.') {
           liveAnnouncement.value = fallback
             ? '3D preview using procedural fallback.'
@@ -274,19 +277,16 @@ onMounted(() => {
       },
       onError: (err) => {
         status.value = 'error'
-        isFallback.value = true
         errorMsg.value = err?.message || 'WebGL error'
       },
       onContextRestored: () => {
         status.value = 'ready'
-        isFallback.value = false
         liveAnnouncement.value = '3D preview restored.'
       },
     })
 
     if (!sceneInstance) {
       status.value = 'error'
-      isFallback.value = true
       return
     }
 
@@ -308,7 +308,6 @@ onMounted(() => {
     )
   } catch (err) {
     status.value = 'error'
-    isFallback.value = true
     errorMsg.value = err?.message || 'WebGL error'
     return
   }
@@ -354,7 +353,7 @@ onUnmounted(() => {
 defineExpose({
   scene: () => sceneInstance,
   status,
-  isFallback,
+  hasLiveScene,
   activePreset,
   isExplodedView,
   liveStatusText,
@@ -392,6 +391,9 @@ defineExpose({
           </span>
           <span
             class="lct-build-preview__sr-only lct-build-preview-live-status"
+            role="status"
+            aria-live="polite"
+            data-testid="preview-live-status"
           >
             {{ liveStatusText }}
           </span>
@@ -453,7 +455,7 @@ defineExpose({
 
     <!-- 3D Canvas Container -->
     <div
-      v-show="!isFallback"
+      v-show="hasLiveScene"
       class="lct-build-preview-canvas-wrap lct-build-preview-viewport lct-build-preview__stage"
     >
       <canvas
@@ -471,7 +473,7 @@ defineExpose({
 
     <!-- WebGL Fallback Alert -->
     <div
-      v-if="isFallback || status === 'unavailable' || status === 'error'"
+      v-if="!hasLiveScene"
       class="lct-build-preview-fallback"
       role="alert"
       data-testid="build-preview-fallback"
@@ -486,17 +488,17 @@ defineExpose({
     <!-- In compact mode when WebGL is active, screen-reader text provides accessible summary (AC-R14) -->
     <div
       class="lct-build-preview-summary"
-      :class="{ 'lct-build-preview__sr-only': compact && !isFallback }"
+      :class="{ 'lct-build-preview__sr-only': compact && hasLiveScene }"
       data-testid="build-preview-summary"
     >
-      <div v-if="compact && !isFallback" class="lct-build-preview__sr-only">
+      <div v-if="compact && hasLiveScene" class="lct-build-preview__sr-only">
         <span v-for="layer in activeLayers" :key="layer.id">
           {{ layer.label }}: {{ layer.part.name }}.
         </span>
       </div>
 
       <div
-        v-if="!compact || isFallback"
+        v-if="!compact || !hasLiveScene"
         data-testid="build-preview-html-summary"
       >
         <h3 class="lct-summary-title">Selected Parts Summary</h3>

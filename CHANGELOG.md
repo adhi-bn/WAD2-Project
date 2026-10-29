@@ -50,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Kept volume changes audible after mute, removed toggle semantics from the changing Play/Pause action, and added the legacy WebKit AudioContext fallback.
 - Recreated closed Web Audio contexts, resumed interrupted contexts, kept playback progress out of rapid ARIA updates, and committed keyboard seeks with visible failure handling.
 - Removed per-material shader recompiles and the multi-second drop animation stall on software-rendered or weak GPUs in [`src/lib/buildPreviewScene.js`](src/lib/buildPreviewScene.js): switch materials only flag `needsUpdate` when transparency actually changes, and a frame slower than 120 ms snaps the assembly animation to its settled state.
+- Kept the procedural 3D Build Preview visible when only the `.glb` fetch fails instead of hiding it behind a false "WebGL could not be initialized" alert, restored the screen-reader live region that announces layout and restore changes, reused the memoised keycap UV projection so part picks no longer re-project every vertex, and repainted keycaps in their colourway colours when an artwork texture fails to load.
 
 ## [0.1.0] - 2026-10-18
 

@@ -920,4 +920,30 @@ describe('BuildPreviewCanvas Integration', () => {
       globalThis.fetch = originalFetch
     }
   })
+  it('Test 19: GLB fetch failure keeps the working procedural canvas visible instead of a false WebGL alert', async () => {
+    simulateWebGLAvailable()
+    const mockRenderer = createMockRenderer({ canvas: document.createElement('canvas') })
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('Offline'))
+
+    try {
+      const wrapper = safeMount(BuildPreviewCanvas, {
+        props: { loadGlb: true, rendererFactory: () => mockRenderer },
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      await flushPromises()
+
+      // Scene fell back to procedural geometry but is still rendering
+      expect(wrapper.find('.lct-build-preview-status-badge').attributes('data-status')).toBe('fallback')
+      expect(wrapper.vm.hasLiveScene).toBe(true)
+      expect(wrapper.find('.lct-build-preview-canvas-wrap').isVisible()).toBe(true)
+
+      // A failed .glb is not a WebGL failure, so no "3D graphics unavailable" claim
+      expect(wrapper.find('[data-testid="build-preview-fallback"]').exists()).toBe(false)
+
+      wrapper.unmount()
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
 });
