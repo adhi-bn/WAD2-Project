@@ -6,6 +6,8 @@ import { money, money2, total, grams, kg, spec } from '../logic/builder.js'
 import { state, layout, discountOf, toast, addToCart, saveBuild } from '../store.js'
 import Keyboard3DView from '../components/Keyboard3DView.vue'
 import TypeTesterView from '../components/TypeTesterView.vue'
+import ProfileChips from '../components/ProfileChips.vue'
+import VirtualKeyboardTester from '../components/VirtualKeyboardTester.vue'
 
 const router = useRouter()
 const buildName = ref(state.editingSavedBuildName || '')
@@ -110,6 +112,7 @@ function addNow() {
         <div>
           <div class="eyebrow">Step 3 · Your keyboard</div>
           <h1>{{ title }}</h1>
+          <ProfileChips />
         </div>
         <div class="perf">
           <div v-for="p in perf" :key="p.k" class="pf">
@@ -141,6 +144,7 @@ function addNow() {
             <Keyboard3DView v-if="view === '3d'" :build="b" />
             <TypeTesterView v-else :build="b" />
           </div>
+          <VirtualKeyboardTester :layout="L" :switch-part="b.switches" />
         </div>
 
         <div class="panel">

@@ -560,6 +560,30 @@ section.screen {
   stroke: var(--lct-accent-indigo);
 }
 
+.virtual-keyboard-tester {
+  max-width: 520px;
+  margin: 0 auto 16px;
+  user-select: none;
+  touch-action: none;
+}
+
+.virtual-keyboard-tester__instruction {
+  margin-bottom: 8px;
+  color: var(--lct-muted-ink);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.virtual-keyboard-tester .kb [data-key-id] {
+  cursor: pointer;
+}
+
+.virtual-keyboard-tester .kb .k.pressed {
+  fill: var(--lct-accent-indigo);
+  stroke: var(--lct-accent-indigo);
+  filter: brightness(1.18);
+}
+
 /* Steps */
 .step {
   background: var(--lct-card-surface);
