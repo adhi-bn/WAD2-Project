@@ -34,12 +34,23 @@ describe('AboutView', () => {
     expect(text).toContain('Budget Clarity')
   })
 
-  it('shows the store information and accessible map title', async () => {
+  it('shows both store locations and an accessible interactive OneMap', async () => {
     const wrapper = await mountAbout()
 
     expect(wrapper.text()).toMatch(/Jewel Changi Airport, #02-123, Singapore/i)
+    expect(wrapper.text()).toMatch(/2 Bayfront Ave, B2-06, Singapore 018972/i)
     expect(wrapper.text()).toMatch(/Daily, 10am–8pm/i)
+    expect(wrapper.get('a[href="tel:+6594623787"]').text()).toBe('+65 9462 3787')
     expect(wrapper.get('a[href="tel:+6596964835"]').text()).toBe('+65 9696 4835')
-    expect(wrapper.get('iframe').attributes('title')).toMatch(/Jewel Changi Airport/i)
+    expect(wrapper.get('[role="img"]').attributes('aria-label')).toMatch(/Interactive OneMap showing Le Chaton Typers at Jewel Changi Airport/i)
+    expect(wrapper.findAll('.about-store__thumbnail')).toHaveLength(2)
+    expect(wrapper.get('button.ui-btn.primary').text()).toContain('Find nearest store')
+  })
+
+  it('lets visitors switch the interactive OneMap to Marina Bay Sands', async () => {
+    const wrapper = await mountAbout()
+    await wrapper.findAll('button.ui-btn:not(.primary)').at(-1).trigger('click')
+
+    expect(wrapper.get('[role="img"]').attributes('aria-label')).toMatch(/Marina Bay Sands/i)
   })
 })
