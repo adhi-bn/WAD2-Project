@@ -12,8 +12,11 @@ const svgMarkup = computed(() => kbSVG(props.layout))
 // Keep interaction state outside Vue because the generated SVG is inserted as raw HTML.
 const pressedCodes = new Set()
 const pointerCodes = new Map()
-const pressedAudio = new Set()
 const audioError = ref('')
+
+let audioContext
+const decodedSamples = new Map()
+const activeSources = new Set()
 
 // Printable characters may change position on different keyboard layouts, so resolve them
 // by the reported key value before falling back to physical browser codes for special keys.
@@ -58,42 +61,40 @@ function clearPressed() {
   pointerCodes.clear()
 }
 
-function releaseAudio(audio) {
-  pressedAudio.delete(audio)
-}
-
-function playSwitchSound() {
+async function playSwitchSound() {
   const source = props.switchPart?.onePressSample
   if (!source) return
-  let audio
-  try {
-    audio = new Audio(source)
-  } catch (error) {
-    audioError.value = 'Switch sound could not be loaded.'
-    return
-  }
 
-  pressedAudio.add(audio)
-  // Release each one-shot audio element after it finishes or fails so playback resources do
-  // not accumulate across repeated key presses.
-  audio.addEventListener('ended', () => releaseAudio(audio), { once: true })
-  audio.addEventListener('error', () => {
-    releaseAudio(audio)
-    audioError.value = 'Switch sound could not be loaded.'
-  }, { once: true })
-  let playback
   try {
-    playback = audio.play()
-  } catch (error) {
-    releaseAudio(audio)
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext
+    if (!AudioContextClass) throw new Error('Web Audio is unavailable')
+    if (!audioContext || audioContext.state === 'closed') audioContext = new AudioContextClass()
+    if (audioContext.state !== 'running') await audioContext.resume()
+    if (audioContext.state !== 'running') throw new Error('Web Audio context did not resume')
+  } catch {
     audioError.value = 'Switch sound playback was blocked. Try pressing a key again.'
     return
   }
 
-  Promise.resolve(playback).catch(() => {
-    releaseAudio(audio)
-    audioError.value = 'Switch sound playback was blocked. Try pressing a key again.'
-  })
+  try {
+    let buffer = decodedSamples.get(source)
+    if (!buffer) {
+      const response = await fetch(source)
+      if (!response.ok) throw new Error(`Sample request failed (${response.status})`)
+      const data = await response.arrayBuffer()
+      buffer = await audioContext.decodeAudioData(data)
+      decodedSamples.set(source, buffer)
+    }
+
+    const audioSource = audioContext.createBufferSource()
+    audioSource.buffer = buffer
+    audioSource.connect(audioContext.destination)
+    activeSources.add(audioSource)
+    audioSource.onended = () => activeSources.delete(audioSource)
+    audioSource.start(0)
+  } catch {
+    audioError.value = 'Switch sound could not be loaded.'
+  }
 }
 
 function activate(code) {
@@ -181,12 +182,9 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   clearPressed()
-  // Stop and detach every in-flight sample before removing the component.
-  pressedAudio.forEach((audio) => {
-    audio.pause()
-    audio.src = ''
-  })
-  pressedAudio.clear()
+  activeSources.forEach((source) => source.stop())
+  activeSources.clear()
+  if (audioContext && audioContext.state !== 'closed') audioContext.close().catch?.(() => {})
   window.removeEventListener('keydown', onKeyDown)
   window.removeEventListener('keyup', onKeyUp)
   window.removeEventListener('blur', clearPressed)
