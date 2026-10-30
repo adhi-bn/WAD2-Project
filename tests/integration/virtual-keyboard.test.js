@@ -7,36 +7,55 @@ import { resolve } from 'node:path'
 
 enableAutoUnmount(afterEach)
 
-let createdAudio
+let fetchedSource
+let createdSource
 let rejectNextPlayback = false
-const OriginalAudio = window.Audio
+let rejectNextLoad = false
+const OriginalAudioContext = window.AudioContext
+const OriginalFetch = window.fetch
 
-class MockAudio {
-  constructor(src) {
-    this.src = src
-    this.listeners = {}
-    const shouldRejectPlayback = rejectNextPlayback
-    rejectNextPlayback = false
-    this.play = vi.fn(() => shouldRejectPlayback
-      ? Promise.reject(new Error('NotAllowedError'))
-      : Promise.resolve())
-    this.pause = vi.fn()
-    createdAudio = this
+class MockAudioContext {
+  constructor() {
+    this.state = 'suspended'
+    this.destination = {}
   }
-
-  addEventListener(type, callback) {
-    this.listeners[type] = callback
+  resume = vi.fn(() => {
+    if (rejectNextPlayback) return Promise.reject(new Error('NotAllowedError'))
+    this.state = 'running'
+    return Promise.resolve()
+  })
+  close = vi.fn(() => Promise.resolve())
+  decodeAudioData = vi.fn(() => rejectNextLoad
+    ? Promise.reject(new Error('Decode failed'))
+    : Promise.resolve({ duration: 0.1 }))
+  createBufferSource() {
+    const source = {
+      buffer: null,
+      connect: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn(),
+      onended: null,
+    }
+    createdSource = source
+    return source
   }
 }
 
 beforeEach(() => {
-  createdAudio = null
+  createdSource = null
+  fetchedSource = null
   rejectNextPlayback = false
-  window.Audio = MockAudio
+  rejectNextLoad = false
+  window.AudioContext = MockAudioContext
+  window.fetch = vi.fn(async (source) => {
+    fetchedSource = source
+    return { ok: true, arrayBuffer: vi.fn(() => Promise.resolve(new ArrayBuffer(8))) }
+  })
 })
 
 afterEach(() => {
-  window.Audio = OriginalAudio
+  window.AudioContext = OriginalAudioContext
+  window.fetch = OriginalFetch
 })
 
 describe('VirtualKeyboardTester', () => {
@@ -58,7 +77,9 @@ describe('VirtualKeyboardTester', () => {
 
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyA', key: 'a' }))
     expect(wrapper.find('[data-key-id="KeyA"].pressed').exists()).toBe(true)
-    expect(createdAudio.src).toBe('/switch-audio-onekey/akko-onepress.mp3')
+    await flushPromises()
+    expect(fetchedSource).toBe('/switch-audio-onekey/akko-onepress.mp3')
+    expect(createdSource.start).toHaveBeenCalledWith(0)
 
     window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyA' }))
     expect(wrapper.find('[data-key-id="KeyA"].pressed').exists()).toBe(false)
@@ -88,7 +109,8 @@ describe('VirtualKeyboardTester', () => {
     await flushPromises()
 
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyA', key: 'a' }))
-    expect(createdAudio).toBeNull()
+    await flushPromises()
+    expect(fetchedSource).toBeNull()
     expect(wrapper.find('[data-key-id="KeyA"].pressed').exists()).toBe(true)
     window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyA' }))
   })
@@ -112,9 +134,8 @@ describe('VirtualKeyboardTester', () => {
       props: { layout: '60', switchPart: { id: 'cream', onePressSample: '/missing.mp3' } },
     })
     await flushPromises()
-
+    rejectNextLoad = true
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyA', key: 'a' }))
-    createdAudio.listeners.error()
     await flushPromises()
 
     expect(wrapper.get('[role="alert"]').text()).toContain('could not be loaded')
