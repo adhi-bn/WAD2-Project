@@ -60,14 +60,29 @@
 .about-feature p { margin: 0; color: var(--muted); }
 
 .about-store { overflow: hidden; border: 1px solid var(--line); border-radius: 24px; background: var(--surface); }
-.about-store__copy { padding: clamp(24px, 4vw, 44px); }
-.about-store__details { margin: 28px 0; }
+.about-store__intro { display: flex; align-items: end; justify-content: space-between; gap: 24px; padding: clamp(24px, 4vw, 44px); border-bottom: 1px solid var(--line); }
+.about-store__intro .lct-muted { max-width: 56ch; margin-top: 10px; }
+.about-store__locator { display: grid; justify-items: end; gap: 8px; flex: 0 0 auto; }
+.about-store__status { min-height: 20px; max-width: 280px; margin: 0; color: var(--muted); font-size: 12px; text-align: right; }
+.about-store__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.about-store__card { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 20px; padding: clamp(24px, 3vw, 36px); border-bottom: 1px solid var(--line); transition: background 180ms ease, box-shadow 180ms ease; }
+.about-store__card + .about-store__card { border-left: 1px solid var(--line); }
+.about-store__card.is-selected { background: var(--accent-soft); box-shadow: inset 0 3px 0 var(--accent); }
+.about-store__card-top { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.about-store__selected { padding: 3px 8px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-family: var(--mono); font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+.about-store__thumbnail { width: 104px; height: 104px; margin-top: 30px; border: 1px solid var(--line); border-radius: 14px; object-fit: cover; background: var(--surface-2); }
+.about-store__card-content { min-width: 0; }.about-store__card h3 { margin: 14px 0 8px; font-size: 23px; }
+.about-store__card > p { min-height: 48px; margin: 0; color: var(--muted); }
+.about-store__card-content > p { min-height: 0; margin: 0; color: var(--muted); }.about-store__distance { margin-top: 8px !important; color: var(--accent) !important; font-family: var(--mono); font-size: 12px; font-weight: 600; }
+.about-store__details { margin: 22px 0; }
 .about-store__details div { display: grid; grid-template-columns: minmax(115px, .7fr) 1fr; gap: 16px; padding: 11px 0; border-top: 1px solid var(--line); }
 .about-store__details dt { color: var(--muted); font-family: var(--mono); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; }
 .about-store__details dd { margin: 0; }
+.about-store__actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .about-store__map-wrap { position: relative; min-height: 360px; height: 100%; background: var(--surface-2); }
-.about-store__map { display: block; width: 100%; min-height: 360px; height: 100%; border: 0; }
-.about-store__map-note { position: absolute; right: 14px; bottom: 14px; max-width: 280px; margin: 0; padding: 7px 10px; border-radius: 6px; background: color-mix(in srgb, var(--surface) 92%, transparent); color: var(--ink); font-size: 12px; }
+.about-store__map { width: 100%; min-height: 440px; height: 440px; background: var(--surface-2); }
+.about-store__map-note { position: absolute; right: 14px; bottom: 14px; display: grid; gap: 3px; max-width: 280px; margin: 0; padding: 9px 11px; border-radius: 6px; background: color-mix(in srgb, var(--surface) 92%, transparent); color: var(--ink); font-size: 12px; }
+.about-store__map-note strong { font-size: 12px; }.about-store__map-note a { font-weight: 600; }
 
 .about-final-cta { padding-top: 0; }
 .about-final-cta__panel { padding: clamp(32px, 6vw, 64px); border: 1px solid var(--line); border-radius: 24px; background: var(--ink); color: var(--surface); text-align: center; }
@@ -92,6 +107,11 @@
   .about-hero, .about-section, .about-final-cta { padding-block: 52px; }
   .about-hero { padding-top: 56px; }
   .about-keyboard-visual { max-width: 390px; padding-top: 36px; }
+  .about-store__intro { align-items: start; flex-direction: column; }
+  .about-store__locator { justify-items: start; }
+  .about-store__status { text-align: left; }
+  .about-store__grid { grid-template-columns: 1fr; }
+  .about-store__card + .about-store__card { border-top: 1px solid var(--line); border-left: 0; }
   .about-store__map-wrap, .about-store__map { min-height: 300px; }
 }
 
@@ -99,4 +119,5 @@
   .about-keyboard-visual { padding-inline: 10px; }
   .about-keyboard-visual__case { gap: 4px; padding: 10px; }
   .about-store__details div { grid-template-columns: 1fr; gap: 2px; }
+  .about-store__card { grid-template-columns: 76px minmax(0, 1fr); gap: 14px; }.about-store__thumbnail { width: 76px; height: 76px; margin-top: 28px; }
 }
