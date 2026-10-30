@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Exported [`setLayout(layoutCode)`](src/store.js) in [`src/store.js`](src/store.js) dynamically updating layout answer state, recalculating catalog prices, weights, and key counts (61, 84, 104 keys), while preserving customer part selections (#22).
 - Reactive `layout` prop on [`src/components/BuildPreviewCanvas.vue`](src/components/BuildPreviewCanvas.vue) wired to `sceneController.setLayout`, updating 3D form-factor scale and announcing layout changes via `liveStatusText` (#22).
 - Integration and E2E tests covering layout switching across 60%, 75%, and 100% and validating keycap legend visibility across artwork keycap sets (#22).
+- Interactive two-dimensional keyboard testing on the summary page, with physical and pointer key highlights, layout-aware typing, shifted-symbol support, and matching one-key sounds for every switch.
 - Google OAuth entry point and a guest-first Profile surface with saved Builds, explicit local guest-draft preservation on sign-out, and clear address/payment availability states.
 - Vercel SPA history fallback so direct links such as `/builder` resolve to the app shell.
 - Selected-switch Web Audio playback with linked self-recorded samples, mute/volume controls, accessible status and failure reporting (#17).

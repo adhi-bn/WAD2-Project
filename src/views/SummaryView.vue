@@ -2,9 +2,10 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { CATS, META, KEYS } from '../data/catalog.js'
-import { money, money2, total, grams, kg, spec, kbSVG } from '../logic/builder.js'
+import { money, money2, total, grams, kg, spec } from '../logic/builder.js'
 import { state, layout, discountOf, toast, addToCart, saveBuild } from '../store.js'
 import ProfileChips from '../components/ProfileChips.vue'
+import VirtualKeyboardTester from '../components/VirtualKeyboardTester.vue'
 
 const router = useRouter()
 const buildName = ref(state.editingSavedBuildName || '')
@@ -108,7 +109,7 @@ function addNow() {
             <template v-if="hasUnknownPrice">A previously selected Part is no longer available or has no current price. Choose an available Part before using its Budget or checkout preview.</template>
             <template v-else>A selected Part, price, or compatibility rule has changed. Review the Parts before using the cart or checkout preview.</template>
           </div>
-          <div style="max-width: 520px; margin: 0 auto 16px" v-html="kbSVG(L)"></div>
+          <VirtualKeyboardTester :layout="L" :switch-part="b.switches" />
           <div class="scroll">
             <table class="tbl">
               <thead><tr><th>Part</th><th>Pick</th><th class="r">Price</th></tr></thead>

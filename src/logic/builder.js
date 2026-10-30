@@ -13,6 +13,32 @@ export const kg = (g) => (g / 1000).toFixed(g < 1000 ? 2 : 1) + ' kg'
 const cap = (s) => s[0].toUpperCase() + s.slice(1)
 
 /* ---------- small drawings ---------- */
+const MAIN_KEY_IDS = [
+  ['Escape', ...'1234567890'.split('').map((digit) => `Digit${digit}`), 'Minus', 'Equal', 'Backspace'],
+  ['Tab', ...'QWERTYUIOP'.split('').map((letter) => `Key${letter}`), 'BracketLeft', 'BracketRight', 'Backslash'],
+  ['CapsLock', ...'ASDFGHJKL'.split('').map((letter) => `Key${letter}`), 'Semicolon', 'Quote', 'Enter'],
+  ['ShiftLeft', ...'ZXCVBNM,.'.split('').map((value) => ({ '.': 'Period', ',': 'Comma' }[value] || `Key${value}`)), 'Slash', 'ShiftRight'],
+  ['ControlLeft', 'MetaLeft', 'AltLeft', 'Space', 'AltRight', 'MetaRight', 'ContextMenu', 'ControlRight'],
+]
+
+/** Returns the logical key identities in the same geometry order as the 2D keyboard. */
+export function virtualKeyboardKeys(L) {
+  const layout = String(L)
+  const keys = MAIN_KEY_IDS.flat().map((code) => ({ code }))
+  if (layout === '75') {
+    const functionKeys = ['Escape', ...Array.from({ length: 12 }, (_, i) => `F${i + 1}`), 'PrintScreen', 'ScrollLock', 'Pause']
+    keys.push(...functionKeys.map((code) => ({ code })))
+    keys.push(...['Insert', 'Home', 'PageUp', 'Delete', 'End'].map((code) => ({ code })))
+  }
+  if (layout === '100') {
+    const functionKeys = ['Escape', ...Array.from({ length: 12 }, (_, i) => `F${i + 1}`), 'PrintScreen', 'ScrollLock', 'Pause']
+    keys.push(...functionKeys.map((code) => ({ code })))
+    keys.push(...['Insert', 'Home', 'PageUp', 'Delete', 'End', 'PageDown', 'NumLock', 'NumpadDivide', 'NumpadMultiply', 'NumpadSubtract', 'Numpad7', 'Numpad8', 'Numpad9', 'NumpadAdd', 'Numpad4', 'Numpad5', 'Numpad6', 'Numpad1', 'Numpad2', 'Numpad3', 'NumpadEnter', 'Numpad0', 'NumpadDecimal'].map((code) => ({ code })))
+    while (keys.length < 124) keys.push({ code: '' })
+  }
+  return keys
+}
+
 export function kbSVG(L) {
   const main = [[...Array(13).fill(1), 2], [1.5, ...Array(12).fill(1), 1.5], [1.75, ...Array(11).fill(1), 2.25], [2.25, ...Array(10).fill(1), 2.75], [1.25, 1.25, 1.25, 6.25, 1.25, 1.25, 1.25, 1.25]]
   const top = L === '60' ? 0 : 1.25, R = []
@@ -27,8 +53,9 @@ export function kbSVG(L) {
     for (let r = 0; r < 5; r++) for (let c = 0; c < 4; c++) R.push([19.5 + c, top + r, 1])
     W = 23.5
   }
+  const keyIds = virtualKeyboardKeys(L)
   const u = 10, H = top + 5, accent = L === '60' ? 0 : main.flat().length
-  return `<svg class="kb" viewBox="-6 -6 ${W * u + 12} ${H * u + 12}" aria-hidden="true"><rect class="f" x="-5" y="-5" width="${W * u + 10}" height="${H * u + 10}" rx="6"/>${R.map(([x, y, w], i) => `<rect class="k ${i === accent ? 'a' : ''}" x="${x * u + 0.8}" y="${y * u + 0.8}" width="${w * u - 1.6}" height="${u - 1.6}" rx="1.6"/>`).join('')}</svg>`
+  return `<svg class="kb" viewBox="-6 -6 ${W * u + 12} ${H * u + 12}" aria-label="Interactive ${L}% virtual keyboard"><rect class="f" x="-5" y="-5" width="${W * u + 10}" height="${H * u + 10}" rx="6"/>${R.map(([x, y, w], i) => `<rect class="k ${i === accent ? 'a' : ''}" data-key-id="${keyIds[i]?.code || ''}" x="${x * u + 0.8}" y="${y * u + 0.8}" width="${w * u - 1.6}" height="${u - 1.6}" rx="1.6"/>`).join('')}</svg>`
 }
 export function curve(t) {
   const d = { linear: 'M6 25 L58 5', tactile: 'M6 25 L20 14 L25 9 L29 16 L58 5', clicky: 'M6 25 L20 13 L24 6 L26 18 L58 5', silent: 'M6 25 L50 9 Q56 7 58 7' }[t]

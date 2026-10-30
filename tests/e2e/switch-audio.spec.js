@@ -28,3 +28,34 @@ test('decodes and plays every catalogued MP3 recording in Chromium', async ({ pa
     )
   }
 })
+
+test('decodes every one-key MP3 recording used by the virtual keyboard', async ({ page }) => {
+  test.setTimeout(120_000)
+  await page.goto('/')
+
+  const results = await page.evaluate(async (switches) => {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext
+    const context = new AudioContextClass()
+    const decoded = []
+    await context.resume()
+
+    try {
+      for (const part of switches) {
+        const response = await fetch(part.onePressSample)
+        if (!response.ok) {
+          decoded.push({ id: part.id, ok: false, reason: `HTTP ${response.status}` })
+          continue
+        }
+
+        const buffer = await context.decodeAudioData(await response.arrayBuffer())
+        decoded.push({ id: part.id, ok: buffer.duration > 0 })
+      }
+    } finally {
+      await context.close()
+    }
+
+    return decoded
+  }, BASE.switches)
+
+  expect(results.every((result) => result.ok)).toBe(true)
+})
