@@ -424,9 +424,17 @@ section.screen {
 .hero p.lede {
   font-size: 18px;
   line-height: 1.55;
-  color: var(--lct-muted-ink);
+  color: var(--lct-text-ink);
   max-width: 46ch;
   margin: 0 0 26px;
+  /* Frosted underlay so the text stays readable over the 3D keyboard. */
+  padding: 14px 18px;
+  background: color-mix(in srgb, var(--lct-card-surface) 60%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--lct-line-grey);
+  border-radius: 16px;
+  box-shadow: var(--lct-shadow-card);
 }
 
 .hero .ctas {
