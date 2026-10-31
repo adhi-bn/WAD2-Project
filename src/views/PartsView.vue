@@ -8,10 +8,16 @@ import { build as domainBuild, setSlot } from '../stores/build.js'
 import SwitchAudioPreview from '../components/SwitchAudioPreview.vue'
 import BuildPreviewCanvas from '../components/BuildPreviewCanvas.vue'
 
+// The first five parts get their own tabs. Stabilisers, foam and cable share one Add-ons tab.
+const MAIN = CATS.slice(0, 5)
+const ADDONS = CATS.slice(5)
+const ADDON_INDEX = MAIN.length
+
 if (!state.build) finishQuiz()
 
 const router = useRouter()
 const catIdx = ref(0)
+const onAddons = computed(() => catIdx.value >= ADDON_INDEX)
 const cat = computed(() => CATS[catIdx.value])
 const b = computed(() => state.build)
 
@@ -31,9 +37,25 @@ watch(
   },
   { deep: true, immediate: true },
 )
-const cur = computed(() => b.value[cat.value])
 const answers = computed(() => ({ ...state.answers, layout: layout() }))
-const fit = computed(() => bestFit(cat.value, state.cat, b.value, state.rec))
+
+// Per-part helpers, so the same card markup works for one part or for each add-on.
+const sections = computed(() => (onAddons.value ? ADDONS : [cat.value]))
+const curOf = (c) => b.value[c]
+const fitOf = (c) => bestFit(c, state.cat, b.value, state.rec)
+const allOf = (c) => [...state.cat[c]].sort((a, z) => a.price - z.price)
+const prefOf = (c) => preferred(c, answers.value, state.cat)
+// Compare parts by id: the build's parts are copies, so object identity misses pre-selected ones (e.g. FATKEY).
+const isFit = (c, o) => o.id === fitOf(c).id
+const isSel = (c, o) => o.id === curOf(c)?.id
+const tag = (c, o) => (isFit(c, o) ? 'Best fit for you' : o.price < fitOf(c).price ? 'Save' : o.price > fitOf(c).price ? 'Upgrade' : 'Alternative')
+const delta = (c, o) => {
+  const cu = curOf(c)
+  if (isSel(c, o)) return { cls: 'same', text: 'Selected' }
+  if (!Number.isFinite(cu?.price)) return { cls: 'same', text: 'Choose replacement' }
+  const d = o.price - cu.price
+  return { cls: d > 0 ? 'up' : d < 0 ? 'down' : 'same', text: signed(d) }
+}
 
 const layoutOptions = ['60', '75', '100']
 const currentLayout = computed(() => state.answers.layout || '75')
@@ -49,26 +71,10 @@ const otherChips = computed(() => {
   ]
 })
 
-// Three picks: one cheaper than the best fit, the best fit, and one pricier.
-const three = computed(() => {
-  const c = cat.value
-  const pref = preferred(c, answers.value, state.cat).filter((o) => !reason(c, o, b.value))
-  let pool = pref.length >= 3 || (pref.length >= 2 && pref.includes(fit.value)) ? pref : state.cat[c].filter((o) => !reason(c, o, b.value))
-  if (!pool.includes(fit.value)) pool = [...pool, fit.value]
-  pool = [...new Set(pool)].sort((a, z) => a.price - z.price || a.name.localeCompare(z.name))
-  const i = pool.indexOf(fit.value), s = Math.max(0, Math.min(i - 1, pool.length - 3))
-  return pool.slice(s, s + 3)
-})
-const all = computed(() => [...state.cat[cat.value]].sort((a, z) => a.price - z.price))
-const prefAll = computed(() => preferred(cat.value, answers.value, state.cat))
-const tag = (o) => (o === fit.value ? 'Best fit for you' : o.price < fit.value.price ? 'Save' : o.price > fit.value.price ? 'Upgrade' : 'Alternative')
 const partPrice = (part) => !Number.isFinite(part?.price) ? 'Unavailable' : part.price ? money(part.price) : 'Included'
-const delta = (o) => {
-  if (o === cur.value) return { cls: 'same', text: 'Selected' }
-  if (!Number.isFinite(cur.value?.price)) return { cls: 'same', text: 'Choose replacement' }
-  const d = o.price - cur.value.price
-  return { cls: d > 0 ? 'up' : d < 0 ? 'down' : 'same', text: signed(d) }
-}
+const addonsUnknown = computed(() => ADDONS.some((c) => !Number.isFinite(b.value?.[c]?.price)))
+const addonTotal = computed(() => addonsUnknown.value ? null : ADDONS.reduce((s, c) => s + b.value[c].price, 0))
+const addonPrice = computed(() => addonTotal.value === null ? 'Unavailable' : money(addonTotal.value))
 
 const hasUnknownPrice = computed(() => CATS.some((group) => !Number.isFinite(b.value?.[group]?.price)))
 const t = computed(() => hasUnknownPrice.value ? null : total(b.value))
@@ -82,7 +88,9 @@ const pct = computed(() => t.value === null ? '0%' : Math.min(100, (t.value / st
 const over = computed(() => t.value !== null && t.value > state.answers.budget)
 
 function go(i) { catIdx.value = i; window.scrollTo({ top: 0, behavior: 'smooth' }) }
-function nextPart() { if (catIdx.value < CATS.length - 1) go(catIdx.value + 1); else router.push('/build') }
+function prevPart() { if (catIdx.value > 0) go(catIdx.value - 1) }
+function nextPart() { if (onAddons.value) router.push('/build'); else go(catIdx.value + 1) }
+const nextLabel = computed(() => (onAddons.value ? 'See my keyboard →' : catIdx.value + 1 === ADDON_INDEX ? 'Next: Add-ons →' : `Next: ${META[CATS[catIdx.value + 1]].label} →`))
 onMounted(() => document.body.classList.add('hasbar'))
 onBeforeUnmount(() => document.body.classList.remove('hasbar'))
 </script>
@@ -119,50 +127,51 @@ onBeforeUnmount(() => document.body.classList.remove('hasbar'))
       <div class="layout">
         <div>
           <div class="tabs" role="tablist">
-            <button v-for="(c, i) in CATS" :key="c" type="button" class="tab" :class="{ on: i === catIdx }" role="tab" :aria-selected="i === catIdx" @click="catIdx = i">
+            <button v-for="(c, i) in MAIN" :key="c" type="button" class="tab" :class="{ on: i === catIdx }" role="tab" :aria-selected="i === catIdx" @click="go(i)">
               <span class="k">{{ String(i + 1).padStart(2, '0') }} · {{ META[c].short }}</span>
               <span class="v">{{ partPrice(b[c]) }}</span>
             </button>
+            <button type="button" class="tab" :class="{ on: onAddons }" role="tab" :aria-selected="onAddons" @click="go(ADDON_INDEX)">
+              <span class="k">{{ String(ADDON_INDEX + 1).padStart(2, '0') }} · Add-ons</span>
+              <span class="v">{{ addonPrice }}</span>
+            </button>
           </div>
 
-          <div class="catintro">
+          <div v-if="!onAddons" class="catintro">
             <div class="eyebrow">Part {{ catIdx + 1 }} of {{ CATS.length }}</div>
             <h2>{{ META[cat].label }}</h2>
             <p>{{ whyText(cat, b, answers) }}</p>
           </div>
+          <div v-else class="catintro">
+            <div class="eyebrow">Parts {{ ADDON_INDEX + 1 }} to {{ CATS.length }} of {{ CATS.length }}</div>
+            <h2>Add-ons</h2>
+            <p>Stabilisers, foam and cable. Pick one card in each section.</p>
+          </div>
 
-          <SwitchAudioPreview v-if="cat === 'switches' && !cur.unavailable" :part="cur" />
+          <div v-for="c in sections" :key="c" :style="onAddons ? 'margin-top: 28px' : null">
+            <template v-if="onAddons">
+              <h3 style="margin: 0 0 4px">{{ META[c].label }}</h3>
+              <p class="sub" style="margin: 0 0 12px">{{ whyText(c, b, answers) }}</p>
+            </template>
 
-          <div class="row g-3">
-            <div v-for="o in three" :key="o.id" class="col-12 col-md-4">
-              <button type="button" class="opt w-100 h-100" :class="{ sel: o === cur }" @click="choose(cat, o.id)">
-                <span class="tag" :class="{ fit: o === fit }">{{ tag(o) }}</span>
-                <span class="name">{{ o.name }}</span>
-                <span class="spec">{{ spec(cat, o) }}</span>
-                <span class="foot"><span class="price">{{ money(o.price) }}</span><span class="delta" :class="delta(o).cls">{{ delta(o).text }}</span></span>
-              </button>
+            <SwitchAudioPreview v-if="c === 'switches' && !curOf(c)?.unavailable" :part="curOf(c)" />
+
+            <div class="row g-3">
+              <div v-for="o in allOf(c)" :key="o.id" class="col-12 col-md-4">
+                <button type="button" class="opt w-100 h-100" :class="{ sel: isSel(c, o) }" :disabled="!!reason(c, o, b)" @click="choose(c, o.id)">
+                  <span class="tag" :class="{ fit: isFit(c, o) }">{{ tag(c, o) }}</span>
+                  <span v-if="prefOf(c).some((p) => p.id === o.id) && prefOf(c).length < allOf(c).length" class="tagmatch">your style</span>
+                  <span class="name">{{ o.name }}</span>
+                  <span :class="reason(c, o, b) ? 'why' : 'spec'">{{ reason(c, o, b) || spec(c, o) }}</span>
+                  <span class="foot"><span class="price">{{ money(o.price) }}</span><span v-if="!reason(c, o, b)" class="delta" :class="delta(c, o).cls">{{ delta(c, o).text }}</span></span>
+                </button>
+              </div>
             </div>
           </div>
 
-          <details class="more">
-            <summary>All {{ META[cat].label.toLowerCase() }} options ({{ all.length }})</summary>
-            <button v-for="o in all" :key="o.id" type="button" class="prow" :class="{ sel: o === cur }" :disabled="!!reason(cat, o, b)" @click="choose(cat, o.id)">
-              <span>
-                <span class="n">{{ o.name }}</span>
-                <span v-if="prefAll.includes(o) && prefAll.length < all.length" class="tagmatch">your style</span><br />
-                <span :class="reason(cat, o, b) ? 'why' : 's'">{{ reason(cat, o, b) || spec(cat, o) }}</span>
-              </span>
-              <span class="p">{{ money(o.price) }}</span>
-              <span v-if="reason(cat, o, b)"></span>
-              <span v-else class="delta" :class="delta(o).cls">{{ delta(o).text }}</span>
-            </button>
-          </details>
-
           <div class="navrow">
-            <button type="button" class="ui-btn" :disabled="catIdx === 0" @click="go(catIdx - 1)">← Previous part</button>
-            <button type="button" class="ui-btn primary" @click="nextPart">
-              {{ catIdx === CATS.length - 1 ? 'See my keyboard →' : `Next: ${META[CATS[catIdx + 1]].label} →` }}
-            </button>
+            <button type="button" class="ui-btn" :disabled="catIdx === 0" @click="prevPart">← Previous part</button>
+            <button type="button" class="ui-btn primary" @click="nextPart">{{ nextLabel }}</button>
           </div>
         </div>
 

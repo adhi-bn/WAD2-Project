@@ -5,7 +5,6 @@ import { kbSVG, total, money } from '../logic/builder.js'
 import { openWheel, state, loadBuild, buildFromIds } from '../store.js'
 import ExplodedAnatomyCanvas from '../components/ExplodedAnatomyCanvas.vue'
 import { FATKEYS } from '../data/fatkeys.js'
-import FatkeyPreview from '../components/FatkeyPreview.vue'
 
 const router = useRouter()
 const fatkeys = FATKEYS.map((k) => ({ ...k, price: total(buildFromIds(k.layout, k.part_ids)) }))
@@ -84,7 +83,7 @@ const layers = ['Keycaps', 'Switches', 'Plate', 'PCB', 'Foam', 'Case']
         <div class="row g-3">
           <div v-for="k in fatkeys" :key="k.id" class="col-12 col-md-4">
             <div class="step fk-card">
-              <FatkeyPreview :look="k.look" />
+              <img :src="k.image" :alt="`${k.name} keyboard`" class="fk-img" loading="lazy" decoding="async" />
               <div class="num">{{ k.layout }}% layout</div>
               <h3>{{ k.name }}</h3>
               <p>{{ k.tagline }}</p>
@@ -149,3 +148,14 @@ const layers = ['Keycaps', 'Switches', 'Plate', 'PCB', 'Foam', 'Case']
     </div>
   </section>
 </template>
+
+<style scoped>
+.fk-img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+  border-radius: 12px;
+  background: #f3f4f8;
+}
+</style>
