@@ -20,6 +20,12 @@ const rightBuild = computed(() => builds.value.find((build) => build.id === righ
 const canCompare = computed(() => Boolean(leftBuild.value && rightBuild.value && leftId.value !== rightId.value))
 const priceDifference = computed(() => canCompare.value ? leftBuild.value.total - rightBuild.value.total : 0)
 
+function priceClass(price, comparedPrice) {
+  if (price > comparedPrice) return 'is-higher'
+  if (price < comparedPrice) return 'is-lower'
+  return 'is-equal'
+}
+
 function selectDefaults() {
   const ids = builds.value.map((build) => build.id)
   if (!ids.includes(leftId.value)) leftId.value = ids[0] || ''
@@ -95,11 +101,20 @@ watch(() => state.savedBuilds.map((build) => build.id).join(','), selectDefaults
               <span class="compare-side">{{ index === 0 ? 'Build A' : 'Build B' }}</span>
               <span class="chip">{{ build.layout }}% layout</span>
             </div>
-            <h2>{{ build.name }}</h2>
-            <p class="compare-saved">Saved {{ new Date(build.created_at).toLocaleDateString('en-SG') }}</p>
+            <div class="compare-card-title">
+              <h2 :title="build.name">{{ build.name }}</h2>
+              <p class="compare-saved">Saved {{ new Date(build.created_at).toLocaleDateString('en-SG') }}</p>
+            </div>
+            <!-- A saved Build can provide image_url later; this keeps the card polished until then. -->
+            <img v-if="build.image_url" class="compare-preview" :src="build.image_url" :alt="`${build.name} keyboard Build`" />
+            <div v-else class="compare-preview compare-preview--placeholder" role="img" :aria-label="`${build.name} keyboard image placeholder`">
+              <div class="compare-preview__keys" aria-hidden="true"><i v-for="key in 24" :key="key"></i></div>
+              <span>Build image</span>
+              <small>Image coming soon</small>
+            </div>
             <div class="compare-total">
               <span>Total</span>
-              <strong>{{ money(build.total) }}</strong>
+              <strong :class="priceClass(build.total, index === 0 ? rightBuild.total : leftBuild.total)">{{ money(build.total) }}</strong>
             </div>
             <div class="compare-card-parts">
               <span>{{ build.parts.case.name }}</span>
@@ -133,15 +148,15 @@ watch(() => state.savedBuilds.map((build) => build.id).join(','), selectDefaults
               <tbody>
                 <tr v-for="category in CATS" :key="category" :class="{ 'is-different': leftBuild.parts[category].id !== rightBuild.parts[category].id }">
                   <th scope="row">{{ META[category].label }}</th>
-                  <td><span>{{ leftBuild.parts[category].name }}</span><b>{{ money(leftBuild.parts[category].price) }}</b></td>
-                  <td><span>{{ rightBuild.parts[category].name }}</span><b>{{ money(rightBuild.parts[category].price) }}</b></td>
+                  <td><span>{{ leftBuild.parts[category].name }}</span><b :class="priceClass(leftBuild.parts[category].price, rightBuild.parts[category].price)">{{ money(leftBuild.parts[category].price) }}</b></td>
+                  <td><span>{{ rightBuild.parts[category].name }}</span><b :class="priceClass(rightBuild.parts[category].price, leftBuild.parts[category].price)">{{ money(rightBuild.parts[category].price) }}</b></td>
                 </tr>
               </tbody>
               <tfoot>
                 <tr>
                   <th scope="row">Build total</th>
-                  <td>{{ money(leftBuild.total) }}</td>
-                  <td>{{ money(rightBuild.total) }}</td>
+                  <td :class="priceClass(leftBuild.total, rightBuild.total)">{{ money(leftBuild.total) }}</td>
+                  <td :class="priceClass(rightBuild.total, leftBuild.total)">{{ money(rightBuild.total) }}</td>
                 </tr>
               </tfoot>
             </table>

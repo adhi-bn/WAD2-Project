@@ -50,10 +50,12 @@ describe('CompareBuildsView', () => {
     expect(wrapper.text()).toContain('Desk Build')
     expect(wrapper.text()).toContain('Studio Build')
     expect(wrapper.text()).toContain('Compare all Parts')
+    expect(wrapper.findAll('.compare-preview--placeholder')).toHaveLength(2)
 
     await wrapper.get('details').trigger('toggle')
     expect(wrapper.findAll('tbody tr')).toHaveLength(CATS.length)
     expect(wrapper.find('tfoot').text()).toContain('Build total')
+    expect(wrapper.findAll('.compare-table .is-higher').length).toBeGreaterThan(0)
   })
 
   it('loads the selected saved Build and opens the Parts editor', async () => {
