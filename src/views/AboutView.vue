@@ -39,7 +39,7 @@ import AboutStoreLocation from '../components/AboutStoreLocation.vue'
                 Assembling a Build can feel complicated when you are just getting started. Part information is scattered, Parts can be incompatible, and it is hard to know how the finished keyboard will look, feel, sound, or fit your Budget.
               </p>
               <p class="mb-0">
-                We are creating a more accessible, interactive, and convenient way to explore Parts and assemble a Build—so you can make considered choices and enjoy building something that feels entirely yours.
+                We are creating a more accessible, interactive, and convenient way to explore Parts and assemble a Build - so you can make considered choices and enjoy building something that feels entirely yours.
               </p>
             </div>
           </div>
