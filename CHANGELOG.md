@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Standardized code documentation requirements across collaboration guides, mandating JSDoc docstrings for public exports/functions and inline comments for non-obvious logic when agents or contributors write code.
 
 ### Fixed
+- Prevented the About Us OneMap store locator from updating a removed map after visitors navigate away during a driving-route lookup; improved the map's interactive accessibility semantics and added direct OneMap store links.
 - Restored switch-audio player styling in the active frontend stylesheet so controls render correctly in the builder.
 - Made switch-audio load/decode errors visible, guarded late decode results when the selected Part changes, delayed seek restarts until slider adjustment completes, and made the player safe for missing Part data.
 - Consolidated switch-audio styling under the governed design tokens, restored the mute control's 44px touch target, and corrected the story-section `.wrap` scope.

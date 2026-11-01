@@ -114,6 +114,7 @@ function selectStore(store) {
   selectedStoreId.value = store.id
   routeSummary.value = ''
   routeGeometry.value = ''
+  routeDetails.value = {}
   visitorLocation.value = null
 }
 
@@ -136,6 +137,7 @@ async function findNearestStore() {
   navigator.geolocation.getCurrentPosition(
     async ({ coords }) => {
       const result = await findNearestDrivingStore(coords.latitude, coords.longitude)
+      if (isUnmounted || !map) return
       isLocating.value = false
       if (result.error || !result.storeId) {
         locationStatus.value = result.error || 'We could not compare driving routes. Choose a store below to view it on OneMap.'
@@ -178,6 +180,7 @@ watch([selectedStoreId, routeGeometry, visitorLocation], drawMap)
 onBeforeUnmount(() => {
   isUnmounted = true
   map?.remove()
+  map = null
 })
 </script>
 
@@ -212,13 +215,21 @@ onBeforeUnmount(() => {
           <div><dt>Operating hours</dt><dd>Daily, 10am–8pm</dd></div>
           <div><dt>Contact</dt><dd><a :href="store.id === 'jewel' ? 'tel:+6594623787' : 'tel:+6596964835'">{{ store.id === 'jewel' ? '+65 9462 3787' : '+65 9696 4835' }}</a></dd></div>
         </dl>
-        <div class="about-store__actions"><button type="button" class="ui-btn" @click="selectStore(store)">View on OneMap</button></div>
+        <div class="about-store__actions">
+          <button type="button" class="ui-btn" @click="selectStore(store)">Center on map</button>
+          <a
+            :href="`https://www.onemap.gov.sg/main/v2/?lat=${store.latitude}&lng=${store.longitude}`"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="ui-btn"
+          >Open in OneMap</a>
+        </div>
         </div>
       </article>
     </div>
 
     <div ref="mapPanel" class="about-store__map-wrap">
-      <div ref="mapElement" class="about-store__map" role="img" :aria-label="`Interactive OneMap showing Le Chaton Typers at ${selectedStore.name}`"></div>
+      <div ref="mapElement" class="about-store__map" role="region" :aria-label="`Interactive OneMap showing Le Chaton Typers at ${selectedStore.name}`"></div>
       <div class="about-store__map-note">
         <strong>Viewing: {{ selectedStore.name }}</strong>
         <span v-if="routeSummary">{{ routeSummary }}</span>
