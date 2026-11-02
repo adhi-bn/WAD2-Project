@@ -87,6 +87,8 @@ cp .env.example .env
 | `VITE_SUPABASE_URL` | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | Supabase anon key |
 
+Server-only integration secrets belong in `supabase/.env`, never the browser `.env` file. For the OneMap store locator, register a OneMap account and add `ONEMAP_EMAIL` and `ONEMAP_PASSWORD` to `supabase/.env`, then deploy them with `supabase secrets set --env-file ./supabase/.env`.
+
 ## CI
 
 `.github/workflows/ci.yml` runs on push to `main` and on pull requests:

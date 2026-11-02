@@ -39,3 +39,9 @@ dist-ssr
 test-results
 playwright-report
 # Env
+
+# Conductor orchestration artifacts
+.conductor/
+
+# Blender raw source assets (distributed via compiled .glb in public/models/)
+*.blend

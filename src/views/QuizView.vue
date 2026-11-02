@@ -150,6 +150,9 @@ onBeforeUnmount(() => removeEventListener('keydown', onKey))
         <template v-if="q.type === 'budget'">Set the meter, then swipe right or tap <b>Lock it in</b></template>
         <template v-else>Tap an option, or drag the card: right to confirm, left for no preference. Keys <kbd>←</kbd> <kbd>→</kbd> work too.</template>
       </div>
+      <div class="text-center mt-3">
+        <router-link to="/parts" class="ui-btn">Skip quiz, pick parts myself →</router-link>
+      </div>
       </template>
     </div>
   </section>

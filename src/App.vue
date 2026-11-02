@@ -10,7 +10,7 @@ const stages = [
   { name: 'build', to: '/build', n: 3, label: 'Build' },
   { name: 'buy', to: '/cart', n: 4, label: 'Cart' },
 ]
-const enabled = (s) => s.name === 'swipe' || (state.build && state.reached[s.name]) || (s.name === 'parts' && state.build)
+const enabled = (s) => s.name === 'swipe' || s.name === 'parts' || (state.build && state.reached[s.name])
 
 // Event countdown: ends at 23:59, three days from today.
 const evEnd = (() => { const d = new Date(); d.setDate(d.getDate() + 3); d.setHours(23, 59, 0, 0); return d.getTime() })()
@@ -43,11 +43,14 @@ const countdown = computed(() => {
         <router-link to="/know" class="navlink" active-class="on">
           <span class="full">Know your keyboard</span><span class="short">Learn</span>
         </router-link>
-        <router-link to="/builder" class="navlink" active-class="on" aria-label="Builder">
-          <span class="full">Builder</span><span class="short">Builder</span>
+        <router-link to="/compare" class="navlink" active-class="on" aria-label="Compare builds">
+          <span class="full">Compare</span><span class="short">Compare</span>
+        </router-link>
+        <router-link to="/about" class="navlink" active-class="on" aria-label="About us">
+          <span class="full">About us</span><span class="short">About</span>
         </router-link>
         <router-link to="/account" class="navlink" active-class="on">
-          <span class="full">{{ state.user ? 'My account' : 'Sign in' }}</span><span class="short">{{ state.user ? 'Account' : 'Sign in' }}</span>
+          <span class="full">{{ state.user ? 'Profile' : 'Sign in' }}</span><span class="short">{{ state.user ? 'Profile' : 'Sign in' }}</span>
         </router-link>
         <nav class="stages" aria-label="Progress">
           <template v-for="s in stages" :key="s.name">
@@ -65,7 +68,15 @@ const countdown = computed(() => {
     <router-view />
   </main>
 
-  <footer><div class="wrap">Le Chaton Typers · test build · sample prices in Singapore dollars</div></footer>
+  <footer>
+    <div class="wrap site-footer">
+      <span>Le Chaton Typers · test build · sample prices in Singapore dollars</span>
+      <nav aria-label="Legal information">
+        <router-link to="/privacy">Privacy</router-link>
+        <router-link to="/terms">Terms</router-link>
+      </nav>
+    </div>
+  </footer>
 
   <FatCat />
   <div class="lct-toast" :class="{ 'is-show': state.toast }" role="status" aria-live="polite">{{ state.toast }}</div>

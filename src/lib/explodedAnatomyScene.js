@@ -10,6 +10,11 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { SWITCH_LAYOUT_POSITIONS, KEYBOARD_DIMENSIONS } from './keyboardSwitchLayout.js'
+import { isWebGLAvailable } from './webgl.js'
+
+// Re-exported for backwards compatibility with consumers/tests that import this
+// helper from the scene module rather than the shared webgl seam.
+export { isWebGLAvailable }
 
 /**
  * Module-level reusable Three.js color instances to prevent per-frame allocations during render loop and RGB updates.
@@ -105,29 +110,6 @@ export const ANATOMY_LAYERS = Object.freeze([
  * @type {ReadonlyArray<string>}
  */
 export const BAREBONES_BUNDLED_LAYER_IDS = Object.freeze(['plate', 'pcb', 'foam', 'case'])
-
-/**
- * Safely checks WebGL/WebGL2 context availability in the current environment.
- * Gracefully returns false in jsdom or headless environments where WebGL is unavailable.
- *
- * @param {Document|null} [doc=document] - Document context to create test canvas from.
- * @returns {boolean} True if WebGL or WebGL2 context can be acquired, false otherwise.
- */
-export function isWebGLAvailable(doc = (typeof document !== 'undefined' ? document : null)) {
-  if (!doc || typeof doc.createElement !== 'function') return false
-  try {
-    const canvas = doc.createElement('canvas')
-    const win = doc.defaultView || (typeof window !== 'undefined' ? window : null)
-    if (!win || !win.WebGLRenderingContext) return false
-    const gl =
-      canvas.getContext('webgl2') ||
-      canvas.getContext('webgl') ||
-      canvas.getContext('experimental-webgl')
-    return Boolean(gl)
-  } catch {
-    return false
-  }
-}
 
 /**
  * Computes the exploded layer separation factor across the guided part-by-part home journey.
@@ -537,7 +519,7 @@ export function buildProceduralFallbackLayers() {
  * @param {import('three').Material|import('three').Material[]} materialOrArray - Material or array of materials.
  * @param {(material: import('three').Material, index: number) => void} fn - Callback function.
  */
-function forEachMaterial(materialOrArray, fn) {
+export function forEachMaterial(materialOrArray, fn) {
   if (!materialOrArray) return
   if (Array.isArray(materialOrArray)) {
     materialOrArray.forEach((mat, idx) => {
@@ -553,7 +535,7 @@ function forEachMaterial(materialOrArray, fn) {
  *
  * @param {import('three').Object3D} obj - Object to dispose.
  */
-function disposeObject(obj) {
+export function disposeObject(obj) {
   if (!obj) return
   obj.traverse?.((child) => {
     if (child.geometry) {
@@ -578,7 +560,7 @@ function disposeObject(obj) {
  * @param {import('three').BufferGeometry} geometry - Buffer geometry to inspect.
  * @returns {number} Triangle count.
  */
-function countGeometryTriangles(geometry) {
+export function countGeometryTriangles(geometry) {
   if (!geometry) return 0
   if (geometry.index) return geometry.index.count / 3
   if (geometry.attributes?.position) return geometry.attributes.position.count / 3
@@ -591,9 +573,11 @@ function countGeometryTriangles(geometry) {
  *
  * @param {import('three').Object3D} switchProto - Switch prototype (Group or Mesh).
  * @param {import('three').Group} targetGroup - Target Layer_Switches group.
+ * @param {Array<{ x: number, y: number, z: number }>} [positions=SWITCH_LAYOUT_POSITIONS] - Array of 3D switch coordinates.
+ * @param {number} [yOffset=0] - Additional vertical offset for seating switches into plate/sockets.
  * @returns {Array<import('three').InstancedMesh>} Created instanced meshes.
  */
-export function createSwitchMatrixInstances(switchProto, targetGroup) {
+export function createSwitchMatrixInstances(switchProto, targetGroup, positions = SWITCH_LAYOUT_POSITIONS, yOffset = 0) {
   if (!switchProto || !targetGroup) return []
   while (targetGroup.children.length > 0) {
     const oldChild = targetGroup.children[0]
@@ -632,10 +616,12 @@ export function createSwitchMatrixInstances(switchProto, targetGroup) {
         mat.opacity = 0.78
       }
     })
-    const instancedMesh = new THREE.InstancedMesh(mesh.geometry, clonedMaterial, 81)
+    const activePositions = (positions && positions.length > 0) ? positions : SWITCH_LAYOUT_POSITIONS
+    const count = activePositions.length
+    const instancedMesh = new THREE.InstancedMesh(mesh.geometry, clonedMaterial, count)
     instancedMesh.name = `Switch_Instances_Hybrid_${pIdx}`
-    SWITCH_LAYOUT_POSITIONS.forEach((pos, idx) => {
-      dummyObj.position.set(pos.x, pos.y, pos.z)
+    activePositions.forEach((pos, idx) => {
+      dummyObj.position.set(pos.x, pos.y + yOffset, pos.z)
       dummyObj.rotation.x = -KEYBOARD_DIMENSIONS.slopeRad
       dummyObj.updateMatrix()
       instancedMesh.setMatrixAt(idx, dummyObj.matrix)
