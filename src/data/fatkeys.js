@@ -4,6 +4,7 @@
 export const FATKEYS = [
   {
     id: 'fatkey',
+    image: '/fatkey/fatkey.png',
     name: 'FATKEY',
     tagline: 'Compact and friendly. Plastic case, quiet switches and a soft, dampened sound.',
     layout: '75',
@@ -12,14 +13,16 @@ export const FATKEYS = [
   },
   {
     id: 'fatkey-pro',
+    image: '/fatkey/fatkey-pro.png',
     name: 'FATKEY PRO',
     tagline: 'Clear see-through case, tactile switches and a full foam kit for a richer sound.',
     layout: '75',
     look: { case: '#bfe0f5', caseRough: 0.2, caseOpacity: 0.55, keycaps: '#3346FF', plate: '#ff8fd0', plateOpacity: 0.6 },
-    part_ids: { case: 'pc', plate: 'fr4p', pcb: 'hsrgb', switches: 'panda', keycaps: 'matte', stabs: 'durock', foam: 'full', cable: 'coil' },
+    part_ids: { case: 'pc', plate: 'fr4p', pcb: 'hsrgb', switches: 'panda', keycaps: 'kanagawa', stabs: 'durock', foam: 'full', cable: 'coil' },
   },
   {
     id: 'fatkey-pro-max',
+    image: '/fatkey/fatkey-pro-max.png',
     name: 'FATKEY PRO MAX',
     tagline: 'Heavy CNC aluminium with a brass weight, smooth linear switches and wireless tri-mode.',
     layout: '75',
