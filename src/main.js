@@ -4,6 +4,7 @@ import './style.css'
 import './assets/main.css'
 import './assets/anatomy.css'
 import './assets/about.css'
+import './assets/compare.css'
 import App from './App.vue'
 import router from './router/index.js'
 

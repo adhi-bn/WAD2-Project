@@ -43,6 +43,9 @@ const countdown = computed(() => {
         <router-link to="/know" class="navlink" active-class="on">
           <span class="full">Know your keyboard</span><span class="short">Learn</span>
         </router-link>
+        <router-link to="/compare" class="navlink" active-class="on" aria-label="Compare builds">
+          <span class="full">Compare</span><span class="short">Compare</span>
+        </router-link>
         <router-link to="/about" class="navlink" active-class="on" aria-label="About us">
           <span class="full">About us</span><span class="short">About</span>
         </router-link>
