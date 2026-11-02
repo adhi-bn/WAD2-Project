@@ -13,10 +13,16 @@ const svgMarkup = computed(() => kbSVG(props.layout))
 const pressedCodes = new Set()
 const pointerCodes = new Map()
 const audioError = ref('')
+const volume = ref(0.7)
+const muted = ref(false)
+const audioStatus = ref('')
+const volumePercent = computed(() => `${Math.round(volume.value * 100)}%`)
+const switchName = computed(() => props.switchPart?.name || 'Selected switch')
 
 let audioContext
 const decodedSamples = new Map()
 const activeSources = new Set()
+const activeGainNodes = new Set()
 
 // Printable characters may change position on different keyboard layouts, so resolve them
 // by the reported key value before falling back to physical browser codes for special keys.
@@ -63,7 +69,11 @@ function clearPressed() {
 
 async function playSwitchSound() {
   const source = props.switchPart?.onePressSample
-  if (!source) return
+  if (!source) {
+    audioError.value = `Switch sound is unavailable for ${switchName.value}.`
+    audioStatus.value = `No recording for ${switchName.value}.`
+    return
+  }
 
   try {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext
@@ -73,6 +83,7 @@ async function playSwitchSound() {
     if (audioContext.state !== 'running') throw new Error('Web Audio context did not resume')
   } catch {
     audioError.value = 'Switch sound playback was blocked. Try pressing a key again.'
+    audioStatus.value = `Playback of the ${switchName.value} recording was blocked.`
     return
   }
 
@@ -88,13 +99,40 @@ async function playSwitchSound() {
 
     const audioSource = audioContext.createBufferSource()
     audioSource.buffer = buffer
-    audioSource.connect(audioContext.destination)
+    if (typeof audioContext.createGain === 'function') {
+      const gainNode = audioContext.createGain()
+      gainNode.gain.value = muted.value ? 0 : volume.value
+      audioSource.connect(gainNode)
+      gainNode.connect(audioContext.destination)
+      activeGainNodes.add(gainNode)
+      audioSource.onended = () => {
+        activeSources.delete(audioSource)
+        activeGainNodes.delete(gainNode)
+      }
+    } else {
+      audioSource.connect(audioContext.destination)
+      audioSource.onended = () => activeSources.delete(audioSource)
+    }
     activeSources.add(audioSource)
-    audioSource.onended = () => activeSources.delete(audioSource)
     audioSource.start(0)
+    audioStatus.value = muted.value
+      ? `Muted ${switchName.value} key press sound.`
+      : `Playing ${switchName.value} key press sound.`
   } catch {
     audioError.value = 'Switch sound could not be loaded.'
+    audioStatus.value = `Could not load the recording for ${switchName.value}.`
   }
+}
+
+/** Toggles mute for subsequent and currently active key press sounds. */
+function toggleMute() {
+  muted.value = !muted.value
+  activeGainNodes.forEach((gainNode) => {
+    gainNode.gain.value = muted.value ? 0 : volume.value
+  })
+  audioStatus.value = muted.value
+    ? 'Muted switch sounds.'
+    : `Unmuted switch sounds at ${volumePercent.value}.`
 }
 
 function activate(code) {
@@ -110,8 +148,11 @@ function deactivate(code) {
 }
 
 function isTextControl(target) {
-  // Typing inside a form control belongs to that control, not to the keyboard tester.
-  return target instanceof HTMLElement && (
+  // Typing inside text-editing controls belongs to that control, not to the keyboard tester.
+  // A range input is a volume control, so letters and other typing keys should still test the keyboard.
+  if (!(target instanceof HTMLElement)) return false
+  const rangeInput = target.tagName === 'INPUT' && target.type === 'range'
+  return !rangeInput && (
     target.isContentEditable ||
     ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A'].includes(target.tagName) ||
     Boolean(target.closest('[role="button"], [contenteditable="true"]'))
@@ -120,6 +161,8 @@ function isTextControl(target) {
 
 function onKeyDown(event) {
   if (isTextControl(event.target)) return
+  const isRangeInput = event.target instanceof HTMLElement && event.target.tagName === 'INPUT' && event.target.type === 'range'
+  if (isRangeInput && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(physicalKeyId(event))) return
   // Modifier shortcuts should stay available to the browser unless their target key is a
   // physical modifier, such as Control or Alt itself.
   const modifier = ['ControlLeft', 'ControlRight', 'MetaLeft', 'MetaRight', 'AltLeft', 'AltRight']
@@ -168,9 +211,20 @@ function annotateKeys() {
 watch(() => props.layout, annotateKeys)
 watch(() => props.switchPart?.onePressSample, () => {
   audioError.value = ''
+  audioStatus.value = props.switchPart?.onePressSample
+    ? `${switchName.value} recording linked.`
+    : `No recording available for ${switchName.value}.`
+})
+watch(volume, (value) => {
+  activeGainNodes.forEach((gainNode) => {
+    gainNode.gain.value = muted.value ? 0 : value
+  })
 })
 onMounted(() => {
   annotateKeys()
+  audioStatus.value = props.switchPart?.onePressSample
+    ? `${switchName.value} recording linked.`
+    : `No recording available for ${switchName.value}.`
   // Window listeners cover physical key presses even when focus remains outside the component.
   window.addEventListener('keydown', onKeyDown)
   window.addEventListener('keyup', onKeyUp)
@@ -184,6 +238,7 @@ onBeforeUnmount(() => {
   clearPressed()
   activeSources.forEach((source) => source.stop())
   activeSources.clear()
+  activeGainNodes.clear()
   if (audioContext && audioContext.state !== 'closed') audioContext.close().catch?.(() => {})
   window.removeEventListener('keydown', onKeyDown)
   window.removeEventListener('keyup', onKeyUp)
@@ -203,5 +258,38 @@ onBeforeUnmount(() => {
       {{ audioError }}
     </p>
     <div class="virtual-keyboard-tester__keyboard" v-html="svgMarkup"></div>
+    <div class="virtual-keyboard-tester__audio-controls">
+      <button
+        type="button"
+        class="ui-btn switch-audio__mute"
+        aria-label="Mute switch sample"
+        :aria-pressed="muted"
+        @click="toggleMute"
+      >
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M11 5 6 9H3v6h3l5 4V5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path v-if="muted" d="m16 9 5 6m0-6-5 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          <template v-else>
+            <path d="M15 9a5 5 0 0 1 0 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            <path d="M18 6a9 9 0 0 1 0 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          </template>
+        </svg>
+      </button>
+      <label class="virtual-keyboard-tester__volume switch-audio__volume" :class="{ 'is-muted': muted }">
+        <span>Volume</span>
+        <input
+          v-model.number="volume"
+          type="range"
+          min="0"
+          max="1"
+          step="0.05"
+          aria-label="Volume for key press sounds"
+          :aria-valuetext="volumePercent"
+          @input="muted = false"
+        >
+        <output>{{ volumePercent }}</output>
+      </label>
+    </div>
+    <p class="virtual-keyboard-tester__audio-status" role="status" aria-live="polite">{{ audioStatus }}</p>
   </div>
 </template>

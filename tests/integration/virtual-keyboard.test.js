@@ -115,6 +115,21 @@ describe('VirtualKeyboardTester', () => {
     window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyA' }))
   })
 
+  it('links, mutes, and reports the selected switch recording status', async () => {
+    const wrapper = mount(VirtualKeyboardTester, {
+      props: {
+        layout: '60',
+        switchPart: { id: 'cream', name: 'Akko V3 Cream Yellow Pro', onePressSample: '/switch-audio-onekey/akko-onepress.mp3' },
+      },
+    })
+    await flushPromises()
+
+    expect(wrapper.get('[role="status"]').text()).toContain('Akko V3 Cream Yellow Pro recording linked')
+    await wrapper.get('button[aria-label="Mute switch sample"]').trigger('click')
+    expect(wrapper.get('button[aria-label="Mute switch sample"]').attributes('aria-pressed')).toBe('true')
+    expect(wrapper.get('[role="status"]').text()).toContain('Muted')
+  })
+
   it('shows an error when audio playback rejects', async () => {
     const wrapper = mount(VirtualKeyboardTester, {
       props: { layout: '60', switchPart: { id: 'cream', onePressSample: '/switch-audio-onekey/akko-onepress.mp3' } },
