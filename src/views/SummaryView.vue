@@ -126,14 +126,6 @@ function addNow() {
           </div>
           <p v-if="!state.user" class="fine">Sign in to save it to your Profile.</p>
         </div>
-        <div class="save-build-top">
-          <label for="buildName" class="eyebrow">Name and save this Build</label>
-          <div class="actions">
-            <input id="buildName" v-model="buildName" class="form-control" :placeholder="title" aria-label="Name for this build" />
-            <button type="button" class="ui-btn primary" :disabled="saving" @click="saveNow">{{ saving ? 'Saving…' : state.editingSavedBuildId ? 'Update build' : 'Save build' }}</button>
-          </div>
-          <p v-if="!state.user" class="fine">Sign in to save it to your Profile.</p>
-        </div>
       </div>
       <div class="sumgrid sumgrid-single">
         <div class="panel">
