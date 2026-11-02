@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Large keyboard-image placeholders on compared saved Build cards, ready to display a saved Build's future `image_url`, plus colour-coded higher and lower Part prices in the side-by-side comparison.
+- Compare Builds page (`/compare`) for selecting two saved Builds, comparing the six canonical Component Groups side by side, and reopening either Build for editing; includes resilient future `image_url` support and accessible higher/lower amount indicators (#33).
 - OneMap-powered two-store locator on the About Us page, including Jewel Changi Airport and Marina Bay Sands store cards with photos, browser-location driving-route comparison, distance and estimated travel-time summaries, and an interactive route map.
 - Saved-build snapshots now retain the selected eight Parts, quiz preferences, target Budget, and historical prices; reopening flags catalogue drift and offers alternatives without silently replacing a Part (#12).
 - Saved-build Supabase migration adding the snapshot fields, update timestamp, and explicit per-account RLS policies (#12).

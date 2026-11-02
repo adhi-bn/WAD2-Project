@@ -7,7 +7,7 @@ import { idsOf, state } from '../../src/store.js'
 
 function savedBuild(id, name, offset) {
   const parts = catalog('75')
-  const build = Object.fromEntries(CATS.map((category) => [category, parts[category][offset]]))
+  const build = Object.fromEntries(CATS.map((group) => [group, parts[group][offset]]))
   return { id, name, layout: '75', part_ids: idsOf(build), created_at: '2026-10-27T00:00:00.000Z' }
 }
 
@@ -32,6 +32,9 @@ afterEach(() => {
   state.build = null
   state.cat = null
   state.rec = null
+  state.savedBuildReview = null
+  state.editingSavedBuildId = null
+  state.editingSavedBuildName = ''
 })
 
 describe('CompareBuildsView', () => {
@@ -43,7 +46,7 @@ describe('CompareBuildsView', () => {
     expect(wrapper.get('a[href="/swipe"]').text()).toContain('Start a Build')
   })
 
-  it('compares two saved Builds, including every Part and total', async () => {
+  it('compares two saved Builds across all six Component Groups and shows accessible amount differences', async () => {
     state.savedBuilds = [savedBuild('first', 'Desk Build', 0), savedBuild('second', 'Studio Build', 1)]
     const { wrapper } = await mountCompare()
 
@@ -51,14 +54,16 @@ describe('CompareBuildsView', () => {
     expect(wrapper.text()).toContain('Studio Build')
     expect(wrapper.text()).toContain('Compare all Parts')
     expect(wrapper.findAll('.compare-preview--placeholder')).toHaveLength(2)
+    expect(wrapper.findAll('option[disabled]')).toHaveLength(0)
 
     await wrapper.get('details').trigger('toggle')
-    expect(wrapper.findAll('tbody tr')).toHaveLength(CATS.length)
+    expect(wrapper.findAll('tbody tr')).toHaveLength(6)
     expect(wrapper.find('tfoot').text()).toContain('Build total')
     expect(wrapper.findAll('.compare-table .is-higher').length).toBeGreaterThan(0)
+    expect(wrapper.findAll('.compare-price-marker').length).toBeGreaterThan(0)
   })
 
-  it('loads the selected saved Build and opens the Parts editor', async () => {
+  it('reopens the selected saved Build with its identity and drift review intact', async () => {
     state.savedBuilds = [savedBuild('first', 'Desk Build', 0), savedBuild('second', 'Studio Build', 1)]
     const { router, wrapper } = await mountCompare()
 
@@ -67,5 +72,35 @@ describe('CompareBuildsView', () => {
 
     expect(router.currentRoute.value.path).toBe('/parts')
     expect(state.build.case.id).toBe(state.savedBuilds[0].part_ids.case)
+    expect(state.editingSavedBuildId).toBe('first')
+    expect(state.editingSavedBuildName).toBe('Desk Build')
+    expect(state.savedBuildReview).toBeTruthy()
+  })
+
+  it('uses a saved Build image when available and falls back safely when it fails to load', async () => {
+    state.savedBuilds = [
+      { ...savedBuild('first', 'Desk Build', 0), image_url: '/images/desk-build.jpg' },
+      savedBuild('second', 'Studio Build', 1),
+    ]
+    const { wrapper } = await mountCompare()
+
+    const image = wrapper.get('img.compare-preview')
+    expect(image.attributes('loading')).toBe('lazy')
+    expect(image.attributes('width')).toBe('480')
+    expect(image.attributes('height')).toBe('210')
+
+    await image.trigger('error')
+    expect(wrapper.findAll('.compare-preview--placeholder')).toHaveLength(2)
+  })
+
+  it('renders unavailable historical Parts without crashing', async () => {
+    const unavailable = savedBuild('first', 'Older Build', 0)
+    unavailable.part_ids.case = 'discontinued-case'
+    state.savedBuilds = [unavailable, savedBuild('second', 'Studio Build', 1)]
+    const { wrapper } = await mountCompare()
+
+    expect(wrapper.text()).toContain('Unavailable Case')
+    await wrapper.get('details').trigger('toggle')
+    expect(wrapper.text()).toContain('Unavailable')
   })
 })
