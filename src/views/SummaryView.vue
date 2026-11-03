@@ -7,7 +7,6 @@ import { state, layout, discountOf, toast, addToCart, saveBuild } from '../store
 import Keyboard3DView from '../components/Keyboard3DView.vue'
 import TypeTesterView from '../components/TypeTesterView.vue'
 import ProfileChips from '../components/ProfileChips.vue'
-import VirtualKeyboardTester from '../components/VirtualKeyboardTester.vue'
 
 const router = useRouter()
 const buildName = ref(state.editingSavedBuildName || '')
@@ -142,9 +141,8 @@ function addNow() {
           </div>
           <div class="viewpanel" role="tabpanel">
             <Keyboard3DView v-if="view === '3d'" :build="b" />
-            <TypeTesterView v-else :build="b" />
+            <TypeTesterView v-else :build="b" :layout="L" :switch-part="b.switches" />
           </div>
-          <VirtualKeyboardTester :layout="L" :switch-part="b.switches" />
         </div>
 
         <div class="panel">

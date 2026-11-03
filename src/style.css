@@ -561,21 +561,31 @@ section.screen {
 }
 
 .virtual-keyboard-tester {
-  max-width: 520px;
+  width: 100%;
+  max-width: 920px;
   margin: 0 auto 16px;
   user-select: none;
   touch-action: none;
 }
 
 .virtual-keyboard-tester__instruction {
-  margin-bottom: 8px;
+  margin-bottom: 12px;
   color: var(--lct-muted-ink);
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   text-align: center;
 }
 
+.virtual-keyboard-tester__keyboard {
+  width: 100%;
+}
+
+.virtual-keyboard-tester__keyboard svg {
+  width: 100%;
+  height: auto;
+}
+
 .virtual-keyboard-tester__volume {
-  width: min(320px, 90%);
+  width: min(440px, 90%);
   margin: 12px auto 0;
 }
 
@@ -583,15 +593,15 @@ section.screen {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 16px;
   flex-wrap: wrap;
-  margin-top: 12px;
+  margin-top: 18px;
 }
 
 .virtual-keyboard-tester__audio-status {
-  margin: 8px 0 0;
+  margin: 12px 0 0;
   color: var(--lct-muted-ink);
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   text-align: center;
 }
 

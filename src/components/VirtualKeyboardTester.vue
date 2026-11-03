@@ -130,7 +130,7 @@ async function playSwitchSound() {
 }
 
 /** Toggles mute for subsequent and currently active key press sounds. */
-function toggleMute() {
+function toggleMute(event) {
   muted.value = !muted.value
   activeGainNodes.forEach((gainNode) => {
     gainNode.gain.value = muted.value ? 0 : volume.value
@@ -138,6 +138,7 @@ function toggleMute() {
   audioStatus.value = muted.value
     ? 'Muted switch sounds.'
     : `Unmuted switch sounds at ${volumePercent.value}.`
+  event?.currentTarget?.blur()
 }
 
 function activate(code) {

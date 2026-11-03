@@ -102,6 +102,20 @@ describe('VirtualKeyboardTester', () => {
     expect(space.defaultPrevented).toBe(true)
   })
 
+  it('returns focus to the keyboard tester after clicking mute', async () => {
+    const wrapper = mount(VirtualKeyboardTester, {
+      props: { layout: '60', switchPart: null },
+    })
+    const muteButton = wrapper.get('.switch-audio__mute')
+    muteButton.element.focus()
+
+    await muteButton.trigger('click')
+
+    expect(document.activeElement).not.toBe(muteButton.element)
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyA', key: 'a' }))
+    expect(wrapper.find('[data-key-id="KeyA"].pressed').exists()).toBe(true)
+  })
+
   it('does not play an unrelated sample when the switch has no one-key recording', async () => {
     const wrapper = mount(VirtualKeyboardTester, {
       props: { layout: '60', switchPart: { id: 'gyellow' } },
