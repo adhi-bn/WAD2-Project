@@ -228,6 +228,9 @@ watch(volume, (value) => {
 })
 onMounted(() => {
   annotateKeys()
+  nextTick(() => {
+    host.value?.focus({ preventScroll: true })
+  })
   audioStatus.value = props.switchPart?.onePressSample
     ? `${switchName.value} recording linked.`
     : `No recording available for ${switchName.value}.`
@@ -257,7 +260,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="host" class="virtual-keyboard-tester">
+  <div ref="host" class="virtual-keyboard-tester" tabindex="-1">
     <div class="virtual-keyboard-tester__instruction">
       Click a key or use your keyboard to test the keys below.
     </div>

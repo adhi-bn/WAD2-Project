@@ -568,6 +568,10 @@ section.screen {
   touch-action: none;
 }
 
+.virtual-keyboard-tester:focus {
+  outline: none;
+}
+
 .virtual-keyboard-tester__instruction {
   margin-bottom: 12px;
   color: var(--lct-muted-ink);
@@ -596,6 +600,16 @@ section.screen {
   gap: 16px;
   flex-wrap: wrap;
   margin-top: 18px;
+}
+
+.virtual-keyboard-tester__audio-controls .switch-audio__mute {
+  width: 48px;
+  height: 48px;
+}
+
+.virtual-keyboard-tester__audio-controls .switch-audio__mute svg {
+  width: 22px;
+  height: 22px;
 }
 
 .virtual-keyboard-tester__audio-status {

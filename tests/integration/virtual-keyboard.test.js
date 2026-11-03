@@ -59,6 +59,19 @@ afterEach(() => {
 })
 
 describe('VirtualKeyboardTester', () => {
+  it('receives focus when mounted so the first physical key press works immediately', async () => {
+    const wrapper = mount(VirtualKeyboardTester, {
+      props: { layout: '60', switchPart: null },
+      attachTo: document.body,
+    })
+    await flushPromises()
+
+    expect(document.activeElement).toBe(wrapper.element)
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyA', key: 'a' }))
+    expect(wrapper.find('[data-key-id="KeyA"].pressed').exists()).toBe(true)
+  })
+
   it('binds an existing MP3 one-key recording to every switch', () => {
     for (const part of BASE.switches) {
       expect(part.onePressSample).toBeTruthy()

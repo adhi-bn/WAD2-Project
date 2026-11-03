@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Integration and E2E tests covering layout switching across 60%, 75%, and 100% and validating keycap legend visibility across artwork keycap sets (#22).
 - Interactive two-dimensional keyboard testing on the summary page, with physical and pointer key highlights, layout-aware typing, shifted-symbol support, and matching one-key sounds for every switch.
 - Moved the interactive two-dimensional keyboard tester and its audio controls into the Type tester summary tab, with a larger responsive layout for the available panel space.
+- Slightly enlarged the virtual keyboard volume button in the Type tester.
+- Fixed the Type tester to receive keyboard focus immediately when opened, so the first physical key press is captured without clicking elsewhere.
 - Fixed the virtual keyboard mute button retaining focus so physical typing resumes immediately after toggling sound.
 - Google OAuth entry point and a guest-first Profile surface with saved Builds, explicit local guest-draft preservation on sign-out, and clear address/payment availability states.
 - Vercel SPA history fallback so direct links such as `/builder` resolve to the app shell.
