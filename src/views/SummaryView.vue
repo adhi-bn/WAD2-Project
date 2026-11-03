@@ -584,11 +584,11 @@ function addNow() {
 }
 
 #summary .subtitle-badge span {
-  background: #EAECEF;
+  background: var(--lct-line-grey, #D6DAE3);
   border: none;
   padding: 4px 10px;
   border-radius: 6px;
-  color: #1A202C;
+  color: var(--lct-text-ink, #12151C);
   font-weight: 500;
   letter-spacing: 0.02em;
   line-height: 1.4;
