@@ -13,6 +13,7 @@ import AboutView from '../views/AboutView.vue'
 import CompareBuildsView from '../views/CompareBuildsView.vue'
 import PrivacyView from '../views/PrivacyView.vue'
 import TermsView from '../views/TermsView.vue'
+import { scrollToTarget } from '../lib/smoothScroll.js'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -35,6 +36,7 @@ const router = createRouter({
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
   scrollBehavior() {
+    scrollToTarget(0, { immediate: true })
     return { top: 0 }
   },
 })

@@ -41,7 +41,7 @@ The visual and behavioral feedback shown when a component violates hardware comp
 _Avoid_: Error popup, blocker alert
 
 **3D Build Preview Boundary**:
-The architectural boundary governing the builder's interactive 3D canvas. The 3D view in the builder statically displays and updates only 3 active visual layers: Keycaps, Switches, and Base (Case). Internal components (PCB, Plate, Foam, Stabilizers) do NOT visually alter or mutate the 3D model geometry or exploded rendering, but register selection state and present high-fidelity 2D product imagery.
+The architectural boundary governing the interactive 3D Build preview across the builder, Compare builds, and the build review surface (`/build`). The 3D preview displays and updates only 3 active exterior visual layers: Keycaps, Switches, and Base (Case). Internal components (PCB, Plate, Foam, Stabilizers) do NOT visually alter or mutate the 3D model geometry or exploded rendering, but register selection state and present high-fidelity 2D product imagery.
 _Avoid_: Full 3D rendering, interior 3D view
 
 **Budget**:
@@ -51,6 +51,10 @@ _Avoid_: Price, cost
 **Saved build**:
 A named Build retained in its owner's account for later editing, including unfinished drafts.
 _Avoid_: Preset
+
+**Compare builds**:
+A side-by-side comparison of two Saved builds across their combined 3-layer Build preview (rendered as static, combined-state 3-layer 3D previews on a clean transparent stage at full native pixel ratio with 0% idle GPU loop overhead), total price, and Part selections in each of the 6 Component Groups before reopening either build for editing.
+_Avoid_: Diff view, store-price comparison
 
 **Lucky draw**:
 A one-time per-account prize draw in the Helper mascot widget that may award a Voucher.

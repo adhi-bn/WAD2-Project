@@ -65,7 +65,15 @@ export function checkCompatibility({ barebones, switches, keycaps } = {}) {
 // no whole/fraction split, and more than two fraction digits is a fractional
 // cent. This avoids the x100 float rounding that can land a cent off near the
 // safe-integer limit.
-function toCents(value) {
+/**
+ * Converts a major-currency numeric amount into integer cents without
+ * floating-point drift, returning `null` for non-finite, negative, scientific,
+ * fractional-cent, or unsafe integer inputs.
+ *
+ * @param {number} value - Price in major currency units (e.g. dollars).
+ * @returns {number|null} Equivalent integer cents, or `null` when invalid.
+ */
+export function toCents(value) {
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return null
   const text = String(value)
   if (text.includes('e') || text.includes('E')) return null

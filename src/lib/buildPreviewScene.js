@@ -1156,6 +1156,45 @@ export const DEFAULT_CAMERA_PRESETS = Object.freeze({
 export const CAMERA_PRESETS = DEFAULT_CAMERA_PRESETS
 
 /**
+ * Calculates responsive camera position and target framing based on active preset,
+ * explosion factor (combined vs. exploded), and keyboard layout form factor.
+ * In combined mode (explosionFactor < 0.5), scales camera distance closer (~36% closer)
+ * so the keyboard fills 70-80% of the canvas across 60%, 75%, and 100% layouts.
+ *
+ * @param {'isometric'|'top'|'side'|string} presetKey - Camera preset identifier.
+ * @param {number} [explosionFactor=1.0] - Target explosion factor (1 = exploded, 0 = combined).
+ * @param {string} [layoutKey='75'] - Keyboard layout code ('60', '75', '100').
+ * @returns {{ pos: [number, number, number], target: [number, number, number] }}
+ */
+export function getPresetFraming(presetKey, explosionFactor = 1.0, layoutKey = '75') {
+  const normKey = CAMERA_PRESETS[presetKey] ? presetKey : 'isometric'
+  const base = CAMERA_PRESETS[normKey]
+  const cleanLayout = String(layoutKey || '75').replace('%', '').trim()
+
+  if (Number.isFinite(explosionFactor) && explosionFactor < 0.5) {
+    // Combined / assembled state: perspective-calibrated baseline scale per layout
+    // (60% wX=1.924, 75% wX=1.852, 100% wX=1.865) with 30% reduced horizontal tilt.
+    let scale = 0.71
+    if (cleanLayout === '60') scale = 0.72
+    else if (cleanLayout === '100') scale = 0.68
+
+    const yawFactor = normKey === 'isometric' ? 0.70 : 1.0
+    const target = [base.target[0], 0.02, base.target[2]]
+    const pos = [
+      Number((base.pos[0] * yawFactor * scale).toFixed(4)),
+      Number((base.pos[1] * scale).toFixed(4)),
+      Number((base.pos[2] * scale).toFixed(4)),
+    ]
+    return { pos, target }
+  }
+
+  return {
+    pos: [...base.pos],
+    target: [...base.target],
+  }
+}
+
+/**
  * Applies one of 3 distinct case silhouettes (high-profile, low-profile, sandwich)
  * to a Barebones kit layer group.
  *
@@ -1306,6 +1345,18 @@ export function applyBarebonesGeometryVariant(spec, barebonesGroup) {
   return variant
 }
 
+/** Module-level shared GLB ArrayBuffer cache for production instances */
+const sharedGlbCache = new Map()
+const sharedInFlightGlbPromises = new Map()
+
+/**
+ * Clears the shared module-level GLB ArrayBuffer cache (primarily for tests).
+ */
+export function clearSharedGlbCache() {
+  sharedGlbCache.clear()
+  sharedInFlightGlbPromises.clear()
+}
+
 /**
  * Creates and initializes the interactive 3D Build Preview scene.
  *
@@ -1314,12 +1365,17 @@ export function applyBarebonesGeometryVariant(spec, barebonesGroup) {
  * @param {Function} [options.onLoad] - Callback invoked when GLTF asset finishes loading.
  * @param {Function} [options.onError] - Callback invoked on WebGL or renderer creation failure.
  * @param {Function} [options.onCameraPresetChange] - Callback invoked when active camera preset changes.
+ * @param {Function} [options.onCameraChange] - Callback invoked on OrbitControls camera change.
  * @param {Function} [options.onContextRestored] - Callback invoked when WebGL context is restored.
  * @param {boolean} [options.loadGlb=true] - Whether to load the hybrid GLTF asset.
  * @param {string} [options.modelUrl='/models/exploded-keyboard.glb'] - URL to keyboard GLTF model.
  * @param {string} [options.layout='75'] - Initial layout form-factor ('60', '75', '100').
  * @param {Function} [options.rendererFactory] - Custom renderer factory for testing/mocking.
  * @param {boolean} [options.reducedMotion=false] - Initial reduced motion preference.
+ * @param {boolean} [options.initialExploded=true] - Initial explosion state (true for exploded, false for combined).
+ * @param {boolean} [options.compact=false] - Whether preview is mounted in a compact container.
+ * @param {boolean} [options.interactive=true] - Whether OrbitControls and user interaction are enabled.
+ * @param {Function|null} [options.fetchFn=null] - Optional custom fetch function for isolated testing.
  * @returns {object|null} Controller object for the preview scene.
  */
 export function createBuildPreviewScene({
@@ -1327,15 +1383,26 @@ export function createBuildPreviewScene({
   onLoad,
   onError,
   onCameraPresetChange,
+  onCameraChange = null,
   onContextRestored,
   loadGlb = true,
   modelUrl,
   layout = '75',
   rendererFactory,
   reducedMotion: initialReducedMotion = false,
+  initialExploded = true,
+  compact = false,
+  interactive = true,
+  fetchFn = null,
 } = {}) {
   let isDisposed = false
   let isPausedState = false
+  let isSyncingCamera = false
+  let peerRenderPending = false
+  let peerRenderRafId = null
+  let pendingPeerControlSync = false
+  let targetExplosionFactor = initialExploded ? 1.0 : 0.0 // 1.0 = exploded, 0.0 = combined
+  let currentExplosionFactor = initialExploded ? 1.0 : 0.0
   // IntersectionObserver-fed flag. Combined with tab visibility it forms the
   // single source of truth for pausing (see applyPauseState below).
   let viewportIntersecting = true
@@ -1356,9 +1423,11 @@ export function createBuildPreviewScene({
     currentLayout = '75'
   }
   const defaultModelUrl = modelUrl || LAYOUT_MODELS[currentLayout] || LAYOUT_MODELS['75']
-  const glbCache = new Map()
-  const inFlightGlbPromises = new Map()
+  const glbCache = fetchFn ? new Map() : sharedGlbCache
+  const inFlightGlbPromises = fetchFn ? new Map() : sharedInFlightGlbPromises
   const textureCache = new Map()
+
+  const idleDpr = typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, 2) : 1
 
   // 1. Scene and Root Group Setup
   const scene = new THREE.Scene()
@@ -1382,7 +1451,7 @@ export function createBuildPreviewScene({
   const aspect = clientH > 0 && clientW > 0 ? clientW / clientH : 1.33
 
   const camera = new THREE.PerspectiveCamera(32, aspect, 0.1, 100)
-  const defaultIso = CAMERA_PRESETS.isometric
+  const defaultIso = getPresetFraming('isometric', targetExplosionFactor, currentLayout)
   camera.position.set(defaultIso.pos[0], defaultIso.pos[1], defaultIso.pos[2])
   camera.lookAt(defaultIso.target[0], defaultIso.target[1], defaultIso.target[2])
 
@@ -1409,6 +1478,9 @@ export function createBuildPreviewScene({
   if (effectiveRendererFactory) {
     try {
       renderer = effectiveRendererFactory({ canvas, scene, camera })
+      if (renderer?.setPixelRatio) {
+        renderer.setPixelRatio(idleDpr)
+      }
     } catch (err) {
       if (typeof onError === 'function') onError(err)
       else throw err
@@ -1444,8 +1516,7 @@ export function createBuildPreviewScene({
         antialias: true,
         powerPreference: 'high-performance',
       })
-      const dpr = typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, 2) : 1
-      renderer.setPixelRatio(dpr)
+      renderer.setPixelRatio(idleDpr)
       renderer.setSize(canvas?.clientWidth || 800, canvas?.clientHeight || 600, false)
       renderer.outputColorSpace = THREE.SRGBColorSpace
     } catch (err) {
@@ -1458,7 +1529,7 @@ export function createBuildPreviewScene({
   }
 
   // Software rasterisers (SwiftShader/llvmpipe in headless browsers and CI
-  // runners) cannot sustain the drop animation's frame rate — animating would
+  // runners) cannot sustain the drop animation's frame rate - animating would
   // block the main thread for seconds per Part selection.
   if (renderer) {
     disableAnimations = isSoftwareRenderer(renderer)
@@ -1494,8 +1565,6 @@ export function createBuildPreviewScene({
   // 5. OrbitControls Setup
   let controls = null
   let activeControlFrames = 0
-  let targetExplosionFactor = 1.0 // 1.0 = exploded, 0.0 = combined
-  let currentExplosionFactor = 1.0
 
   const handleControlsStart = () => {
     currentPreset = 'custom'
@@ -1508,8 +1577,13 @@ export function createBuildPreviewScene({
     }
   }
 
+  const handleControlsEnd = () => {}
+
   const handleControlsChange = () => {
     activeControlFrames = 24
+    if (!isSyncingCamera && typeof onCameraChange === 'function') {
+      onCameraChange(getCameraState())
+    }
     if (motionDisabled() || animId === null) {
       if (motionDisabled()) {
         requestSingleFrame()
@@ -1525,18 +1599,22 @@ export function createBuildPreviewScene({
       controls.enableDamping = !motionDisabled()
       controls.dampingFactor = 0.08
       controls.rotateSpeed = 0.35
-      controls.zoomSpeed = 0.65
-      controls.enableRotate = true
-      controls.enableZoom = true
+      controls.zoomSpeed = 1.25
+      controls.enableRotate = Boolean(interactive)
+      controls.enableZoom = Boolean(interactive)
       controls.enablePan = false
-      controls.minDistance = 1.5
-      controls.maxDistance = 8.0
+      controls.enabled = Boolean(interactive)
+      controls.minDistance = 0.45
+      controls.maxDistance = 12.0
       controls.maxPolarAngle = Math.PI / 2 - 0.05
       controls.target.set(defaultIso.target[0], defaultIso.target[1], defaultIso.target[2])
       controls.update()
 
-      controls.addEventListener('start', handleControlsStart)
-      controls.addEventListener('change', handleControlsChange)
+      if (interactive) {
+        controls.addEventListener('start', handleControlsStart)
+        controls.addEventListener('change', handleControlsChange)
+        controls.addEventListener('end', handleControlsEnd)
+      }
     } catch {
       // OrbitControls may fail in headless/mock DOM
     }
@@ -1575,7 +1653,7 @@ export function createBuildPreviewScene({
     const layer = layers[id]
     layer.group.name = `Layer_${id}`
     layer.group.scale.set(initialScale, initialScale, initialScale)
-    layer.group.position.y = layer.explodedY
+    layer.group.position.y = currentExplosionFactor * layer.explodedY
     rootGroup.add(layer.group)
   }
 
@@ -1827,7 +1905,7 @@ export function createBuildPreviewScene({
           mat.opacity = part.opacity
           // Color/roughness/metalness/opacity are uniforms. Only toggling
           // `transparent` changes the program, so `needsUpdate` is reserved for
-          // that case — setting it unconditionally recompiles a shader per cloned
+          // that case - setting it unconditionally recompiles a shader per cloned
           // switch material (81 instances), stalling the main thread for seconds.
           const nextTransparent = part.opacity < 1.0
           if (mat.transparent !== nextTransparent) {
@@ -2225,6 +2303,7 @@ export function createBuildPreviewScene({
     }
 
     mode = 'hybrid'
+    fitCombinedCameraToFrustum()
     if (typeof onLoad === 'function') {
       onLoad({ fallback: false })
     }
@@ -2243,6 +2322,7 @@ export function createBuildPreviewScene({
     applyBarebonesMaterials(currentParts.barebones)
     applySwitchesMaterials(currentParts.switches)
     applyKeycapsMaterials(currentParts.keycaps)
+    fitCombinedCameraToFrustum()
     requestSingleFrame()
   }
 
@@ -2299,17 +2379,23 @@ export function createBuildPreviewScene({
         ? modelUrl
         : LAYOUT_MODELS[layoutCode] || defaultModelUrl
 
+    const cacheKey = targetUrl || layoutCode
+
     // 1. Check in-memory binary cache
-    if (glbCache.has(layoutCode)) {
-      const cachedBuffer = glbCache.get(layoutCode)
+    if (glbCache.has(cacheKey)) {
+      const cachedBuffer = glbCache.get(cacheKey)
       return parseGlbBuffer(cachedBuffer, layoutCode)
     }
 
     // 2. Fetch over network with in-flight deduplication
-    let fetchPromise = inFlightGlbPromises.get(layoutCode)
+    let fetchPromise = inFlightGlbPromises.get(cacheKey)
     if (!fetchPromise) {
       fetchPromise = (async () => {
-        const res = await fetch(targetUrl)
+        const effectiveFetch = fetchFn || (typeof fetch !== 'undefined' ? fetch : null)
+        if (!effectiveFetch) {
+          throw new Error('fetch is not available')
+        }
+        const res = await effectiveFetch(targetUrl)
         if (!res.ok) {
           throw new Error(`Failed to fetch GLB (${targetUrl}): HTTP ${res.status}`)
         }
@@ -2319,10 +2405,10 @@ export function createBuildPreviewScene({
         }
         return await res.arrayBuffer()
       })()
-      inFlightGlbPromises.set(layoutCode, fetchPromise)
+      inFlightGlbPromises.set(cacheKey, fetchPromise)
       fetchPromise
         .finally(() => {
-          inFlightGlbPromises.delete(layoutCode)
+          inFlightGlbPromises.delete(cacheKey)
         })
         .catch(() => {})
     }
@@ -2345,7 +2431,7 @@ export function createBuildPreviewScene({
     if (isDisposed || layoutCode !== currentLayout) {
       return null
     }
-    glbCache.set(layoutCode, buffer)
+    glbCache.set(cacheKey, buffer)
 
     return parseGlbBuffer(buffer, layoutCode)
   }
@@ -2411,6 +2497,8 @@ export function createBuildPreviewScene({
       layer.group.position.y = restingY + offset
     }
 
+    syncPendingPeerControls()
+
     if (controls && typeof controls.update === 'function') {
       controls.update()
     }
@@ -2421,10 +2509,31 @@ export function createBuildPreviewScene({
   }
 
   /**
+   * Synchronizes OrbitControls target and orientation if a peer canvas camera update is pending.
+   */
+  function syncPendingPeerControls() {
+    if (pendingPeerControlSync && controls) {
+      pendingPeerControlSync = false
+      isSyncingCamera = true
+      const prevDamping = controls.enableDamping
+      controls.enableDamping = false
+      try {
+        controls.update()
+      } finally {
+        controls.enableDamping = prevDamping
+        isSyncingCamera = false
+      }
+    } else {
+      pendingPeerControlSync = false
+    }
+  }
+
+  /**
    * Renders a single animation frame on demand without recursive controls updating (REV-1).
    */
   function requestSingleFrame() {
     if (isDisposed || isPausedState) return
+    syncPendingPeerControls()
     if (renderer && scene && camera) {
       renderer.render(scene, camera)
     }
@@ -2491,7 +2600,87 @@ export function createBuildPreviewScene({
   }
 
   /**
-   * Window resize handler updating projection matrix, renderer buffer, and camera aspect.
+   * Projects all 8 world-space bounding-box corners of rootGroup through the active
+   * PerspectiveCamera to dynamically fit combined-mode isometric framing so the keyboard
+   * fills ~86% of the card without ever clipping or overflowing on any layout or aspect ratio.
+   */
+  function fitCombinedCameraToFrustum() {
+    if (
+      isDisposed ||
+      !camera ||
+      !canvas ||
+      !(canvas.clientWidth > 0 && canvas.clientHeight > 0) ||
+      targetExplosionFactor >= 0.5 ||
+      currentPreset !== 'isometric'
+    ) {
+      return
+    }
+
+    camera.aspect = canvas.clientWidth / canvas.clientHeight
+    camera.updateProjectionMatrix()
+    rootGroup.updateMatrixWorld(true)
+
+    const box = new THREE.Box3().setFromObject(rootGroup)
+    if (box.isEmpty()) return
+
+    const base = CAMERA_PRESETS.isometric
+    const yawFactor = 0.70
+    const targetY = (box.min.y + box.max.y) * 0.5
+    const targetZ = (box.min.z + box.max.z) * 0.35
+    const corners = [
+      new THREE.Vector3(box.min.x, box.min.y, box.min.z),
+      new THREE.Vector3(box.min.x, box.min.y, box.max.z),
+      new THREE.Vector3(box.min.x, box.max.y, box.min.z),
+      new THREE.Vector3(box.min.x, box.max.y, box.max.z),
+      new THREE.Vector3(box.max.x, box.min.y, box.min.z),
+      new THREE.Vector3(box.max.x, box.min.y, box.max.z),
+      new THREE.Vector3(box.max.x, box.max.y, box.min.z),
+      new THREE.Vector3(box.max.x, box.max.y, box.max.z),
+    ]
+    const scratch = new THREE.Vector3()
+
+    let lo = 0.45
+    let hi = 1.45
+    for (let i = 0; i < 16; i++) {
+      const mid = (lo + hi) * 0.5
+      camera.position.set(base.pos[0] * yawFactor * mid, base.pos[1] * mid, base.pos[2] * mid)
+      camera.lookAt(0, targetY, targetZ)
+      camera.updateMatrixWorld()
+
+      let maxFill = 0
+      for (let c = 0; c < 8; c++) {
+        scratch.copy(corners[c]).project(camera)
+        const fillX = Math.abs(scratch.x) / 0.87
+        const fillY = Math.abs(scratch.y) / 0.84
+        if (fillX > maxFill) maxFill = fillX
+        if (fillY > maxFill) maxFill = fillY
+      }
+      if (maxFill > 1.0) {
+        lo = mid
+      } else {
+        hi = mid
+      }
+    }
+
+    isSyncingCamera = true
+    const prevDamping = controls ? controls.enableDamping : false
+    if (controls) controls.enableDamping = false
+    try {
+      camera.position.set(base.pos[0] * yawFactor * hi, base.pos[1] * hi, base.pos[2] * hi)
+      if (controls) {
+        controls.target.set(0, targetY, targetZ)
+        controls.update()
+      } else {
+        camera.lookAt(0, targetY, targetZ)
+      }
+    } finally {
+      if (controls) controls.enableDamping = prevDamping
+      isSyncingCamera = false
+    }
+  }
+
+  /**
+   * Window and element resize handler updating projection matrix, renderer buffer, and camera aspect.
    */
   const handleResize = () => {
     if (!canvas || !renderer || isDisposed) return
@@ -2501,6 +2690,7 @@ export function createBuildPreviewScene({
       camera.aspect = width / height
       camera.updateProjectionMatrix()
       renderer.setSize(width, height, false)
+      fitCombinedCameraToFrustum()
     }
     requestSingleFrame()
   }
@@ -2508,6 +2698,15 @@ export function createBuildPreviewScene({
   if (typeof window !== 'undefined') {
     window.addEventListener('resize', handleResize, { passive: true })
   }
+
+  let resizeObserver = null
+  if (typeof ResizeObserver !== 'undefined' && canvas) {
+    resizeObserver = new ResizeObserver(() => {
+      handleResize()
+    })
+    resizeObserver.observe(canvas)
+  }
+  fitCombinedCameraToFrustum()
 
   /**
    * WebGL context lost event handler.
@@ -2551,6 +2750,11 @@ export function createBuildPreviewScene({
         cancelAnimationFrame(animId)
         animId = null
       }
+
+      if (peerRenderRafId !== null && typeof cancelAnimationFrame === 'function') {
+        cancelAnimationFrame(peerRenderRafId)
+        peerRenderRafId = null
+      }
     } else {
       isPausedState = false
       if (!motionDisabled() && isAnimating()) {
@@ -2587,20 +2791,109 @@ export function createBuildPreviewScene({
       }
       return
     }
-    const config = CAMERA_PRESETS[preset] || CAMERA_PRESETS.isometric
+    const config = getPresetFraming(preset, targetExplosionFactor, currentLayout)
     currentPreset = CAMERA_PRESETS[preset] ? preset : 'isometric'
 
-    camera.position.set(config.pos[0], config.pos[1], config.pos[2])
-    if (controls) {
-      controls.target.set(config.target[0], config.target[1], config.target[2])
-      controls.update()
-    } else {
-      camera.lookAt(config.target[0], config.target[1], config.target[2])
+    isSyncingCamera = true
+    const prevDamping = controls ? controls.enableDamping : false
+    if (controls) controls.enableDamping = false
+    try {
+      camera.position.set(config.pos[0], config.pos[1], config.pos[2])
+      camera.zoom = 1
+      camera.updateProjectionMatrix?.()
+      if (controls) {
+        controls.target.set(config.target[0], config.target[1], config.target[2])
+        controls.update()
+      } else {
+        camera.lookAt(config.target[0], config.target[1], config.target[2])
+      }
+    } finally {
+      if (controls) controls.enableDamping = prevDamping
+      isSyncingCamera = false
     }
+    fitCombinedCameraToFrustum()
     if (typeof onCameraPresetChange === 'function') {
       onCameraPresetChange(currentPreset)
     }
     requestSingleFrame()
+  }
+
+  /**
+   * Coalesces external/peer camera render updates using requestAnimationFrame (REV-2).
+   */
+  function requestCoalescedRender() {
+    if (isDisposed || isPausedState) return
+    if (peerRenderPending) return
+    peerRenderPending = true
+    if (typeof requestAnimationFrame === 'function') {
+      peerRenderRafId = requestAnimationFrame(() => {
+        peerRenderPending = false
+        peerRenderRafId = null
+        if (!isDisposed && !isPausedState) {
+          syncPendingPeerControls()
+          if (renderer && scene && camera) {
+            renderer.render(scene, camera)
+          }
+        }
+      })
+    } else {
+      peerRenderPending = false
+      syncPendingPeerControls()
+      requestSingleFrame()
+    }
+  }
+
+  /**
+   * Retrieves current camera position, controls target, and zoom level.
+   *
+   * @returns {{ position: number[], target: number[], zoom: number }}
+   */
+  function getCameraState() {
+    return {
+      position: camera.position.toArray(),
+      target: (controls?.target || new THREE.Vector3()).toArray(),
+      zoom: camera.zoom,
+    }
+  }
+
+  /**
+   * Sets external camera position, target, and zoom without feedback recursion.
+   * Updates camera and target coordinates synchronously while deferring controls.update()
+   * spherical math to coalesced animation frames.
+   *
+   * @param {{ position?: number[], target?: number[], zoom?: number }} camState - Incoming camera state.
+   */
+  function setCameraState(camState) {
+    if (!camState || isDisposed) return
+    isSyncingCamera = true
+    try {
+      if (
+        Array.isArray(camState.position) &&
+        camState.position.length === 3 &&
+        camState.position.every(Number.isFinite)
+      ) {
+        camera.position.set(camState.position[0], camState.position[1], camState.position[2])
+      }
+      if (
+        Array.isArray(camState.target) &&
+        camState.target.length === 3 &&
+        camState.target.every(Number.isFinite)
+      ) {
+        if (controls?.target) {
+          controls.target.set(camState.target[0], camState.target[1], camState.target[2])
+        } else {
+          camera.lookAt(camState.target[0], camState.target[1], camState.target[2])
+        }
+      }
+      if (Number.isFinite(camState.zoom) && camState.zoom > 0) {
+        camera.zoom = camState.zoom
+        camera.updateProjectionMatrix?.()
+      }
+      pendingPeerControlSync = true
+      requestCoalescedRender()
+    } finally {
+      isSyncingCamera = false
+    }
   }
 
   /**
@@ -2703,6 +2996,24 @@ export function createBuildPreviewScene({
    */
   function setExploded(exploded, { animate = true } = {}) {
     targetExplosionFactor = exploded ? 1.0 : 0.0
+    if (currentPreset !== 'custom') {
+      const config = getPresetFraming(currentPreset, targetExplosionFactor, currentLayout)
+      isSyncingCamera = true
+      const prevDamping = controls ? controls.enableDamping : false
+      if (controls) controls.enableDamping = false
+      try {
+        camera.position.set(config.pos[0], config.pos[1], config.pos[2])
+        if (controls) {
+          controls.target.set(config.target[0], config.target[1], config.target[2])
+          controls.update()
+        } else {
+          camera.lookAt(config.target[0], config.target[1], config.target[2])
+        }
+      } finally {
+        if (controls) controls.enableDamping = prevDamping
+        isSyncingCamera = false
+      }
+    }
     if (motionDisabled() || !animate) {
       currentExplosionFactor = targetExplosionFactor
       for (const id of BUILD_PREVIEW_LAYER_IDS) {
@@ -2739,6 +3050,25 @@ export function createBuildPreviewScene({
 
     currentLayout = targetLayout
     applyLayoutScale(currentLayout)
+
+    if (currentPreset !== 'custom') {
+      const config = getPresetFraming(currentPreset, targetExplosionFactor, currentLayout)
+      isSyncingCamera = true
+      const prevDamping = controls ? controls.enableDamping : false
+      if (controls) controls.enableDamping = false
+      try {
+        camera.position.set(config.pos[0], config.pos[1], config.pos[2])
+        if (controls) {
+          controls.target.set(config.target[0], config.target[1], config.target[2])
+          controls.update()
+        } else {
+          camera.lookAt(config.target[0], config.target[1], config.target[2])
+        }
+      } finally {
+        if (controls) controls.enableDamping = prevDamping
+        isSyncingCamera = false
+      }
+    }
 
     if (loadGlb && typeof window !== 'undefined' && typeof fetch !== 'undefined') {
       await loadLayoutGlb(currentLayout)
@@ -2847,6 +3177,20 @@ export function createBuildPreviewScene({
     },
 
     /**
+     * Retrieves current camera position, controls target, and zoom level.
+     *
+     * @returns {{ position: number[], target: number[], zoom: number }}
+     */
+    getCameraState,
+
+    /**
+     * Sets external camera position, target, and zoom without feedback recursion.
+     *
+     * @param {{ position?: number[], target?: number[], zoom?: number }} camState
+     */
+    setCameraState,
+
+    /**
      * Toggles reduced motion preference.
      * Snaps drop progress immediately to settled resting positions under reduced motion.
      *
@@ -2932,6 +3276,11 @@ export function createBuildPreviewScene({
       if (animId !== null && typeof cancelAnimationFrame === 'function') {
         cancelAnimationFrame(animId)
         animId = null
+      }
+
+      if (peerRenderRafId !== null && typeof cancelAnimationFrame === 'function') {
+        cancelAnimationFrame(peerRenderRafId)
+        peerRenderRafId = null
       }
     },
 
@@ -3057,8 +3406,18 @@ export function createBuildPreviewScene({
         animId = null
       }
 
+      if (peerRenderRafId !== null && typeof cancelAnimationFrame === 'function') {
+        cancelAnimationFrame(peerRenderRafId)
+        peerRenderRafId = null
+      }
+
       if (typeof window !== 'undefined') {
         window.removeEventListener('resize', handleResize)
+      }
+
+      if (resizeObserver) {
+        resizeObserver.disconnect()
+        resizeObserver = null
       }
 
       if (typeof document !== 'undefined') {
@@ -3083,6 +3442,7 @@ export function createBuildPreviewScene({
         if (typeof controls.removeEventListener === 'function') {
           controls.removeEventListener('start', handleControlsStart)
           controls.removeEventListener('change', handleControlsChange)
+          controls.removeEventListener('end', handleControlsEnd)
         }
         if (typeof controls.dispose === 'function') {
           controls.dispose()
@@ -3117,5 +3477,6 @@ export function createBuildPreviewScene({
     _scene: scene,
     _rootGroup: rootGroup,
     _layers: layers,
+    _controls: controls,
   }
 }
