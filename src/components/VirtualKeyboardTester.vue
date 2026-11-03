@@ -253,7 +253,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="host" class="virtual-keyboard-tester" role="group" :aria-label="`Keyboard tester controls for ${switchName}`" tabindex="0">
+  <div ref="host" class="virtual-keyboard-tester" role="group" :aria-label="`Keyboard tester controls for ${switchName}`">
     <div class="virtual-keyboard-tester__instruction">
       Click a key or use your keyboard to test the keys below.
     </div>

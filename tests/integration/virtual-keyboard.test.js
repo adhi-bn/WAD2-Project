@@ -62,6 +62,13 @@ afterEach(() => {
 })
 
 describe('VirtualKeyboardTester', () => {
+  it('keeps the keyboard tester host out of the tab order', () => {
+    const wrapper = mount(VirtualKeyboardTester, { props: { layout: '75', switchPart: null } })
+    const host = wrapper.get('.virtual-keyboard-tester')
+
+    expect(host.attributes('tabindex')).toBeUndefined()
+  })
+
   it('does not steal focus on mount and still captures physical key presses', async () => {
     const wrapper = mount(VirtualKeyboardTester, {
       props: { layout: '60', switchPart: null },

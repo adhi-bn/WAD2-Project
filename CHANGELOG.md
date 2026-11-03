@@ -54,6 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Standardized code documentation requirements across collaboration guides, mandating JSDoc docstrings for public exports/functions and inline comments for non-obvious logic when agents or contributors write code.
 
 ### Fixed
+- Removed the unnecessary keyboard tester host tab stop and its outline suppression; physical-key listeners remain on `window`, and audio controls retain their focus indicators (#IMP-9).
+- Added a regression assertion to keep the Build summary actions readable as `← Change parts` and `Add to cart →` (#IMP-11).
 - Matched the 100% virtual keyboard to its spaced function-key groups, right-side navigation and arrow clusters, and 104-key geometry; fixed physical numpad presses to highlight numpad keycaps.
 - Matched the 75% virtual keyboard to its 84-key layout, including Backquote, the right-side navigation keys, and the four-key arrow cluster, with physical presses highlighting the corresponding rectangles.
 - Matched virtual keyboard key IDs to the drawn geometry for 60%, 75%, and 100% layouts, removed empty slots and duplicate Escape activation, and rejected hostile persisted layout values before rendering.

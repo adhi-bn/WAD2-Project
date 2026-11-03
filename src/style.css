@@ -568,10 +568,6 @@ section.screen {
   touch-action: auto;
 }
 
-.virtual-keyboard-tester:focus {
-  outline: none;
-}
-
 .virtual-keyboard-tester__instruction {
   margin-bottom: 12px;
   color: var(--lct-muted-ink);
