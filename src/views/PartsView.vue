@@ -49,6 +49,11 @@ const prefOf = (c) => preferred(c, answers.value, state.cat)
 const isFit = (c, o) => o.id === fitOf(c).id
 const isSel = (c, o) => o.id === curOf(c)?.id
 const tag = (c, o) => (isFit(c, o) ? 'Best fit for you' : o.price < fitOf(c).price ? 'Save' : o.price > fitOf(c).price ? 'Upgrade' : 'Alternative')
+// 3D renders exist for these categories only. Others show no picture.
+const IMG_CATS = ['case', 'keycaps', 'switches']
+// The picture path comes from the catalogue row (Supabase `image` field). If a row has none
+// (for example, the local fallback), use the default file under public/parts/.
+const partImg = (c, o) => o.image ?? (IMG_CATS.includes(c) ? `/parts/${o.id}.png` : null)
 const delta = (c, o) => {
   const cu = curOf(c)
   if (isSel(c, o)) return { cls: 'same', text: 'Selected' }
@@ -160,6 +165,7 @@ onBeforeUnmount(() => document.body.classList.remove('hasbar'))
               <div v-for="o in allOf(c)" :key="o.id" class="col-12 col-md-4">
                 <button type="button" class="opt w-100 h-100" :class="{ sel: isSel(c, o) }" :disabled="!!reason(c, o, b)" @click="choose(c, o.id)">
                   <span class="tag" :class="{ fit: isFit(c, o) }">{{ tag(c, o) }}</span>
+                  <img v-if="partImg(c, o)" :src="partImg(c, o)" :alt="o.name" class="part-img" :class="{ 'part-img--small': c === 'switches' }" loading="lazy" />
                   <span v-if="prefOf(c).some((p) => p.id === o.id) && prefOf(c).length < allOf(c).length" class="tagmatch">your style</span>
                   <span class="name">{{ o.name }}</span>
                   <span :class="reason(c, o, b) ? 'why' : 'spec'">{{ reason(c, o, b) || spec(c, o) }}</span>
@@ -264,6 +270,27 @@ onBeforeUnmount(() => document.body.classList.remove('hasbar'))
   #parts .layout,
   .layout {
     grid-template-columns: minmax(0, 1fr) 390px;
+  }
+}
+/* Part picture from the 3D model, shown above the name on the option card. */
+.part-img {
+  display: block;
+  width: 100%;
+  max-width: 220px;
+  height: auto;
+  margin: 0 auto 8px;
+}
+/* Switch pictures are small, so they do not dominate the card. */
+.part-img--small {
+  max-width: 130px;
+}
+/* Leave room under the page for the floating bar, so the last cards are not covered by it. */
+:global(body.hasbar) {
+  padding-bottom: 100px;
+}
+@media (max-width: 760px) {
+  :global(body.hasbar) {
+    padding-bottom: 260px;
   }
 }
 </style>
