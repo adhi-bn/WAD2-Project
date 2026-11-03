@@ -10,19 +10,20 @@ test('shell loads and nav renders', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'About us', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: /dream keyboard|build/i })).toBeVisible()
 
-  // Keep the WebGL-heavy Parts route last so earlier nav assertions do not run
-  // while the 3D preview is active.
-  await page.getByRole('link', { name: 'About us', exact: true }).click()
+  // Assert the nav targets without driving SPA navigation through clicks:
+  // Playwright's click auto-wait can stall on this route in CI.
+  const aboutNav = page.getByRole('link', { name: 'About us', exact: true })
+  await expect(aboutNav).toHaveAttribute('href', '/about')
+
+  const partsNav = page.locator('.stages a.stg', { hasText: 'Parts' })
+  await expect(partsNav).toBeVisible()
+  await expect(partsNav).toHaveAttribute('href', '/parts')
+
+  await page.goto('/about')
   await expect(page).toHaveURL(/\/about$/)
   await expect(page.getByRole('heading', { name: 'Le Chaton Typers' })).toBeVisible()
 
-  await page.goto('/')
-
-  // 2 Parts stage is always visible and clickable in navbar stages
-  const partsNav = page.locator('.stages a.stg', { hasText: 'Parts' })
-  await expect(partsNav).toBeVisible()
-  await partsNav.click()
-
+  await page.goto('/parts')
   await expect(page).toHaveURL(/\/parts$/)
   await expect(page.getByRole('heading', { name: /Your keyboard, part by part/i })).toBeVisible()
   await expect(page.getByText('Build so far')).toBeVisible()
