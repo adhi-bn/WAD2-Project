@@ -9,11 +9,10 @@ test('decodes and plays every catalogued MP3 recording in Chromium', async ({ pa
   await expect(page.getByRole('heading', { name: 'Hear your selected switch' })).toBeVisible()
   await expect(page.locator('.switch-audio')).toHaveCSS('border-radius', '18px')
   await expect(page.locator('.switch-audio__volume')).toHaveCSS('display', 'flex')
-  await page.locator('details.more summary').click()
 
   for (const part of BASE.switches) {
     const file = part.sample.split('/').pop()
-    await page.locator('button.prow').filter({ hasText: part.name }).click()
+    await page.locator('button.opt').filter({ hasText: part.name }).click()
 
     const responsePromise = page.waitForResponse((response) => response.url().endsWith(`/switch-audio/${file}`))
     await page.locator('button[aria-label^="Play sample for"]').click()
