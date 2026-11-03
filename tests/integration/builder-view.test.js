@@ -121,13 +121,21 @@ describe('PartsView (Builder integration)', () => {
     await flushPromises()
 
     const tabs = wrapper.findAll('.tab')
-    expect(tabs.length).toBe(8)
+    expect(tabs.length).toBe(6)
+    expect(tabs[5].text()).toContain('Add-ons')
 
     // Switch to switches tab (index 3)
     await tabs[3].trigger('click')
     await flushPromises()
 
     expect(wrapper.text()).toContain('Part 4 of 8')
+
+    // Add-ons combines the last three categories into one tab.
+    await tabs[5].trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Parts 6 to 8 of 8')
+    expect(wrapper.text()).toContain('Add-ons')
   })
 
   it('renders interactive layout selector (60% · 75% · 100%) and updates build and preview props', async () => {
