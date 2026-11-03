@@ -2,7 +2,7 @@
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { CATS, META, KEYS } from '../data/catalog.js'
-import { money, money2, total, grams, kg, spec } from '../logic/builder.js'
+import { money, money2, total, grams, kg, spec, reason } from '../logic/builder.js'
 import { state, layout, discountOf, toast, addToCart, saveBuild } from '../store.js'
 import Keyboard3DView from '../components/Keyboard3DView.vue'
 import TypeTesterView from '../components/TypeTesterView.vue'
@@ -28,7 +28,7 @@ function setView(id) {
   try { sessionStorage.setItem(VIEW_KEY, id) } catch { /* storage blocked: the choice lasts for this page only */ }
 }
 
-const b = computed(() => state.build)
+const b = computed(() => state.build || {})
 const L = computed(() => layout())
 const hasUnknownPrice = computed(() => CATS.some((group) => !Number.isFinite(b.value?.[group]?.price)))
 const t = computed(() => hasUnknownPrice.value ? null : total(b.value))
@@ -43,13 +43,16 @@ const left = computed(() => {
 })
 const pct = computed(() => t.value === null ? '0%' : Math.min(100, (t.value / state.answers.budget) * 100) + '%')
 const title = computed(() => {
+  if (!b.value?.case) return `Your ${L.value}% keyboard`
   if (b.value.case?.unavailable) return `Your ${L.value}% saved keyboard Build`
   return `Your ${L.value}% ${b.value.case.frame === 'metal' ? 'aluminium' : b.value.case.frame === 'pcb' ? 'open-frame' : 'plastic'} keyboard`
 })
 
 // Plain-language ratings for sound, feel and weight.
 const perf = computed(() => {
-  const x = b.value, sw = x.switches.type
+  const x = b.value
+  if (!x?.switches || !x?.plate || !x?.foam) return []
+  const sw = x.switches.type
   const soft = ['pcp', 'fr4p'].includes(x.plate.id), foam = x.foam.id
   const loud = ({ silent: 1, linear: 2, tactile: 3, clicky: 5 }[sw] || 0) + (foam === 'none' && sw !== 'clicky' && sw !== 'silent' ? 1 : 0)
   const sound = sw === 'silent' ? 'Near-silent, soft bottom-out. Fine for shared offices and late-night calls.'
@@ -57,7 +60,7 @@ const perf = computed(() => {
     : soft && foam !== 'none' ? 'Deep, muted "thock". The soft plate and foam round off the sound.'
     : !soft && foam === 'none' ? 'Crisp, bright "clack" from the stiff plate and open case.'
     : 'Balanced, poppy sound. Not too deep, not too sharp.'
-  const feel = `${sw[0].toUpperCase() + sw.slice(1)} ${x.switches.force} switches on a ${x.plate.feel} ${x.plate.name.toLowerCase()}.`
+  const feel = `${sw ? sw[0].toUpperCase() + sw.slice(1) : ''} ${x.switches.force} switches on a ${x.plate.feel} ${x.plate.name?.toLowerCase() || ''}.`
   const wn = g.value < 800 ? 1 : g.value < 1100 ? 2 : g.value < 1500 ? 3 : g.value < 2100 ? 4 : 5
   const wt = `About ${kg(g.value)}. ${wn <= 2 ? 'Easy to throw in a bag.' : wn === 3 ? 'Stays put, still portable.' : 'Desk-bound and very solid.'}`
   return [
@@ -68,20 +71,61 @@ const perf = computed(() => {
 })
 const checks = computed(() => {
   const x = b.value, keys = KEYS[L.value]
+  if (!x?.pcb || !x?.switches || !x?.keycaps || !x?.stabs || !x?.case) return []
   return [
     `Case, plate and PCB are all ${L.value}% layout`,
     x.pcb.hot ? 'Hot-swap PCB: switches push in, no soldering needed' : 'Solder PCB: you will need a soldering iron to fit the switches',
     `${keys} keys, so ${x.switches.buy} switches (packs of 10) leaves ${x.switches.buy - keys} spares`,
     `MX-style switches fit the plate and ${x.keycaps.prof} profile keycaps`,
     `${x.stabs.n} stabilisers for the spacebar, shifts, enter and backspace${L.value === '100' ? ', plus numpad keys' : ''}`,
-    x.pcb.wl ? `Wireless PCB battery fits inside the ${x.case.name.toLowerCase()}` : 'Connects over USB-C',
+    x.pcb.wl ? `Wireless PCB battery fits inside the ${x.case.name?.toLowerCase() || ''}` : 'Connects over USB-C',
   ]
 })
 
 function copyList() {
-  const txt = CATS.map((c) => `${META[c].label}: ${b.value[c].name} (${Number.isFinite(b.value[c].price) ? money(b.value[c].price) : 'unavailable'})`).join('\n') + `\nTotal: ${t.value === null ? 'unavailable' : money(t.value)}`
+  const txt = CATS.map((c) => `${META[c].label}: ${b.value?.[c]?.name || 'Unavailable'} (${Number.isFinite(b.value?.[c]?.price) ? ('$' + b.value[c].price) : '—'})`).join('\n') + `\nTotal: ${t.value === null ? 'unavailable' : money(t.value)}`
   navigator.clipboard?.writeText(txt).then(() => toast('Parts list copied'), () => toast('Copy is blocked here. Select the table to copy it.'))
 }
+
+/**
+ * Resolves an alert status tag for a keyboard part in the summary table.
+ * Returns 'Unavailable' when the part is missing or has no finite price,
+ * 'Incompatible' or 'Price changed' when flagged by saved build revalidation review or live compatibility,
+ * or 'Differs from saved' when the customer modified a slot from the loaded saved build baseline.
+ *
+ * @param {string} c - Catalogue category/component group key.
+ * @returns {'Unavailable'|'Incompatible'|'Price changed'|'Differs from saved'|null}
+ */
+function partStatusTag(c) {
+  // 1. Part missing or price unknown -> Unavailable
+  if (!b.value?.[c] || b.value[c].unavailable || !Number.isFinite(b.value[c].price)) {
+    return 'Unavailable'
+  }
+
+  // 2. Saved build revalidation review issues -> Incompatible or Price changed
+  const issues = state.savedBuildReview?.issues || []
+  const matchingIssue = issues.find((issue) => issue.group === c && issue.type === 'incompatible')
+    || issues.find((issue) => issue.group === c && issue.type === 'price-changed')
+
+  if (matchingIssue) {
+    return matchingIssue.type === 'incompatible' ? 'Incompatible' : 'Price changed'
+  }
+
+  // 3. Real-time compatibility
+  if (!b.value[c]?.unavailable && reason(c, b.value[c], b.value)) {
+    return 'Incompatible'
+  }
+
+  // 4. Baseline diff
+  const baselineId = state.savedBuildBaselineIds?.[c] ?? (state.editingSavedBuildId ? state.rec?.[c]?.id : null)
+  if (baselineId && b.value?.[c]?.id !== baselineId) {
+    return 'Differs from saved'
+  }
+
+  return null
+}
+
+const partStatusTags = computed(() => Object.fromEntries(CATS.map((c) => [c, partStatusTag(c)])))
 
 const title2 = computed(() => buildName.value.trim() || title.value)
 async function saveNow() {
@@ -148,10 +192,14 @@ function addNow() {
             <table class="tbl">
               <thead><tr><th>Part</th><th>Pick</th><th class="r">Price</th></tr></thead>
               <tbody>
-                <tr v-for="c in CATS" :key="c">
+                <tr v-for="c in CATS" :key="c" :class="{ 'is-flagged-part': Boolean(partStatusTags[c]) }">
                   <td>{{ META[c].label }}</td>
-                  <td>{{ b[c].name }}<span class="sub">{{ spec(c, b[c]) }}</span></td>
-                  <td class="r">{{ !Number.isFinite(b[c].price) ? 'Unavailable' : b[c].price ? money(b[c].price) : 'Included' }}</td>
+                  <td>
+                    {{ b[c]?.name || 'Unavailable' }}
+                    <span v-if="partStatusTags[c]" class="part-status-tag" :data-testid="'part-status-tag-' + c">{{ partStatusTags[c] }}</span>
+                    <span v-if="b[c] && !b[c].unavailable" class="sub">{{ spec(c, b[c]) }}</span>
+                  </td>
+                  <td class="r">{{ Number.isFinite(b[c]?.price) ? ('$' + b[c].price) : '—' }}</td>
                 </tr>
               </tbody>
               <tfoot><tr><td></td><td>Total</td><td class="r">{{ t === null ? 'Unavailable' : disc > 0 ? `${money2(t - disc)} after voucher` : money(t) }}</td></tr></tfoot>
@@ -368,5 +416,24 @@ function addNow() {
   justify-content: center;
   border-radius: 12px;
   padding: 10px 14px;
+}
+/* Red status alert tags and flagged part rows */
+.part-status-tag {
+  background: var(--lct-danger-tint, #FCE6DD);
+  color: color-mix(in srgb, var(--lct-danger-orange, #D2461A) 82%, var(--lct-text-ink, #12151C));
+  font-family: var(--mono, "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 6px;
+  display: inline-block;
+  margin-left: 8px;
+  vertical-align: middle;
+  border: 1px solid var(--lct-danger-orange, #D2461A);
+  line-height: 1.3;
+}
+#summary .tbl tbody tr.is-flagged-part {
+  background-color: rgba(210, 70, 26, 0.04);
 }
 </style>

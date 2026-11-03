@@ -44,6 +44,14 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  /**
+   * Whether to render as an embedded stage without outer card chrome, header, or caption,
+   * displaying only floating camera controls (for SummaryView 3D view; AC-2, AC-3).
+   */
+  embeddedStage: {
+    type: Boolean,
+    default: false,
+  },
   layout: {
     type: String,
     default: '75',
@@ -307,7 +315,7 @@ onMounted(() => {
       rendererFactory: props.rendererFactory,
       reducedMotion: isReducedMotion.value,
       initialExploded: props.initialExploded,
-      compact: Boolean(props.compact || props.canvasOnly),
+      compact: Boolean(props.compact || props.canvasOnly || props.embeddedStage),
       interactive: props.interactive,
       fetchFn: props.fetchFn,
       onCameraPresetChange: (preset) => {
@@ -418,16 +426,20 @@ defineExpose({
 <template>
   <section
     ref="rootRef"
-    class="lct-build-preview-panel"
+    class="lct-build-preview-panel lct-build-preview"
     :class="{
+      'lct-build-preview--compact': compact,
       'lct-build-preview-panel--compact': compact,
+      'lct-build-preview--canvas-only': canvasOnly,
       'lct-build-preview-panel--canvas-only': canvasOnly,
+      'lct-build-preview--embedded': embeddedStage,
+      'lct-build-preview-panel--embedded': embeddedStage,
       'lct-build-preview-panel--static': !interactive,
     }"
     :aria-labelledby="titleId"
   >
-    <!-- Visually-hidden accessible title for canvas-only mode -->
-    <h3 v-if="canvasOnly" :id="titleId" class="lct-build-preview__sr-only">3D Build Preview</h3>
+    <!-- Visually-hidden accessible title for canvas-only or embedded-stage mode (AC-2, AC-5) -->
+    <h3 v-if="canvasOnly || embeddedStage" :id="titleId" class="lct-build-preview__sr-only">3D Build Preview</h3>
 
     <!-- Screen-reader accessible status badges (rendered once across both modes) -->
     <div class="lct-build-preview__sr-only">
@@ -451,7 +463,7 @@ defineExpose({
     </div>
 
     <!-- Header with semantic screen-reader status and compact toolbar (AC-R1) -->
-    <div v-if="!canvasOnly" class="lct-build-preview-header lct-build-preview__header">
+    <div v-if="!canvasOnly && !embeddedStage" class="lct-build-preview-header lct-build-preview__header">
       <!-- Row 1: Title and Reset View button -->
       <div class="lct-build-preview__title-row">
         <div class="lct-build-preview__title-group">
@@ -504,6 +516,7 @@ defineExpose({
         <button
           type="button"
           class="lct-preview-btn lct-btn-preset lct-preview-btn--accent lct-build-preview__preset-btn"
+          data-testid="toggle-exploded-btn"
           :aria-pressed="!isExplodedView"
           @click="toggleExplodedView"
         >
@@ -526,10 +539,36 @@ defineExpose({
         tabindex="-1"
         aria-hidden="true"
       ></canvas>
+
+      <!-- Floating minimal controls for embeddedStage mode (AC-3) -->
+      <div
+        v-if="embeddedStage && hasLiveScene"
+        class="lct-build-preview__floating-controls"
+        role="toolbar"
+        aria-label="3D view controls"
+      >
+        <button
+          type="button"
+          class="lct-preview-btn lct-btn-preset lct-preview-btn--accent lct-build-preview__preset-btn"
+          data-testid="toggle-exploded-btn"
+          :aria-pressed="isExplodedView"
+          @click="toggleExplodedView"
+        >
+          {{ isExplodedView ? 'Combine layers' : 'Explode layers' }}
+        </button>
+        <button
+          type="button"
+          class="lct-preview-btn lct-btn-preset lct-btn-preset--reset lct-build-preview__preset-btn lct-build-preview__reset-btn"
+          data-testid="reset-camera-btn"
+          @click="resetView"
+        >
+          Reset view
+        </button>
+      </div>
     </div>
 
     <!-- Schematic non-claim caption -->
-    <p v-if="!canvasOnly" class="lct-build-preview-caption">
+    <p v-if="!canvasOnly && !embeddedStage" class="lct-build-preview-caption">
       Schematic 3D Build preview - visual aid for Keycaps, Switches, and Base (Case) only; makes no photorealistic, acoustic, or engineering-accuracy claim.
     </p>
 
@@ -550,17 +589,17 @@ defineExpose({
     <!-- In compact or canvasOnly mode when WebGL is active, screen-reader text provides accessible summary (AC-R14) -->
     <div
       class="lct-build-preview-summary"
-      :class="{ 'lct-build-preview__sr-only': (compact || canvasOnly) && hasLiveScene }"
+      :class="{ 'lct-build-preview__sr-only': (compact || canvasOnly || embeddedStage) && hasLiveScene }"
       data-testid="build-preview-summary"
     >
-      <div v-if="(compact || canvasOnly) && hasLiveScene" class="lct-build-preview__sr-only">
+      <div v-if="(compact || canvasOnly || embeddedStage) && hasLiveScene" class="lct-build-preview__sr-only">
         <span v-for="layer in activeLayers" :key="layer.id">
           {{ layer.label }}: {{ layer.part.name }}.
         </span>
       </div>
 
       <div
-        v-if="(!compact && !canvasOnly) || !hasLiveScene"
+        v-if="(!compact && !canvasOnly && !embeddedStage) || !hasLiveScene"
         data-testid="build-preview-html-summary"
       >
         <h3 class="lct-summary-title">Selected Parts Summary</h3>
@@ -741,7 +780,7 @@ defineExpose({
   position: relative;
   width: 100%;
   height: 360px;
-  background: var(--surface-2, #f4f5f9);
+  background: transparent;
   border: 1px solid var(--line, #d6dae3);
   border-radius: 12px;
   overflow: hidden;
@@ -750,6 +789,7 @@ defineExpose({
 
 .lct-build-preview-panel--compact .lct-build-preview-canvas-wrap,
 .lct-build-preview-panel--compact .lct-build-preview-viewport {
+  background: transparent;
   border: none;
   height: 280px;
 }
@@ -919,5 +959,59 @@ defineExpose({
 .lct-build-preview-panel.lct-build-preview-panel--canvas-only:has(.lct-build-preview-fallback) {
   height: auto;
   overflow: visible;
+}
+
+/* Embedded stage mode styling for /build summary 3D view (AC-2, AC-3) */
+.lct-build-preview--embedded,
+.lct-build-preview-panel--embedded,
+.lct-build-preview-panel--compact.lct-build-preview-panel--embedded {
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-bottom: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.lct-build-preview--embedded .lct-build-preview__stage,
+.lct-build-preview-panel--embedded .lct-build-preview__stage,
+.lct-build-preview-panel--embedded .lct-build-preview-canvas-wrap,
+.lct-build-preview-panel--compact.lct-build-preview-panel--embedded .lct-build-preview-canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: 520px;
+  min-height: 520px;
+  background: transparent;
+  border-radius: 18px;
+  overflow: hidden;
+  border: none;
+}
+
+@media (max-width: 760px) {
+  .lct-build-preview--embedded .lct-build-preview__stage,
+  .lct-build-preview-panel--embedded .lct-build-preview__stage,
+  .lct-build-preview-panel--embedded .lct-build-preview-canvas-wrap,
+  .lct-build-preview-panel--compact.lct-build-preview-panel--embedded .lct-build-preview-canvas-wrap {
+    height: 380px;
+    min-height: 380px;
+  }
+}
+
+.lct-build-preview__floating-controls {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.lct-build-preview__floating-controls .lct-preview-btn {
+  box-shadow: 0 2px 8px rgba(18, 21, 28, 0.12);
+  min-height: 32px;
 }
 </style>
