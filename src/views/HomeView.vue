@@ -5,7 +5,6 @@ import { kbSVG, total, money } from '../logic/builder.js'
 import { openWheel, state, loadBuild, buildFromIds } from '../store.js'
 import ExplodedAnatomyCanvas from '../components/ExplodedAnatomyCanvas.vue'
 import { FATKEYS } from '../data/fatkeys.js'
-import FatkeyPreview from '../components/FatkeyPreview.vue'
 
 const router = useRouter()
 const fatkeys = FATKEYS.map((k) => ({ ...k, price: total(buildFromIds(k.layout, k.part_ids)) }))
@@ -62,7 +61,7 @@ const layers = ['Keycaps', 'Switches', 'Plate', 'PCB', 'Foam', 'Case']
             <span class="fine">About 1 minute. No sign-up.</span>
           </div>
         </div>
-        <div class="stackdemo" aria-hidden="true">
+        <router-link to="/swipe" class="stackdemo" aria-label="Start the quiz: swipe six cards to build your keyboard">
           <div class="scard c3"></div>
           <div class="scard c2"></div>
           <div class="scard c1">
@@ -72,7 +71,7 @@ const layers = ['Keycaps', 'Switches', 'Plate', 'PCB', 'Foam', 'Case']
             <p>Arrows and F-row, still compact. The popular middle.</p>
             <div class="eg">84 keys · 5 stabilisers · fits most desks</div>
           </div>
-        </div>
+        </router-link>
       </div>
     </div>
 
@@ -84,7 +83,7 @@ const layers = ['Keycaps', 'Switches', 'Plate', 'PCB', 'Foam', 'Case']
         <div class="row g-3">
           <div v-for="k in fatkeys" :key="k.id" class="col-12 col-md-4">
             <div class="step fk-card">
-              <FatkeyPreview :look="k.look" />
+              <img :src="k.image" :alt="`${k.name} keyboard`" class="fk-img" loading="lazy" decoding="async" />
               <div class="num">{{ k.layout }}% layout</div>
               <h3>{{ k.name }}</h3>
               <p>{{ k.tagline }}</p>
@@ -149,3 +148,29 @@ const layers = ['Keycaps', 'Switches', 'Plate', 'PCB', 'Foam', 'Case']
     </div>
   </section>
 </template>
+
+<style scoped>
+.fk-img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+  border-radius: 12px;
+  background: #f3f4f8;
+}
+.stackdemo {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  border-radius: 16px;
+  transition: transform 0.2s ease;
+}
+.stackdemo:hover {
+  transform: translateY(-4px);
+}
+.stackdemo:focus-visible {
+  outline: 2px solid var(--lct-accent-indigo);
+  outline-offset: 8px;
+}
+</style>
