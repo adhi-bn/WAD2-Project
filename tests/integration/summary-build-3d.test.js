@@ -340,7 +340,7 @@ describe('SummaryView /build 3D view and red status tags', () => {
     const saveGroup = wrapper.find('.save-action-group')
     expect(saveGroup.exists()).toBe(true)
     expect(saveGroup.find('button.primary').text()).toContain('Save build')
-    expect(saveGroup.find('.fine').text()).toContain('Sign in to save it to your Profile.')
+    expect(wrapper.find('.fine').text()).toContain('Sign in to save it to your Profile.')
 
     // 4. In-place title editing activates on click
     const editBtn = wrapper.find('.icon-btn-edit')

@@ -256,10 +256,10 @@ function addNow() {
   <section class="screen" id="summary">
     <div class="wrap">
       <div class="phead">
-        <div class="phead-top">
-          <div class="phead-main">
-            <div class="eyebrow">Build Summary</div>
+        <div class="eyebrow">Build Summary</div>
 
+        <div class="phead-title-row">
+          <div class="phead-heading-wrap">
             <!-- In-place title edit form -->
             <div v-if="isEditingTitle" class="title-edit-form">
               <input
@@ -293,16 +293,9 @@ function addNow() {
                 </svg>
               </button>
             </div>
-
-            <!-- Subtitle chips -->
-            <div class="subtitle-badge">
-              <span>{{ L }}% Layout</span>
-              <span v-if="switchChipLabel">{{ switchChipLabel }}</span>
-              <span v-if="caseChipLabel">{{ caseChipLabel }}</span>
-            </div>
           </div>
 
-          <!-- Floating Save build action -->
+          <!-- Save build button aligned vertically with the title line -->
           <div class="save-action-group">
             <button
               type="button"
@@ -317,8 +310,17 @@ function addNow() {
               </svg>
               {{ saving ? 'Saving…' : state.editingSavedBuildId ? 'Update build' : 'Save build' }}
             </button>
-            <p v-if="!state.user" class="fine">Sign in to save it to your Profile.</p>
           </div>
+        </div>
+
+        <!-- Subtitle chips row and sign-in status -->
+        <div class="phead-sub-row">
+          <div class="subtitle-badge">
+            <span>{{ L }}% Layout</span>
+            <span v-if="switchChipLabel">{{ switchChipLabel }}</span>
+            <span v-if="caseChipLabel">{{ caseChipLabel }}</span>
+          </div>
+          <p v-if="!state.user" class="fine">Sign in to save it to your Profile.</p>
         </div>
 
         <!-- 3 Diagnostic spec cards (preserved in exact same format) -->
@@ -434,24 +436,28 @@ function addNow() {
   padding-bottom: 24px;
 }
 
-/* Header layout: In-place editable title + floating Save button */
+/* Header layout: In-place editable title + aligned Save button */
 #summary .phead {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 16px;
+  gap: 8px;
   margin-bottom: 20px;
 }
 
-#summary .phead-top {
+#summary .phead .eyebrow {
+  margin-bottom: 0;
+}
+
+#summary .phead-title-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 20px;
   width: 100%;
 }
 
-#summary .phead-main {
+#summary .phead-heading-wrap {
   min-width: 0;
   flex: 1 1 auto;
 }
@@ -461,12 +467,12 @@ function addNow() {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  margin-top: 4px;
 }
 
 #summary .title-row h1 {
   margin: 0;
   font-size: clamp(24px, 3.4vw, 34px);
+  line-height: 1.15;
   cursor: pointer;
   transition: color 0.15s ease;
 }
@@ -539,33 +545,10 @@ function addNow() {
   flex-shrink: 0;
 }
 
-/* Subtitle spec chips (WCAG AA compliant in both light and dark modes) */
-#summary .subtitle-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 8px;
-  font-family: var(--font-mono, "JetBrains Mono", monospace);
-  font-size: 12px;
-  color: var(--lct-muted-ink, #596072);
-  flex-wrap: wrap;
-}
-
-#summary .subtitle-badge span {
-  background: var(--lct-card-surface, #ffffff);
-  border: 1px solid var(--lct-line-grey, #d6dae3);
-  padding: 3px 8px;
-  border-radius: var(--lct-radius-tag, 6px);
-  color: var(--lct-text-ink, #12151c);
-  font-weight: 500;
-}
-
-/* Floating Save build button group */
+/* Save build button group aligned vertically with the title line */
 #summary .save-action-group {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
+  align-items: center;
   flex-shrink: 0;
 }
 
@@ -574,10 +557,54 @@ function addNow() {
   white-space: nowrap;
 }
 
-#summary .save-action-group .fine {
+/* Subtitle row with tags and sign-in hint */
+#summary .phead-sub-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 2px;
+  flex-wrap: wrap;
+}
+
+#summary .phead-sub-row .fine {
   font-size: 11.5px;
-  color: var(--muted, #596072);
+  color: var(--lct-muted-ink, #596072);
   margin: 0;
+}
+
+/* Subtitle spec chips - matched exactly to reference design */
+#summary .subtitle-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+
+#summary .subtitle-badge span {
+  background: #EAECEF;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 6px;
+  color: #1A202C;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+  display: inline-block;
+}
+
+:root[data-theme="dark"] #summary .subtitle-badge span {
+  background: #232834;
+  color: #E9ECF3;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) #summary .subtitle-badge span {
+    background: #232834;
+    color: #E9ECF3;
+  }
 }
 
 /* Full-width 3-column diagnostic rating row - Kept in exact same format */
@@ -585,6 +612,7 @@ function addNow() {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+  margin-top: 8px;
 }
 
 #summary .pf {
@@ -600,7 +628,7 @@ function addNow() {
 
 /* Responsive header stacking */
 @media (max-width: 768px) {
-  #summary .phead-top {
+  #summary .phead-title-row {
     flex-direction: column;
     align-items: stretch;
     gap: 14px;
@@ -608,6 +636,12 @@ function addNow() {
 
   #summary .save-action-group {
     align-items: flex-start;
+  }
+
+  #summary .phead-sub-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
   }
 
   #summary .perf {
