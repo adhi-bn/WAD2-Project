@@ -27,6 +27,7 @@ export const state = reactive({
   savedBuildReview: null, // current-catalogue result for a reopened Saved build
   editingSavedBuildId: null, // existing Saved build being edited, or null for a new Build
   editingSavedBuildName: '',
+  savedBuildBaselineIds: null, // baseline part_ids snapshot for detecting user changes against a saved build
   guestDraft: savedGuestDraft, // an explicitly preserved local Build, never uploaded automatically
 })
 
@@ -43,6 +44,7 @@ function clearAccountState() {
   state.savedBuildReview = null
   state.editingSavedBuildId = null
   state.editingSavedBuildName = ''
+  state.savedBuildBaselineIds = null
   Object.assign(state.ld, { used: false, prize: null, code: null, expires: 0, applied: false })
   saveLD()
 }
@@ -52,13 +54,14 @@ function clearAccountState() {
  *
  * @returns {void}
  */
-function discardCurrentBuild() {
+export function discardCurrentBuild() {
   state.build = null
   state.cat = null
   state.rec = null
   state.biscuit = false
   state.editingSavedBuildId = null
   state.editingSavedBuildName = ''
+  state.savedBuildBaselineIds = null
 }
 
 export const layout = () => state.answers.layout || '75'
@@ -76,6 +79,9 @@ export function setLayout(layoutCode) {
   const validLayout = code === '60' || code === '100' ? code : '75'
   state.answers.layout = validLayout
   state.cat = catalog(validLayout)
+  state.savedBuildBaselineIds = null
+  state.editingSavedBuildId = null
+  state.editingSavedBuildName = ''
 
   if (state.build) {
     const nextBuild = {}
@@ -113,6 +119,11 @@ export function toast(msg) {
   toastTimer = setTimeout(() => { state.toast = '' }, 3400)
 }
 
+/**
+ * Initializes a new Build from customer quiz answers or recommended defaults.
+ *
+ * @returns {void}
+ */
 export function finishQuiz() {
   const A = { ...state.answers, layout: layout() }
   state.cat = catalog(A.layout)
@@ -121,8 +132,19 @@ export function finishQuiz() {
   state.biscuit = false
   state.editingSavedBuildId = null
   state.editingSavedBuildName = ''
+  state.savedBuildBaselineIds = null
   state.reached.build = false
   state.reached.buy = false
+}
+
+/**
+ * Starts a new Build or resets build state and saved baseline tracking.
+ *
+ * @returns {void}
+ */
+export function startBuild() {
+  finishQuiz()
+  state.savedBuildBaselineIds = null
 }
 
 export function choose(cat, id) {
@@ -191,6 +213,7 @@ export function loadBuild(item, { fromBiscuit = false } = {}) {
   state.savedBuildReview = null
   state.editingSavedBuildId = null
   state.editingSavedBuildName = ''
+  state.savedBuildBaselineIds = null
   state.reached.build = false
 }
 
@@ -293,6 +316,8 @@ export async function saveBuild(name) {
   // Remember the newly created row too, so a second save updates it instead of duplicating it.
   state.editingSavedBuildId = data.id
   state.editingSavedBuildName = data.name
+  state.savedBuildBaselineIds = { ...snapshot.partIds }
+  state.savedBuildReview = null
   await refreshSaved()
   return {}
 }
@@ -331,6 +356,7 @@ export function openSavedBuild(savedBuild) {
   state.savedBuildReview = review
   state.editingSavedBuildId = savedBuild.id
   state.editingSavedBuildName = savedBuild.name
+  state.savedBuildBaselineIds = savedBuild?.part_ids ? { ...savedBuild.part_ids } : null
   state.reached.build = false
   return review
 }

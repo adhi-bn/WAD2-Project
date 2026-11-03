@@ -8,7 +8,7 @@ export const money2 = (n) => {
 }
 export const signed = (n) => (n === 0 ? 'Same price' : (n > 0 ? '+' : '−') + 'S$' + Math.abs(Math.round(n)).toLocaleString('en-SG'))
 export const total = (b) => CATS.reduce((s, c) => s + (b[c] ? b[c].price : 0), 0)
-export const grams = (b) => CATS.reduce((s, c) => s + (b[c].grams || 0), 0)
+export const grams = (b) => CATS.reduce((s, c) => s + (b?.[c]?.grams || 0), 0)
 export const kg = (g) => (g / 1000).toFixed(g < 1000 ? 2 : 1) + ' kg'
 const cap = (s) => s[0].toUpperCase() + s.slice(1)
 
