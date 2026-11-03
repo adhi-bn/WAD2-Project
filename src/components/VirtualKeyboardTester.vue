@@ -35,10 +35,12 @@ const SHIFTED_SYMBOL_CODES = { '!': 'Digit1', '@': 'Digit2', '#': 'Digit3', '$':
 /** Resolves layout-dependent characters by value and unambiguous special keys by position. */
 function physicalKeyId(event) {
   const character = event.key?.toLowerCase()
+  // Letters are layout-sensitive, so prefer event.key over the physical code when available.
   if (character && CHARACTER_CODES[character]) return CHARACTER_CODES[character]
   if (/^[0-9]$/.test(character || '') ) return `Digit${character}`
   if (SYMBOL_CODES[character]) return SYMBOL_CODES[character]
   if (SHIFTED_SYMBOL_CODES[character]) return SHIFTED_SYMBOL_CODES[character]
+  // Some browser and assistive-technology key events omit event.key; retain the code in that case.
   if (!character && /^Key[A-Z]$/.test(event.code || '')) return event.code
   if (!character && /^Digit[0-9]$/.test(event.code || '')) return event.code
   if (event.code === 'Space') return 'Space'
@@ -76,6 +78,7 @@ async function playSwitchSound() {
   }
 
   try {
+    // Safari uses the prefixed constructor, while other supported browsers use AudioContext.
     const AudioContextClass = window.AudioContext || window.webkitAudioContext
     if (!AudioContextClass) throw new Error('Web Audio is unavailable')
     if (!audioContext || audioContext.state === 'closed') audioContext = new AudioContextClass()
@@ -90,6 +93,7 @@ async function playSwitchSound() {
   try {
     let buffer = decodedSamples.get(source)
     if (!buffer) {
+      // Decode each recording once so repeated key presses reuse the same audio buffer.
       const response = await fetch(source)
       if (!response.ok) throw new Error(`Sample request failed (${response.status})`)
       const data = await response.arrayBuffer()
@@ -100,6 +104,7 @@ async function playSwitchSound() {
     const audioSource = audioContext.createBufferSource()
     audioSource.buffer = buffer
     if (typeof audioContext.createGain === 'function') {
+      // A gain node allows mute and volume changes to affect sounds already playing.
       const gainNode = audioContext.createGain()
       gainNode.gain.value = muted.value ? 0 : volume.value
       audioSource.connect(gainNode)
@@ -235,6 +240,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  // Stop every active sound and release browser listeners before the component is removed.
   clearPressed()
   activeSources.forEach((source) => source.stop())
   activeSources.clear()
@@ -254,6 +260,7 @@ onBeforeUnmount(() => {
     <div class="virtual-keyboard-tester__instruction">
       Click a key or use your keyboard to test the keys below.
     </div>
+    <!-- Errors are announced immediately, while successful audio state uses a polite status region below. -->
     <p v-if="audioError" class="virtual-keyboard-tester__audio-error" role="alert">
       {{ audioError }}
     </p>
