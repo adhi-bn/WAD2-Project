@@ -319,6 +319,73 @@ describe('SummaryView /build 3D view and red status tags', () => {
     expect(grams({})).toBe(0)
     expect(grams({ case: null, switches: { grams: 50 } })).toBe(50)
   })
+
+  it('renders Concept 1 header with enthusiast title, chips, and in-place editing', async () => {
+    const wrapper = await mountSummary()
+
+    // 1. Default title is enthusiast-grade ("75% Custom Mechanical Keyboard")
+    const heading = wrapper.find('.title-row h1')
+    expect(heading.exists()).toBe(true)
+    expect(heading.text()).toBe('75% Custom Mechanical Keyboard')
+
+    // 2. Subtitle chips render layout, switch feel, and material
+    const chips = wrapper.find('.subtitle-badge')
+    expect(chips.exists()).toBe(true)
+    expect(chips.text()).toContain('75% Layout')
+    expect(chips.text()).toContain('Linear')
+    expect(chips.text()).toContain('ABS Plastic')
+
+    // 3. Floating Save build button exists with no redundant "Name your build" card
+    expect(wrapper.find('.save-build-top').exists()).toBe(false)
+    const saveGroup = wrapper.find('.save-action-group')
+    expect(saveGroup.exists()).toBe(true)
+    expect(saveGroup.find('button.primary').text()).toContain('Save build')
+    expect(saveGroup.find('.fine').text()).toContain('Sign in to save it to your Profile.')
+
+    // 4. In-place title editing activates on click
+    const editBtn = wrapper.find('.icon-btn-edit')
+    expect(editBtn.exists()).toBe(true)
+    await editBtn.trigger('click')
+
+    // Form appears
+    const input = wrapper.find('.title-edit-form input#buildName')
+    expect(input.exists()).toBe(true)
+    expect(input.element.value).toBe('75% Custom Mechanical Keyboard')
+
+    // Change title and press Done
+    await input.setValue('Obsidian Thock 75')
+    const doneBtn = wrapper.find('.title-edit-form button.primary')
+    await doneBtn.trigger('click')
+
+    // Edit form closed, heading updated
+    expect(wrapper.find('.title-edit-form').exists()).toBe(false)
+    expect(wrapper.find('.title-row h1').text()).toBe('Obsidian Thock 75')
+
+    // 5. Bottom 3 diagnostic cards preserved in exact format
+    const perfCards = wrapper.findAll('.perf .pf')
+    expect(perfCards).toHaveLength(3)
+    expect(perfCards[0].find('b').text()).toBe('Loudness')
+    expect(perfCards[1].find('b').text()).toBe('Typing feel')
+    expect(perfCards[2].find('b').text()).toBe('Weight')
+    expect(perfCards[0].findAll('.segs i')).toHaveLength(5)
+  })
+
+  it('cancels inline title editing without committing changes on Cancel or Esc', async () => {
+    const wrapper = await mountSummary()
+
+    // Activate editing via title click
+    await wrapper.find('.title-row h1').trigger('click')
+    const input = wrapper.find('.title-edit-form input#buildName')
+    expect(input.exists()).toBe(true)
+
+    // Type a draft name and cancel
+    await input.setValue('Temporary Discarded Name')
+    await wrapper.find('.title-edit-form button.ghost').trigger('click')
+
+    // Title should still be the original default
+    expect(wrapper.find('.title-edit-form').exists()).toBe(false)
+    expect(wrapper.find('.title-row h1').text()).toBe('75% Custom Mechanical Keyboard')
+  })
 })
 
 describe('src/store.js saved build baseline tracking lifecycle', () => {

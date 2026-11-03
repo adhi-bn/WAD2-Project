@@ -6,7 +6,7 @@
  * baseline diff tracking for saved builds, and cart submission guards.
  */
 
-import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { CATS, META, KEYS } from '../data/catalog.js'
 import { money, money2, total, grams, kg, spec, reason } from '../logic/builder.js'
@@ -58,10 +58,34 @@ const left = computed(() => {
   const d = state.answers.budget - t.value
   return d >= 0 ? `${money(d)} under budget` : `${money(-d)} over budget`
 })
+// Canonical enthusiast title (e.g., "75% Custom Mechanical Keyboard")
 const title = computed(() => {
-  if (!b.value?.case) return `Your ${L.value}% keyboard`
-  if (b.value.case?.unavailable) return `Your ${L.value}% saved keyboard Build`
-  return `Your ${L.value}% ${b.value.case.frame === 'metal' ? 'aluminium' : b.value.case.frame === 'pcb' ? 'open-frame' : 'plastic'} keyboard`
+  if (!b.value?.case) return `${L.value}% Custom Mechanical Keyboard`
+  if (b.value.case?.unavailable) return `${L.value}% Saved Keyboard Build`
+  return `${L.value}% Custom Mechanical Keyboard`
+})
+
+// Subtitle badges for layout, switch feel, and case material
+const switchChipLabel = computed(() => {
+  const sw = b.value?.switches
+  if (!sw) return null
+  if (sw.type === 'silent') {
+    return sw.name?.toLowerCase().includes('tactile') ? 'Silent Tactile' : 'Silent Linear'
+  }
+  if (sw.type) return sw.type.charAt(0).toUpperCase() + sw.type.slice(1)
+  return null
+})
+
+const caseChipLabel = computed(() => {
+  const cs = b.value?.case
+  if (!cs) return null
+  if (cs.id === 'pc') return 'Polycarbonate'
+  if (cs.id === 'alu') return 'Aluminium'
+  if (cs.id === 'alubrass') return 'Aluminium + Brass'
+  if (cs.id === 'abs') return 'ABS Plastic'
+  if (cs.id === 'fr4') return 'FR4'
+  if (cs.id === 'sandwich') return 'Acrylic'
+  return cs.frame === 'metal' ? 'Aluminium' : cs.frame === 'plastic' ? 'Polycarbonate' : 'Custom Frame'
 })
 
 // Plain-language ratings for sound, feel and weight.
@@ -154,8 +178,47 @@ const partStatusTags = computed(() => Object.fromEntries(CATS.map((c) => [c, par
 const hasBlockingIssue = computed(() => CATS.some((c) => ['Unavailable', 'Incompatible'].includes(partStatusTags.value[c])))
 const canAddToCart = computed(() => t.value !== null && !needsSavedBuildReview.value && !hasBlockingIssue.value)
 
-const title2 = computed(() => buildName.value.trim() || title.value)
+const displayTitle = computed(() => buildName.value.trim() || title.value)
+const title2 = displayTitle
+
+const isEditingTitle = ref(false)
+const tempBuildName = ref('')
+const titleInputRef = ref(null)
+
+/**
+ * Activates inline editing for the keyboard title and focuses the input.
+ */
+function startEditTitle() {
+  tempBuildName.value = buildName.value || title.value
+  isEditingTitle.value = true
+  nextTick(() => {
+    if (titleInputRef.value) {
+      titleInputRef.value.focus()
+      titleInputRef.value.scrollLeft = 0
+    }
+  })
+}
+
+/**
+ * Commits the in-place title edit.
+ */
+function finishEditTitle() {
+  buildName.value = tempBuildName.value.trim()
+  isEditingTitle.value = false
+}
+
+/**
+ * Discards in-progress inline title edit.
+ */
+function cancelEditTitle() {
+  tempBuildName.value = ''
+  isEditingTitle.value = false
+}
+
 async function saveNow() {
+  if (isEditingTitle.value) {
+    finishEditTitle()
+  }
   if (!state.user) { toast('Sign in to save your build.'); router.push('/account'); return }
   saving.value = true
   const res = await saveBuild(title2.value)
@@ -165,6 +228,9 @@ async function saveNow() {
 onMounted(() => document.body.classList.add('hasbar'))
 onBeforeUnmount(() => document.body.classList.remove('hasbar'))
 function addNow() {
+  if (isEditingTitle.value) {
+    finishEditTitle()
+  }
   if (!canAddToCart.value) {
     toast('Review the changed Parts before adding this Saved build to your cart.')
     return
@@ -178,18 +244,70 @@ function addNow() {
   <section class="screen" id="summary">
     <div class="wrap">
       <div class="phead">
-        <div class="phead-title">
-          <div class="eyebrow">Build Summary</div>
-          <h1>{{ title }}</h1>
-        </div>
-        <div class="save-build-top">
-          <label for="buildName" class="eyebrow">Name and save this Build</label>
-          <div class="actions">
-            <input id="buildName" v-model="buildName" class="form-control" :placeholder="title" aria-label="Name for this build" />
-            <button type="button" class="ui-btn primary" :disabled="saving" @click="saveNow">{{ saving ? 'Saving…' : state.editingSavedBuildId ? 'Update build' : 'Save build' }}</button>
+        <div class="phead-top">
+          <div class="phead-main">
+            <div class="eyebrow">Build Summary</div>
+
+            <!-- In-place title edit form -->
+            <div v-if="isEditingTitle" class="title-edit-form">
+              <input
+                id="buildName"
+                ref="titleInputRef"
+                v-model="tempBuildName"
+                class="title-input form-control"
+                :placeholder="title"
+                aria-label="Name for this build"
+                @keydown.enter.prevent="finishEditTitle"
+                @keydown.esc.prevent="cancelEditTitle"
+              />
+              <button type="button" class="ui-btn primary sm" @click="finishEditTitle">Done</button>
+              <button type="button" class="ui-btn ghost sm" @click="cancelEditTitle">Cancel</button>
+            </div>
+
+            <!-- Default display title with edit icon button -->
+            <div v-else class="title-row">
+              <h1 class="editable-heading" title="Click to rename keyboard" @click="startEditTitle">{{ displayTitle }}</h1>
+              <button
+                type="button"
+                class="icon-btn-edit"
+                title="Click to rename keyboard"
+                aria-label="Rename keyboard build"
+                @click="startEditTitle"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+                </svg>
+              </button>
+            </div>
+
+            <!-- Subtitle chips -->
+            <div class="subtitle-badge">
+              <span>{{ L }}% Layout</span>
+              <span v-if="switchChipLabel">{{ switchChipLabel }}</span>
+              <span v-if="caseChipLabel">{{ caseChipLabel }}</span>
+            </div>
           </div>
-          <p v-if="!state.user" class="fine">Sign in to save it to your Profile.</p>
+
+          <!-- Floating Save build action -->
+          <div class="save-action-group">
+            <button
+              type="button"
+              class="ui-btn primary"
+              :disabled="saving"
+              @click="saveNow"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right: 6px;">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                <polyline points="7 3 7 8 15 8"></polyline>
+              </svg>
+              {{ saving ? 'Saving…' : state.editingSavedBuildId ? 'Update build' : 'Save build' }}
+            </button>
+            <p v-if="!state.user" class="fine">Sign in to save it to your Profile.</p>
+          </div>
         </div>
+
+        <!-- 3 Diagnostic spec cards (preserved in exact same format) -->
         <div class="perf">
           <div v-for="p in perf" :key="p.k" class="pf">
             <b>{{ p.k }}</b>
@@ -302,76 +420,156 @@ function addNow() {
   padding-bottom: 24px;
 }
 
-/* Header grid: Title and Save build card in a clean 2-column top grid */
+/* Header layout: In-place editable title + floating Save button */
 #summary .phead {
-  display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-  gap: 20px;
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   margin-bottom: 20px;
 }
 
-#summary .phead-title {
+#summary .phead-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+#summary .phead-main {
   min-width: 0;
+  flex: 1 1 auto;
 }
 
-#summary .phead-title h1 {
-  margin: 4px 0 0;
+#summary .title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-/* Save build card */
-#summary .save-build-top {
+#summary .title-row h1 {
+  margin: 0;
+  font-family: var(--font-display, "Unbounded", system-ui, sans-serif);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--lct-text-ink, #12151c);
+  line-height: 1.2;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+#summary .title-row h1:hover {
+  color: var(--lct-accent-indigo, #3346ff);
+}
+
+#summary .icon-btn-edit {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted, #596072);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+#summary .icon-btn-edit:hover {
   background: var(--surface, #ffffff);
-  border: 1px solid var(--line, #e2e4e9);
-  border-radius: 14px;
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
+  border-color: var(--line, #e2e4e9);
+  color: var(--lct-accent-indigo, #3346ff);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
-#summary .save-build-top .eyebrow {
-  margin-bottom: 2px;
-}
-
-#summary .save-build-top .actions {
+/* In-place title edit form */
+#summary .title-edit-form {
   display: flex;
-  flex-direction: row;
   align-items: center;
   gap: 8px;
+  width: 100%;
+  max-width: 100%;
+  flex-wrap: nowrap;
 }
 
-#summary .save-build-top .form-control {
+#summary .title-input {
+  font-family: var(--font-display, "Unbounded", system-ui, sans-serif);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--lct-text-ink, #12151c);
+  background: var(--surface, #ffffff);
+  border: 2px solid var(--accent, #3346ff);
+  border-radius: 10px;
+  padding: 6px 14px;
+  height: 40px;
   flex: 1 1 auto;
-  min-width: 0;
-  padding-top: 8px;
-  padding-bottom: 8px;
+  min-width: 200px;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(51, 70, 255, 0.12);
 }
 
-#summary .save-build-top .ui-btn {
-  flex: 0 0 auto;
-  white-space: nowrap;
-  padding: 8px 16px;
+#summary .title-edit-form .ui-btn.sm {
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+  height: 40px;
+  border-radius: 10px;
+  flex-shrink: 0;
 }
 
-/* WCAG AA text contrast: dark muted ink on light surface (>= 4.5:1) */
-#summary .save-build-top .fine {
-  margin-top: 2px;
+/* Subtitle spec chips */
+#summary .subtitle-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
   font-size: 12px;
-  color: var(--muted, #4b5262);
+  color: var(--muted, #596072);
+  flex-wrap: wrap;
 }
 
-/* Full-width 3-column diagnostic rating row */
-#summary .phead .perf {
-  grid-column: 1 / -1;
+#summary .subtitle-badge span {
+  background: var(--lct-app-grey, #eaecef);
+  padding: 3px 8px;
+  border-radius: 5px;
+  color: #2d333f;
+  font-weight: 500;
+}
+
+/* Floating Save build button group */
+#summary .save-action-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+#summary .save-action-group .ui-btn {
+  padding: 8px 18px;
+  white-space: nowrap;
+}
+
+#summary .save-action-group .fine {
+  font-size: 11.5px;
+  color: var(--muted, #596072);
+  margin: 0;
+}
+
+/* Full-width 3-column diagnostic rating row - Kept in exact same format */
+#summary .perf {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
-  margin-top: 4px;
 }
 
-#summary .phead .pf {
+#summary .pf {
   background: var(--surface, #ffffff);
   border: 1px solid var(--line, #e2e4e9);
   border-radius: 12px;
@@ -383,15 +581,18 @@ function addNow() {
 }
 
 /* Responsive header stacking */
-@media (max-width: 900px) {
-  #summary .phead {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 16px;
+@media (max-width: 768px) {
+  #summary .phead-top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
   }
-}
 
-@media (max-width: 760px) {
-  #summary .phead .perf {
+  #summary .save-action-group {
+    align-items: flex-start;
+  }
+
+  #summary .perf {
     grid-template-columns: minmax(0, 1fr);
     gap: 8px;
   }

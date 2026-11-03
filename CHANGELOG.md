@@ -41,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Repository changelog in [`CHANGELOG.md`](CHANGELOG.md) tracking milestones and unreleased changes following Keep a Changelog 1.1.0.
 
 ### Changed
+- Refactored the `/build` review page ([`src/views/SummaryView.vue`](src/views/SummaryView.vue)) header to replace the redundant "Name your build" card and generic title with an enthusiast-grade in-place editable heading (`${L}% Custom Mechanical Keyboard`), subtitle spec badges (layout, switch feel, case material), and a floating `Save build` button, while preserving the three diagnostic cards (*Loudness*, *Typing feel*, *Weight*) in their exact format.
 - Switched the frontend and shared switch catalogues to MP3 recordings; removed the M4A originals after verifying all catalogue samples decode and play in Chromium.
 - Expanded the switch-audio player with pause/resume, seeking, playback progress, and responsive card controls; linked Gazzew Boba U4 to its dedicated recording (#17).
 - Moved the switch-audio card below the Switches description, compacted its controls, and replaced visible status text and the Mute label with accessible status and an icon (#17).
