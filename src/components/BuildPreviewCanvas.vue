@@ -980,8 +980,8 @@ defineExpose({
 .lct-build-preview-panel--compact.lct-build-preview-panel--embedded .lct-build-preview-canvas-wrap {
   position: relative;
   width: 100%;
-  height: 520px;
-  min-height: 520px;
+  height: 380px;
+  min-height: 380px;
   background: transparent;
   border-radius: 18px;
   overflow: hidden;
@@ -993,8 +993,8 @@ defineExpose({
   .lct-build-preview-panel--embedded .lct-build-preview__stage,
   .lct-build-preview-panel--embedded .lct-build-preview-canvas-wrap,
   .lct-build-preview-panel--compact.lct-build-preview-panel--embedded .lct-build-preview-canvas-wrap {
-    height: 380px;
-    min-height: 380px;
+    height: 280px;
+    min-height: 280px;
   }
 }
 

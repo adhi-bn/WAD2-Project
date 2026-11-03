@@ -80,6 +80,8 @@ export function setLayout(layoutCode) {
   state.answers.layout = validLayout
   state.cat = catalog(validLayout)
   state.savedBuildBaselineIds = null
+  state.editingSavedBuildId = null
+  state.editingSavedBuildName = ''
 
   if (state.build) {
     const nextBuild = {}

@@ -5,6 +5,7 @@ import SummaryView from '../../src/views/SummaryView.vue'
 import Keyboard3DView from '../../src/components/Keyboard3DView.vue'
 import TypeTesterView from '../../src/components/TypeTesterView.vue'
 import { CATS, catalog } from '../../src/data/catalog.js'
+import { grams } from '../../src/logic/builder.js'
 import {
   discardCurrentBuild,
   idsOf,
@@ -226,6 +227,98 @@ describe('SummaryView /build 3D view and red status tags', () => {
     }
     expect(wrapper.findAll('tr.is-flagged-part')).toHaveLength(0)
   })
+
+  it('supports ARIA tab semantics and keyboard arrow navigation between tabs', async () => {
+    const wrapper = await mountSummary()
+
+    const viewToggleButtons = wrapper.findAll('.viewtoggle button')
+    const threeDBtn = viewToggleButtons[0]
+    const typeTesterBtn = viewToggleButtons[1]
+
+    expect(threeDBtn.attributes('id')).toBe('tab-3d')
+    expect(threeDBtn.attributes('aria-controls')).toBe('summary-view-panel')
+    expect(threeDBtn.attributes('tabindex')).toBe('0')
+    expect(threeDBtn.attributes('aria-selected')).toBe('true')
+
+    expect(typeTesterBtn.attributes('id')).toBe('tab-type')
+    expect(typeTesterBtn.attributes('aria-controls')).toBe('summary-view-panel')
+    expect(typeTesterBtn.attributes('tabindex')).toBe('-1')
+    expect(typeTesterBtn.attributes('aria-selected')).toBe('false')
+
+    const viewpanel = wrapper.find('.viewpanel')
+    expect(viewpanel.attributes('id')).toBe('summary-view-panel')
+    expect(viewpanel.attributes('aria-labelledby')).toBe('tab-3d')
+
+    // Arrow navigation from 3D view tab to Type tester tab
+    await threeDBtn.trigger('keydown.right')
+    expect(wrapper.findComponent(TypeTesterView).exists()).toBe(true)
+    expect(threeDBtn.attributes('tabindex')).toBe('-1')
+    expect(threeDBtn.attributes('aria-selected')).toBe('false')
+    expect(typeTesterBtn.attributes('tabindex')).toBe('0')
+    expect(typeTesterBtn.attributes('aria-selected')).toBe('true')
+    expect(viewpanel.attributes('aria-labelledby')).toBe('tab-type')
+
+    // Arrow navigation back via keydown.left
+    await typeTesterBtn.trigger('keydown.left')
+    expect(wrapper.findComponent(Keyboard3DView).exists()).toBe(true)
+    expect(threeDBtn.attributes('tabindex')).toBe('0')
+    expect(threeDBtn.attributes('aria-selected')).toBe('true')
+  })
+
+  it('formats table prices using canonical money/Included and places Copy parts list in panel header', async () => {
+    const wrapper = await mountSummary()
+
+    // Copy parts list is in the parts-panel header, not the sticky bottom bar
+    const partsPanel = wrapper.find('.parts-panel')
+    expect(partsPanel.exists()).toBe(true)
+    const copyBtn = partsPanel.find('.panel-header button')
+    expect(copyBtn.exists()).toBe(true)
+    expect(copyBtn.text()).toContain('Copy parts list')
+    expect(wrapper.find('.bar-actions').text()).not.toContain('Copy parts list')
+
+    // Canonical price formatting (S$XX or Included)
+    const priceCells = wrapper.findAll('.tbl tbody td.r')
+    expect(priceCells.length).toBe(CATS.length)
+    for (const cell of priceCells) {
+      expect(cell.text()).toMatch(/^(S\$\d+|Included|Unavailable)$/)
+      expect(cell.text()).not.toContain('—')
+    }
+
+    // Table footer has colspan="2" for Total
+    const footerLabel = wrapper.find('.tbl tfoot tr td')
+    expect(footerLabel.attributes('colspan')).toBe('2')
+    expect(footerLabel.text()).toBe('Total')
+  })
+
+  it('does not render a budget meter bar and omits pct computed property', async () => {
+    const wrapper = await mountSummary()
+    expect(wrapper.find('.meter').exists()).toBe(false)
+    expect(wrapper.vm.pct).toBeUndefined()
+  })
+
+  it('blocks adding to cart when any part is Unavailable or Incompatible', async () => {
+    // 1. Part with null price / unavailable flag
+    state.build.keycaps = { ...state.build.keycaps, price: null, unavailable: true }
+    const wrapper = await mountSummary()
+
+    const cartBtn = wrapper.find('.bar-actions button.primary')
+    expect(cartBtn.attributes('disabled')).toBeDefined()
+    expect(cartBtn.text()).toContain('Review Parts to add to cart')
+
+    // 2. Part with incompatibility
+    state.build = createFullBuild('75')
+    state.savedBuildReview = { issues: [{ group: 'switches', type: 'incompatible' }] }
+    const wrapperIncompat = await mountSummary()
+    const cartBtnIncompat = wrapperIncompat.find('.bar-actions button.primary')
+    expect(cartBtnIncompat.attributes('disabled')).toBeDefined()
+    expect(cartBtnIncompat.text()).toContain('Review Parts to add to cart')
+  })
+
+  it('calculates grams safely when parts or build are null or undefined', () => {
+    expect(grams(null)).toBe(0)
+    expect(grams({})).toBe(0)
+    expect(grams({ case: null, switches: { grams: 50 } })).toBe(50)
+  })
 })
 
 describe('src/store.js saved build baseline tracking lifecycle', () => {
@@ -252,8 +345,12 @@ describe('src/store.js saved build baseline tracking lifecycle', () => {
 
   it('clears baseline IDs on setLayout, loadBuild, startBuild, and discardCurrentBuild', () => {
     state.savedBuildBaselineIds = { case: 'c1', switches: 's1' }
+    state.editingSavedBuildId = 'build-1'
+    state.editingSavedBuildName = 'Build 1'
     setLayout('60')
     expect(state.savedBuildBaselineIds).toBeNull()
+    expect(state.editingSavedBuildId).toBeNull()
+    expect(state.editingSavedBuildName).toBe('')
 
     state.savedBuildBaselineIds = { case: 'c1', switches: 's1' }
     startBuild()

@@ -1,4 +1,11 @@
 <script setup>
+/**
+ * @fileoverview SummaryView component (/build).
+ * Renders the final build summary sheet with an interactive 3D model / type tester stage,
+ * real-time compatibility checks, parts breakdown with canonical currency formatting,
+ * baseline diff tracking for saved builds, and cart submission guards.
+ */
+
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { CATS, META, KEYS } from '../data/catalog.js'
@@ -28,20 +35,29 @@ function setView(id) {
   try { sessionStorage.setItem(VIEW_KEY, id) } catch { /* storage blocked: the choice lasts for this page only */ }
 }
 
+/**
+ * Handles keyboard arrow navigation between 3D view and Type tester tabs (IMP-7).
+ */
+function switchView() {
+  const nextId = view.value === '3d' ? 'type' : '3d'
+  setView(nextId)
+  if (typeof document !== 'undefined') {
+    document.getElementById(`tab-${nextId}`)?.focus()
+  }
+}
+
 const b = computed(() => state.build || {})
 const L = computed(() => layout())
 const hasUnknownPrice = computed(() => CATS.some((group) => !Number.isFinite(b.value?.[group]?.price)))
 const t = computed(() => hasUnknownPrice.value ? null : total(b.value))
 const disc = computed(() => t.value === null ? 0 : discountOf(t.value))
 const needsSavedBuildReview = computed(() => Boolean(state.savedBuildReview?.issues?.length))
-const canAddToCart = computed(() => t.value !== null && !needsSavedBuildReview.value)
 const g = computed(() => grams(b.value))
 const left = computed(() => {
   if (t.value === null) return 'Budget unavailable until every Part has a current price'
   const d = state.answers.budget - t.value
   return d >= 0 ? `${money(d)} under budget` : `${money(-d)} over budget`
 })
-const pct = computed(() => t.value === null ? '0%' : Math.min(100, (t.value / state.answers.budget) * 100) + '%')
 const title = computed(() => {
   if (!b.value?.case) return `Your ${L.value}% keyboard`
   if (b.value.case?.unavailable) return `Your ${L.value}% saved keyboard Build`
@@ -82,8 +98,15 @@ const checks = computed(() => {
   ]
 })
 
+/**
+ * Copies the itemized parts list and total to the clipboard using canonical money formatting.
+ */
 function copyList() {
-  const txt = CATS.map((c) => `${META[c].label}: ${b.value?.[c]?.name || 'Unavailable'} (${Number.isFinite(b.value?.[c]?.price) ? ('$' + b.value[c].price) : '—'})`).join('\n') + `\nTotal: ${t.value === null ? 'unavailable' : money(t.value)}`
+  const txt = CATS.map((c) => {
+    const p = b.value?.[c]
+    const priceStr = !Number.isFinite(p?.price) ? 'Unavailable' : p.price ? money(p.price) : 'Included'
+    return `${META[c].label}: ${p?.name || 'Unavailable'} (${priceStr})`
+  }).join('\n') + `\nTotal: ${t.value === null ? 'unavailable' : money(t.value)}`
   navigator.clipboard?.writeText(txt).then(() => toast('Parts list copied'), () => toast('Copy is blocked here. Select the table to copy it.'))
 }
 
@@ -116,8 +139,8 @@ function partStatusTag(c) {
     return 'Incompatible'
   }
 
-  // 4. Baseline diff
-  const baselineId = state.savedBuildBaselineIds?.[c] ?? (state.editingSavedBuildId ? state.rec?.[c]?.id : null)
+  // 4. Baseline diff (STD-05: strictly check savedBuildBaselineIds without fallback)
+  const baselineId = state.savedBuildBaselineIds?.[c]
   if (baselineId && b.value?.[c]?.id !== baselineId) {
     return 'Differs from saved'
   }
@@ -126,6 +149,10 @@ function partStatusTag(c) {
 }
 
 const partStatusTags = computed(() => Object.fromEntries(CATS.map((c) => [c, partStatusTag(c)])))
+
+// Block checkout when there are pricing issues, saved build reviews pending, or unaddressed blocking errors (ADV-2)
+const hasBlockingIssue = computed(() => CATS.some((c) => ['Unavailable', 'Incompatible'].includes(partStatusTags.value[c])))
+const canAddToCart = computed(() => t.value !== null && !needsSavedBuildReview.value && !hasBlockingIssue.value)
 
 const title2 = computed(() => buildName.value.trim() || title.value)
 async function saveNow() {
@@ -151,16 +178,9 @@ function addNow() {
   <section class="screen" id="summary">
     <div class="wrap">
       <div class="phead">
-        <div>
-          <div class="eyebrow">Step 3 · Your keyboard</div>
+        <div class="phead-title">
+          <div class="eyebrow">Build Summary</div>
           <h1>{{ title }}</h1>
-        </div>
-        <div class="perf">
-          <div v-for="p in perf" :key="p.k" class="pf">
-            <b>{{ p.k }}</b>
-            <span class="segs"><i v-for="i in 5" :key="i" :class="{ on: i <= p.n }"></i></span>
-            <span>{{ p.d }}</span>
-          </div>
         </div>
         <div class="save-build-top">
           <label for="buildName" class="eyebrow">Name and save this Build</label>
@@ -170,24 +190,59 @@ function addNow() {
           </div>
           <p v-if="!state.user" class="fine">Sign in to save it to your Profile.</p>
         </div>
+        <div class="perf">
+          <div v-for="p in perf" :key="p.k" class="pf">
+            <b>{{ p.k }}</b>
+            <span class="segs"><i v-for="i in 5" :key="i" :class="{ on: i <= p.n }"></i></span>
+            <span>{{ p.d }}</span>
+          </div>
+        </div>
       </div>
-      <div class="sumgrid sumgrid-single">
-        <div class="panel">
+
+      <div class="sumgrid">
+        <!-- Full-width 3D stage and Type tester tab panel (IMP-6) -->
+        <div class="panel view-stage-panel">
           <div v-if="hasUnknownPrice || needsSavedBuildReview" class="saved-build-warning" role="status">
             <strong>This Saved build needs review.</strong>
             <template v-if="hasUnknownPrice">A previously selected Part is no longer available or has no current price. Choose an available Part before using its Budget or checkout preview.</template>
             <template v-else>A selected Part, price, or compatibility rule has changed. Review the Parts before using the cart or checkout preview.</template>
           </div>
           <div class="viewtoggle" role="tablist" aria-label="Keyboard view">
-            <button v-for="v in VIEWS" :key="v.id" type="button" role="tab" class="ui-btn" :class="{ primary: view === v.id }" :aria-selected="view === v.id" @click="setView(v.id)">{{ v.label }}</button>
+            <button
+              v-for="v in VIEWS"
+              :id="'tab-' + v.id"
+              :key="v.id"
+              type="button"
+              role="tab"
+              class="ui-btn"
+              :class="{ primary: view === v.id }"
+              :aria-selected="view === v.id"
+              aria-controls="summary-view-panel"
+              :tabindex="view === v.id ? 0 : -1"
+              @click="setView(v.id)"
+              @keydown.left.prevent="switchView"
+              @keydown.right.prevent="switchView"
+            >
+              {{ v.label }}
+            </button>
           </div>
-          <div class="viewpanel" role="tabpanel">
+          <div
+            id="summary-view-panel"
+            class="viewpanel"
+            role="tabpanel"
+            :aria-labelledby="'tab-' + view"
+          >
             <Keyboard3DView v-if="view === '3d'" :build="b" />
             <TypeTesterView v-else :build="b" />
           </div>
         </div>
 
-        <div class="panel">
+        <!-- 2-Column lower grid: Left column = Parts breakdown table -->
+        <div class="panel parts-panel">
+          <div class="panel-header">
+            <h3>Parts breakdown</h3>
+            <button type="button" class="ui-btn" @click="copyList">Copy parts list</button>
+          </div>
           <div class="scroll">
             <table class="tbl">
               <thead><tr><th>Part</th><th>Pick</th><th class="r">Price</th></tr></thead>
@@ -199,25 +254,28 @@ function addNow() {
                     <span v-if="partStatusTags[c]" class="part-status-tag" :data-testid="'part-status-tag-' + c">{{ partStatusTags[c] }}</span>
                     <span v-if="b[c] && !b[c].unavailable" class="sub">{{ spec(c, b[c]) }}</span>
                   </td>
-                  <td class="r">{{ Number.isFinite(b[c]?.price) ? ('$' + b[c].price) : '—' }}</td>
+                  <td class="r">{{ !Number.isFinite(b[c]?.price) ? 'Unavailable' : b[c].price ? money(b[c].price) : 'Included' }}</td>
                 </tr>
               </tbody>
-              <tfoot><tr><td></td><td>Total</td><td class="r">{{ t === null ? 'Unavailable' : disc > 0 ? `${money2(t - disc)} after voucher` : money(t) }}</td></tr></tfoot>
+              <tfoot><tr><td colspan="2">Total</td><td class="r">{{ t === null ? 'Unavailable' : disc > 0 ? `${money2(t - disc)} after voucher` : money(t) }}</td></tr></tfoot>
             </table>
           </div>
         </div>
 
-          <div class="panel">
-            <h3>Compatibility check</h3>
-            <ul class="checks">
-              <li v-for="c in checks" :key="c">
-                <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="9" fill="currentColor" opacity=".15" /><path d="M6 10.5l2.5 2.5L14 7.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
-                <span>{{ c }}</span>
-              </li>
-            </ul>
-          </div>
+        <!-- 2-Column lower grid: Right column = Compatibility check list -->
+        <div class="panel compatibility-panel">
+          <h3>Compatibility check</h3>
+          <ul class="checks">
+            <li v-for="c in checks" :key="c">
+              <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="9" fill="currentColor" opacity=".15" /><path d="M6 10.5l2.5 2.5L14 7.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+              <span>{{ c }}</span>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
+
+    <!-- Sticky bottom summary bar -->
     <div class="bar">
       <div class="wrap">
         <div class="t">
@@ -230,7 +288,6 @@ function addNow() {
         </div>
         <div class="bar-actions">
           <router-link to="/parts" class="ui-btn">← Change parts</router-link>
-          <button type="button" class="ui-btn" @click="copyList">Copy parts list</button>
           <button type="button" class="ui-btn primary" :disabled="!canAddToCart" @click="addNow">{{ canAddToCart ? 'Add to cart →' : 'Review Parts to add to cart' }}</button>
         </div>
       </div>
@@ -239,184 +296,168 @@ function addNow() {
 </template>
 
 <style scoped>
-/* Line the Save build box up with the Total column below it, using the same split as the review grid. */
+/* Page layout spacing */
+#summary {
+  padding-top: 16px;
+  padding-bottom: 24px;
+}
+
+/* Header grid: Title and Save build card in a clean 2-column top grid */
 #summary .phead {
   display: grid;
   grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-  gap: 24px;
+  gap: 20px;
   align-items: start;
+  margin-bottom: 20px;
 }
-#summary .save-build-top {
+
+#summary .phead-title {
   min-width: 0;
-  width: 100%;
 }
-#summary .phead .perf {
-  margin-top: 14px;
+
+#summary .phead-title h1 {
+  margin: 4px 0 0;
 }
+
+/* Save build card */
 #summary .save-build-top {
-  padding: 10px 12px;
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--line, #e2e4e9);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
 }
+
 #summary .save-build-top .eyebrow {
-  margin-bottom: 6px;
+  margin-bottom: 2px;
 }
+
 #summary .save-build-top .actions {
-  margin-top: 0;
+  display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 8px;
 }
+
 #summary .save-build-top .form-control {
+  flex: 1 1 auto;
+  min-width: 0;
   padding-top: 8px;
   padding-bottom: 8px;
 }
+
 #summary .save-build-top .ui-btn {
-  padding: 8px 16px;
+  flex: 0 0 auto;
   white-space: nowrap;
+  padding: 8px 16px;
 }
+
+/* WCAG AA text contrast: dark muted ink on light surface (>= 4.5:1) */
 #summary .save-build-top .fine {
-  margin-top: 4px;
+  margin-top: 2px;
   font-size: 12px;
+  color: var(--muted, #4b5262);
 }
-@media (max-width: 900px) {
-  #summary .phead {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-#summary .sumgrid-single {
-  grid-template-columns: minmax(0, 1fr);
-}
-#summary .bar-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-}
-@media (min-width: 760px) {
-  #summary .perf {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
-  }
-}
-/* Tighter header: less empty space above, below and around the ratings. */
-#summary {
-  padding-top: 16px;
-  padding-bottom: 16px;
-}
-#summary .phead {
-  margin-bottom: 14px;
-}
+
+/* Full-width 3-column diagnostic rating row */
 #summary .phead .perf {
-  margin-top: 10px;
-  gap: 8px;
-}
-#summary .phead .pf {
-  padding: 10px 12px;
-}
-/* Four boxes in one row under the title: the three ratings and the Save build box. */
-#summary .phead {
-  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.5fr);
-  gap: 14px;
-  align-items: stretch;
-  margin-bottom: 18px;
-}
-#summary .phead > div:first-child {
   grid-column: 1 / -1;
-}
-#summary .phead .perf {
-  grid-column: span 3;
-  margin-top: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
+  margin-top: 4px;
 }
+
 #summary .phead .pf {
-  padding: 12px 14px;
-  height: 100%;
-}
-#summary .save-build-top {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 12px 14px;
-}
-#summary .save-build-top .actions {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 8px;
-}
-@media (max-width: 900px) {
-  #summary .phead {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  #summary .phead .perf {
-    grid-column: 1;
-  }
-}
-@media (max-width: 760px) {
-  #summary .phead .perf {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-/* Shorter row: compact rating boxes, and a Save build box with the name and button side by side. */
-#summary .phead .pf {
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--line, #e2e4e9);
+  border-radius: 12px;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
-  padding: 10px 12px;
-  height: auto;
 }
-#summary .save-build-top {
-  padding: 10px 12px;
-  gap: 6px;
-}
-#summary .save-build-top .actions {
-  flex-direction: row;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 8px;
-}
-#summary .save-build-top .form-control {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-#summary .save-build-top .ui-btn {
-  flex: 0 0 auto;
-  white-space: nowrap;
-  padding: 8px 14px;
-}
-/* Taller view area for the 3D view and type tester. */
-#summary .viewpanel .view-placeholder {
-  min-height: 520px;
-}
-@media (max-width: 760px) {
-  #summary .viewpanel .view-placeholder {
-    min-height: 380px;
+
+/* Responsive header stacking */
+@media (max-width: 900px) {
+  #summary .phead {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
   }
 }
-/* Leave room under the page for the floating bar, so the footer stays visible. Only while this page is open. */
-:global(body.hasbar) {
-  padding-bottom: 180px;
-}
+
 @media (max-width: 760px) {
-  :global(body.hasbar) {
-    padding-bottom: 260px;
+  #summary .phead .perf {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
   }
 }
-/* Full-width tabs for the 3D view and type tester. */
+
+/* Review grid: Full-width stage on top, then 2-column split below for Parts and Compatibility */
+#summary .sumgrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+#summary .sumgrid .view-stage-panel {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 900px) {
+  #summary .sumgrid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+}
+
+/* View toggle tabs and 3D preview viewport */
 #summary .viewtoggle {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
   margin-bottom: 14px;
 }
+
 #summary .viewtoggle .ui-btn {
   width: 100%;
   justify-content: center;
   border-radius: 12px;
   padding: 10px 14px;
 }
+
+#summary .viewpanel .view-placeholder {
+  min-height: 380px;
+}
+
+@media (max-width: 760px) {
+  #summary .viewpanel .view-placeholder {
+    min-height: 280px;
+  }
+}
+
+/* Parts breakdown panel header with compact action */
+#summary .parts-panel .panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+#summary .parts-panel .panel-header h3 {
+  margin: 0;
+}
+
+#summary .parts-panel .panel-header .ui-btn {
+  font-size: 13px;
+  padding: 6px 12px;
+}
+
 /* Red status alert tags and flagged part rows */
 .part-status-tag {
   background: var(--lct-danger-tint, #FCE6DD);
@@ -433,7 +474,27 @@ function addNow() {
   border: 1px solid var(--lct-danger-orange, #D2461A);
   line-height: 1.3;
 }
+
 #summary .tbl tbody tr.is-flagged-part {
-  background-color: rgba(210, 70, 26, 0.04);
+  background-color: color-mix(in srgb, var(--lct-danger-orange, #D2461A) 5%, transparent);
+}
+
+/* Sticky bar actions and body padding */
+#summary .bar-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+:global(body.hasbar) {
+  padding-bottom: 104px;
+}
+
+@media (max-width: 760px) {
+  :global(body.hasbar) {
+    padding-bottom: 148px;
+  }
 }
 </style>
