@@ -516,6 +516,7 @@ defineExpose({
     <div
       v-show="hasLiveScene"
       class="lct-build-preview-canvas-wrap lct-build-preview-viewport lct-build-preview__stage"
+      :data-lenis-prevent="interactive ? '' : undefined"
       @dblclick="handleCanvasDblClick"
       @pointerup="handlePointerUp"
     >

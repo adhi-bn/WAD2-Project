@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Synchronized inertia smooth scrolling powered by GSAP (`ScrollTrigger`) and Lenis in [`src/lib/smoothScroll.js`](src/lib/smoothScroll.js) across the application shell (`src/App.vue`) and router (`src/router/index.js`), with full `prefers-reduced-motion` accessibility compliance and scroll-trap isolation (`data-lenis-prevent`) on interactive 3D model canvases and Biscuit's assistant chat window.
 - Side-by-side static 3D previews on the Compare Builds page (`/compare`, `CompareBuildsView.vue`) powered by `BuildPreviewCanvas.vue` in combined 3-layer static mode (`:interactive="false"`, `:canvas-only="true"`, `:initial-exploded="false"`, `:compact="true"`) on a clean transparent stage at full native pixel ratio with 0% idle GPU loop overhead, alongside accessible missing-part highlighting (`.is-missing-cell`, `.compare-missing-badge`, `.is-missing-part`) with explicit fallback indicators (#33).
 - Compare Builds page (`/compare`) for selecting two saved Builds, comparing the six canonical Component Groups side by side, and reopening either Build for editing; includes resilient future `image_url` support and accessible higher/lower amount indicators (#33).
 - OneMap-powered two-store locator on the About Us page, including Jewel Changi Airport and Marina Bay Sands store cards with photos, browser-location driving-route comparison, distance and estimated travel-time summaries, and an interactive route map.
