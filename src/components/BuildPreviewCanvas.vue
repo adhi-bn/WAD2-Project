@@ -48,7 +48,25 @@ const props = defineProps({
     type: String,
     default: '75',
   },
+  canvasOnly: {
+    type: Boolean,
+    default: false,
+  },
+  initialExploded: {
+    type: Boolean,
+    default: true,
+  },
+  interactive: {
+    type: Boolean,
+    default: true,
+  },
+  fetchFn: {
+    type: Function,
+    default: null,
+  },
 })
+
+const emit = defineEmits(['camera-change', 'camera-reset'])
 
 // Unique element ID for accessible title association (AC-R4)
 const titleId = `build-preview-title-${++instanceCounter}`
@@ -66,7 +84,7 @@ const status = ref('checking') // 'checking' | 'loading' | 'ready' | 'fallback' 
 const errorMsg = ref('')
 const activePreset = ref('isometric')
 const isReducedMotion = ref(false)
-const isExplodedView = ref(true)
+const isExplodedView = ref(Boolean(props.initialExploded))
 const liveAnnouncement = ref('')
 const liveStatusText = liveAnnouncement
 
@@ -204,6 +222,30 @@ function toggleExplodedView() {
 }
 
 /**
+ * Handles canvas double-click to reset view to isometric and notify parent.
+ *
+ * @param {MouseEvent} [event] - Double click event.
+ */
+function handleCanvasDblClick(event) {
+  if (!props.interactive) return
+  event?.stopPropagation?.()
+  resetView()
+  emit('camera-reset')
+}
+
+// Retain handleCanvasReset as alias for backwards compatibility
+const handleCanvasReset = handleCanvasDblClick
+
+/**
+ * Handles pointer-up on the canvas viewport.
+ *
+ * @param {PointerEvent} [event] - Pointer up event.
+ */
+function handlePointerUp(event) {
+  if (!props.interactive) return
+}
+
+/**
  * Handles prefers-reduced-motion media query changes.
  *
  * @param {MediaQueryListEvent|{ matches: boolean }} event - Media query change event.
@@ -217,7 +259,7 @@ function handleMotionChange(event) {
  * Formats a part's price into currency string, rendering SGD 0.00 when price is 0 (REV-19).
  *
  * @param {object} part - Normalized part descriptor.
- * @returns {string} Formatted price or em dash ('—') if unselected or invalid.
+ * @returns {string} Formatted price or dash ('-') if unselected or invalid.
  */
 function formatPartPrice(part) {
   if (
@@ -228,7 +270,7 @@ function formatPartPrice(part) {
   ) {
     return money.format(Number(part.price))
   }
-  return '—'
+  return '-'
 }
 
 onMounted(() => {
@@ -264,8 +306,15 @@ onMounted(() => {
       loadGlb: shouldLoadGlb,
       rendererFactory: props.rendererFactory,
       reducedMotion: isReducedMotion.value,
+      initialExploded: props.initialExploded,
+      compact: Boolean(props.compact || props.canvasOnly),
+      interactive: props.interactive,
+      fetchFn: props.fetchFn,
       onCameraPresetChange: (preset) => {
         activePreset.value = preset
+      },
+      onCameraChange: (camState) => {
+        emit('camera-change', camState)
       },
       onLoad: ({ fallback } = {}) => {
         status.value = fallback ? 'fallback' : 'ready'
@@ -358,6 +407,11 @@ defineExpose({
   selectPreset,
   resetView,
   toggleExplodedView,
+  handleCanvasDblClick,
+  handleCanvasReset,
+  handlePointerUp,
+  getCameraState: () => sceneInstance?.getCameraState?.() ?? null,
+  setCameraState: (state) => sceneInstance?.setCameraState?.(state),
 })
 </script>
 
@@ -365,34 +419,43 @@ defineExpose({
   <section
     ref="rootRef"
     class="lct-build-preview-panel"
-    :class="{ 'lct-build-preview-panel--compact': compact }"
+    :class="{
+      'lct-build-preview-panel--compact': compact,
+      'lct-build-preview-panel--canvas-only': canvasOnly,
+      'lct-build-preview-panel--static': !interactive,
+    }"
     :aria-labelledby="titleId"
   >
+    <!-- Visually-hidden accessible title for canvas-only mode -->
+    <h3 v-if="canvasOnly" :id="titleId" class="lct-build-preview__sr-only">3D Build Preview</h3>
+
+    <!-- Screen-reader accessible status badges (rendered once across both modes) -->
+    <div class="lct-build-preview__sr-only">
+      <span
+        class="lct-build-preview__sr-only lct-build-preview-status-badge"
+        role="status"
+        aria-live="polite"
+        :data-status="status"
+        data-testid="preview-status-badge"
+      >
+        {{ statusAnnouncement }}
+      </span>
+      <span
+        class="lct-build-preview__sr-only lct-build-preview-live-status"
+        role="status"
+        aria-live="polite"
+        data-testid="preview-live-status"
+      >
+        {{ liveStatusText }}
+      </span>
+    </div>
+
     <!-- Header with semantic screen-reader status and compact toolbar (AC-R1) -->
-    <div class="lct-build-preview-header lct-build-preview__header">
-      <!-- Row 1: Title and Status Badge on left, Reset View button on right -->
+    <div v-if="!canvasOnly" class="lct-build-preview-header lct-build-preview__header">
+      <!-- Row 1: Title and Reset View button -->
       <div class="lct-build-preview__title-row">
         <div class="lct-build-preview__title-group">
           <h3 :id="titleId" class="lct-build-preview-title lct-build-preview__title">3D Build Preview</h3>
-
-          <!-- Visually-hidden status badge announcing ready state to screen-readers (AC-14, AC-R4) -->
-          <span
-            class="lct-build-preview__sr-only lct-build-preview-status-badge"
-            role="status"
-            aria-live="polite"
-            :data-status="status"
-            data-testid="preview-status-badge"
-          >
-            {{ statusAnnouncement }}
-          </span>
-          <span
-            class="lct-build-preview__sr-only lct-build-preview-live-status"
-            role="status"
-            aria-live="polite"
-            data-testid="preview-live-status"
-          >
-            {{ liveStatusText }}
-          </span>
         </div>
 
         <button
@@ -453,6 +516,8 @@ defineExpose({
     <div
       v-show="hasLiveScene"
       class="lct-build-preview-canvas-wrap lct-build-preview-viewport lct-build-preview__stage"
+      @dblclick="handleCanvasDblClick"
+      @pointerup="handlePointerUp"
     >
       <canvas
         ref="canvasRef"
@@ -463,8 +528,8 @@ defineExpose({
     </div>
 
     <!-- Schematic non-claim caption -->
-    <p class="lct-build-preview-caption">
-      Schematic 3D Build preview — visual aid for Keycaps, Switches, and Base (Case) only; makes no photorealistic, acoustic, or engineering-accuracy claim.
+    <p v-if="!canvasOnly" class="lct-build-preview-caption">
+      Schematic 3D Build preview - visual aid for Keycaps, Switches, and Base (Case) only; makes no photorealistic, acoustic, or engineering-accuracy claim.
     </p>
 
     <!-- WebGL Fallback Alert -->
@@ -481,20 +546,20 @@ defineExpose({
     </div>
 
     <!-- Plain-HTML Selected Parts Summary (accessible even with no WebGL) -->
-    <!-- In compact mode when WebGL is active, screen-reader text provides accessible summary (AC-R14) -->
+    <!-- In compact or canvasOnly mode when WebGL is active, screen-reader text provides accessible summary (AC-R14) -->
     <div
       class="lct-build-preview-summary"
-      :class="{ 'lct-build-preview__sr-only': compact && hasLiveScene }"
+      :class="{ 'lct-build-preview__sr-only': (compact || canvasOnly) && hasLiveScene }"
       data-testid="build-preview-summary"
     >
-      <div v-if="compact && hasLiveScene" class="lct-build-preview__sr-only">
+      <div v-if="(compact || canvasOnly) && hasLiveScene" class="lct-build-preview__sr-only">
         <span v-for="layer in activeLayers" :key="layer.id">
           {{ layer.label }}: {{ layer.part.name }}.
         </span>
       </div>
 
       <div
-        v-if="!compact || !hasLiveScene"
+        v-if="(!compact && !canvasOnly) || !hasLiveScene"
         data-testid="build-preview-html-summary"
       >
         <h3 class="lct-summary-title">Selected Parts Summary</h3>
@@ -567,6 +632,7 @@ defineExpose({
   border-bottom: 1px dashed var(--line, #d6dae3);
   gap: 10px;
 }
+
 
 .lct-build-preview-header,
 .lct-build-preview__header {
@@ -814,5 +880,43 @@ defineExpose({
   .lct-build-preview-canvas-wrap {
     height: 250px;
   }
+}
+
+.lct-build-preview-panel.lct-build-preview-panel--canvas-only {
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  box-shadow: none;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.lct-build-preview-panel.lct-build-preview-panel--canvas-only .lct-build-preview-canvas-wrap {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  border: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  background: transparent;
+  box-shadow: none;
+}
+
+.lct-build-preview-panel--static .lct-build-preview-canvas {
+  pointer-events: none;
+  touch-action: auto;
+  cursor: default;
+}
+
+.lct-build-preview-panel.lct-build-preview-panel--canvas-only:has(.lct-build-preview-fallback) {
+  height: auto;
+  overflow: visible;
 }
 </style>
