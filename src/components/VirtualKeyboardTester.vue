@@ -1,6 +1,8 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { kbSVG } from '../logic/builder.js'
+import { createSwitchAudioContext, decodeSwitchSample, resumeSwitchAudioContext } from '../lib/switchAudio.js'
+import SwitchAudioControls from './SwitchAudioControls.vue'
 
 const props = defineProps({
   layout: { type: String, required: true },
@@ -11,32 +13,33 @@ const host = ref(null)
 const svgMarkup = computed(() => kbSVG(props.layout))
 // Keep interaction state outside Vue because the generated SVG is inserted as raw HTML.
 const pressedCodes = new Set()
+const keyboardCodes = new Set()
 const pointerCodes = new Map()
+let renderedKeys = []
 const audioError = ref('')
 const volume = ref(0.7)
 const muted = ref(false)
 const audioStatus = ref('')
 const volumePercent = computed(() => `${Math.round(volume.value * 100)}%`)
-const switchName = computed(() => props.switchPart?.name || 'Selected switch')
+const switchName = computed(() => props.switchPart?.name || 'this switch')
 
 let audioContext
 const decodedSamples = new Map()
-const activeSources = new Set()
-const activeGainNodes = new Set()
+let masterGain
+const pendingSamples = new Map()
 
 // Printable characters may change position on different keyboard layouts, so resolve them
 // by the reported key value before falling back to physical browser codes for special keys.
-const CHARACTER_CODES = {
-  a: 'KeyA', b: 'KeyB', c: 'KeyC', d: 'KeyD', e: 'KeyE', f: 'KeyF', g: 'KeyG', h: 'KeyH', i: 'KeyI', j: 'KeyJ', k: 'KeyK', l: 'KeyL', m: 'KeyM', n: 'KeyN', o: 'KeyO', p: 'KeyP', q: 'KeyQ', r: 'KeyR', s: 'KeyS', t: 'KeyT', u: 'KeyU', v: 'KeyV', w: 'KeyW', x: 'KeyX', y: 'KeyY', z: 'KeyZ',
-}
 const SYMBOL_CODES = { '-': 'Minus', '=': 'Equal', '[': 'BracketLeft', ']': 'BracketRight', '\\': 'Backslash', ';': 'Semicolon', "'": 'Quote', ',': 'Comma', '.': 'Period', '/': 'Slash', '`': 'Backquote' }
 const SHIFTED_SYMBOL_CODES = { '!': 'Digit1', '@': 'Digit2', '#': 'Digit3', '$': 'Digit4', '%': 'Digit5', '^': 'Digit6', '&': 'Digit7', '*': 'Digit8', '(': 'Digit9', ')': 'Digit0', '_': 'Minus', '+': 'Equal', '{': 'BracketLeft', '}': 'BracketRight', '|': 'Backslash', ':': 'Semicolon', '"': 'Quote', '<': 'Comma', '>': 'Period', '?': 'Slash', '~': 'Backquote' }
 
 /** Resolves layout-dependent characters by value and unambiguous special keys by position. */
 function physicalKeyId(event) {
   const character = event.key?.toLowerCase()
+  // Numpad key values can look like printable keys (or arrows), so trust their physical code first.
+  if (/^Numpad(?:[0-9]|Add|Subtract|Multiply|Divide|Decimal|Enter)$/.test(event.code || '')) return event.code
   // Letters are layout-sensitive, so prefer event.key over the physical code when available.
-  if (character && CHARACTER_CODES[character]) return CHARACTER_CODES[character]
+  if (character && /^[a-z]$/.test(character)) return `Key${character.toUpperCase()}`
   if (/^[0-9]$/.test(character || '') ) return `Digit${character}`
   if (SYMBOL_CODES[character]) return SYMBOL_CODES[character]
   if (SHIFTED_SYMBOL_CODES[character]) return SHIFTED_SYMBOL_CODES[character]
@@ -50,22 +53,19 @@ function physicalKeyId(event) {
   return specialKeys.has(event.code) ? event.code : ''
 }
 
-function keys() {
-  return host.value ? [...host.value.querySelectorAll('[data-key-id]')] : []
-}
-
 function setPressed(code, pressed) {
   // The SVG can contain empty key slots, so ignore codes that do not have a rendered key.
-  if (!code || !keys().some((key) => key.dataset.keyId === code)) return
+  if (!code || !renderedKeys.some((key) => key.dataset.keyId === code)) return
   if (pressed) pressedCodes.add(code)
   else pressedCodes.delete(code)
-  keys().forEach((key) => {
+  renderedKeys.forEach((key) => {
     if (key.dataset.keyId === code) key.classList.toggle('pressed', pressedCodes.has(code))
   })
 }
 
 function clearPressed() {
   [...pressedCodes].forEach((code) => setPressed(code, false))
+  keyboardCodes.clear()
   pointerCodes.clear()
 }
 
@@ -78,12 +78,8 @@ async function playSwitchSound() {
   }
 
   try {
-    // Safari uses the prefixed constructor, while other supported browsers use AudioContext.
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext
-    if (!AudioContextClass) throw new Error('Web Audio is unavailable')
-    if (!audioContext || audioContext.state === 'closed') audioContext = new AudioContextClass()
-    if (audioContext.state !== 'running') await audioContext.resume()
-    if (audioContext.state !== 'running') throw new Error('Web Audio context did not resume')
+    if (!audioContext || audioContext.state === 'closed') audioContext = createSwitchAudioContext()
+    await resumeSwitchAudioContext(audioContext)
   } catch {
     audioError.value = 'Switch sound playback was blocked. Try pressing a key again.'
     audioStatus.value = `Playback of the ${switchName.value} recording was blocked.`
@@ -91,35 +87,28 @@ async function playSwitchSound() {
   }
 
   try {
-    let buffer = decodedSamples.get(source)
-    if (!buffer) {
-      // Decode each recording once so repeated key presses reuse the same audio buffer.
-      const response = await fetch(source)
-      if (!response.ok) throw new Error(`Sample request failed (${response.status})`)
-      const data = await response.arrayBuffer()
-      buffer = await audioContext.decodeAudioData(data)
-      decodedSamples.set(source, buffer)
+    if (!decodedSamples.has(source)) {
+      // Share in-flight fetch/decode work when keys are pressed before the first load completes.
+      pendingSamples.set(source, pendingSamples.get(source) || (async () => {
+        const decoded = await decodeSwitchSample(audioContext, source)
+        decodedSamples.set(source, decoded)
+        return decoded
+      })())
     }
+    let buffer
+    try { buffer = decodedSamples.get(source) || await pendingSamples.get(source) }
+    finally { pendingSamples.delete(source) }
 
     const audioSource = audioContext.createBufferSource()
     audioSource.buffer = buffer
-    if (typeof audioContext.createGain === 'function') {
-      // A gain node allows mute and volume changes to affect sounds already playing.
-      const gainNode = audioContext.createGain()
-      gainNode.gain.value = muted.value ? 0 : volume.value
-      audioSource.connect(gainNode)
-      gainNode.connect(audioContext.destination)
-      activeGainNodes.add(gainNode)
-      audioSource.onended = () => {
-        activeSources.delete(audioSource)
-        activeGainNodes.delete(gainNode)
-      }
-    } else {
-      audioSource.connect(audioContext.destination)
-      audioSource.onended = () => activeSources.delete(audioSource)
+    if (!masterGain) {
+      masterGain = audioContext.createGain()
+      masterGain.connect(audioContext.destination)
     }
-    activeSources.add(audioSource)
+    masterGain.gain.value = muted.value ? 0 : volume.value
+    audioSource.connect(masterGain)
     audioSource.start(0)
+    audioError.value = ''
     audioStatus.value = muted.value
       ? `Muted ${switchName.value} key press sound.`
       : `Playing ${switchName.value} key press sound.`
@@ -130,15 +119,12 @@ async function playSwitchSound() {
 }
 
 /** Toggles mute for subsequent and currently active key press sounds. */
-function toggleMute(event) {
+function toggleMute() {
   muted.value = !muted.value
-  activeGainNodes.forEach((gainNode) => {
-    gainNode.gain.value = muted.value ? 0 : volume.value
-  })
+  if (masterGain) masterGain.gain.value = muted.value ? 0 : volume.value
   audioStatus.value = muted.value
     ? 'Muted switch sounds.'
     : `Unmuted switch sounds at ${volumePercent.value}.`
-  event?.currentTarget?.blur()
 }
 
 function activate(code) {
@@ -153,6 +139,15 @@ function deactivate(code) {
   setPressed(code, false)
 }
 
+/** Unmutes audio when the user adjusts the volume slider and synchronizes status text.
+ * @returns {void}
+ */
+function changeVolume() {
+  muted.value = false
+  if (masterGain) masterGain.gain.value = volume.value
+  audioStatus.value = `Switch sounds on at ${volumePercent.value}.`
+}
+
 function isTextControl(target) {
   // Typing inside text-editing controls belongs to that control, not to the keyboard tester.
   // A range input is a volume control, so letters and other typing keys should still test the keyboard.
@@ -160,13 +155,16 @@ function isTextControl(target) {
   const rangeInput = target.tagName === 'INPUT' && target.type === 'range'
   return !rangeInput && (
     target.isContentEditable ||
-    ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A'].includes(target.tagName) ||
-    Boolean(target.closest('[role="button"], [contenteditable="true"]'))
+    ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) ||
+    Boolean(target.closest('[contenteditable="true"]'))
   )
 }
 
 function onKeyDown(event) {
   if (isTextControl(event.target)) return
+  const target = event.target instanceof HTMLElement ? event.target : null
+  const interactiveControl = target && (['BUTTON', 'A'].includes(target.tagName) || target.closest('[role="button"]'))
+  if (interactiveControl && [' ', 'Enter'].includes(event.key)) return
   const isRangeInput = event.target instanceof HTMLElement && event.target.tagName === 'INPUT' && event.target.type === 'range'
   if (isRangeInput && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(physicalKeyId(event))) return
   // Modifier shortcuts should stay available to the browser unless their target key is a
@@ -174,15 +172,18 @@ function onKeyDown(event) {
   const modifier = ['ControlLeft', 'ControlRight', 'MetaLeft', 'MetaRight', 'AltLeft', 'AltRight']
   const code = physicalKeyId(event)
   if ((event.ctrlKey || event.metaKey || event.altKey) && !modifier.includes(code)) return
-  if (!code || !keys().some((key) => key.dataset.keyId === code)) return
+  if (!code || !renderedKeys.some((key) => key.dataset.keyId === code)) return
   if (code === 'Space') event.preventDefault()
   if (event.repeat) return
   activate(code)
+  keyboardCodes.add(code)
 }
 
 function onKeyUp(event) {
   if (isTextControl(event.target)) return
-  deactivate(physicalKeyId(event))
+  const code = physicalKeyId(event)
+  keyboardCodes.delete(code)
+  if (![...pointerCodes.values()].includes(code)) deactivate(code)
 }
 
 function onPointerDown(event) {
@@ -200,37 +201,25 @@ function onPointerDown(event) {
 function onPointerUp(event) {
   const code = pointerCodes.get(event.pointerId)
   pointerCodes.delete(event.pointerId)
-  deactivate(code)
+  if (!keyboardCodes.has(code) && ![...pointerCodes.values()].includes(code)) deactivate(code)
 }
 
-function annotateKeys() {
-  nextTick(() => {
-    // SVG rendering is asynchronous relative to computed markup, so wait until Vue has
-    // inserted it before adding the button semantics used by assistive technology.
-    keys().forEach((key) => {
-      key.setAttribute('role', key.dataset.keyId ? 'button' : '')
-      key.setAttribute('aria-label', key.dataset.keyId ? `Test ${key.dataset.keyId}` : '')
-    })
-  })
-}
-
-watch(() => props.layout, annotateKeys)
 watch(() => props.switchPart?.onePressSample, () => {
   audioError.value = ''
   audioStatus.value = props.switchPart?.onePressSample
     ? `${switchName.value} recording linked.`
     : `No recording available for ${switchName.value}.`
 })
+watch(() => props.layout, async () => {
+  clearPressed()
+  await nextTick()
+  renderedKeys = [...(host.value?.querySelectorAll('[data-key-id]') || [])]
+})
 watch(volume, (value) => {
-  activeGainNodes.forEach((gainNode) => {
-    gainNode.gain.value = muted.value ? 0 : value
-  })
+  if (masterGain) masterGain.gain.value = muted.value ? 0 : value
 })
 onMounted(() => {
-  annotateKeys()
-  nextTick(() => {
-    host.value?.focus({ preventScroll: true })
-  })
+  renderedKeys = [...(host.value?.querySelectorAll('[data-key-id]') || [])]
   audioStatus.value = props.switchPart?.onePressSample
     ? `${switchName.value} recording linked.`
     : `No recording available for ${switchName.value}.`
@@ -241,26 +230,30 @@ onMounted(() => {
   host.value?.addEventListener('pointerdown', onPointerDown)
   host.value?.addEventListener('pointerup', onPointerUp)
   host.value?.addEventListener('pointercancel', onPointerUp)
+  host.value?.addEventListener('lostpointercapture', onPointerUp)
 })
 
 onBeforeUnmount(() => {
-  // Stop every active sound and release browser listeners before the component is removed.
+  // Release browser listeners even if a one-shot sound has already ended or context teardown fails.
   clearPressed()
-  activeSources.forEach((source) => source.stop())
-  activeSources.clear()
-  activeGainNodes.clear()
-  if (audioContext && audioContext.state !== 'closed') audioContext.close().catch?.(() => {})
   window.removeEventListener('keydown', onKeyDown)
   window.removeEventListener('keyup', onKeyUp)
   window.removeEventListener('blur', clearPressed)
   host.value?.removeEventListener('pointerdown', onPointerDown)
   host.value?.removeEventListener('pointerup', onPointerUp)
   host.value?.removeEventListener('pointercancel', onPointerUp)
+  host.value?.removeEventListener('lostpointercapture', onPointerUp)
+  renderedKeys = []
+  try { masterGain?.disconnect() } catch { /* the browser may have already closed the audio graph */ }
+  masterGain = null
+  if (audioContext && audioContext.state !== 'closed') {
+    try { Promise.resolve(audioContext.close()).catch(() => {}) } catch { /* prefixed contexts may close synchronously */ }
+  }
 })
 </script>
 
 <template>
-  <div ref="host" class="virtual-keyboard-tester" tabindex="-1">
+  <div ref="host" class="virtual-keyboard-tester" role="group" :aria-label="`Keyboard tester controls for ${switchName}`" tabindex="0">
     <div class="virtual-keyboard-tester__instruction">
       Click a key or use your keyboard to test the keys below.
     </div>
@@ -270,36 +263,13 @@ onBeforeUnmount(() => {
     </p>
     <div class="virtual-keyboard-tester__keyboard" v-html="svgMarkup"></div>
     <div class="virtual-keyboard-tester__audio-controls">
-      <button
-        type="button"
-        class="ui-btn switch-audio__mute"
-        aria-label="Mute switch sample"
-        :aria-pressed="muted"
-        @click="toggleMute"
-      >
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M11 5 6 9H3v6h3l5 4V5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
-          <path v-if="muted" d="m16 9 5 6m0-6-5 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-          <template v-else>
-            <path d="M15 9a5 5 0 0 1 0 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-            <path d="M18 6a9 9 0 0 1 0 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-          </template>
-        </svg>
-      </button>
-      <label class="virtual-keyboard-tester__volume switch-audio__volume" :class="{ 'is-muted': muted }">
-        <span>Volume</span>
-        <input
-          v-model.number="volume"
-          type="range"
-          min="0"
-          max="1"
-          step="0.05"
-          aria-label="Volume for key press sounds"
-          :aria-valuetext="volumePercent"
-          @input="muted = false"
-        >
-        <output>{{ volumePercent }}</output>
-      </label>
+      <SwitchAudioControls
+        v-model:volume="volume"
+        :volume-percent="volumePercent"
+        :muted="muted"
+        @toggle-mute="toggleMute"
+        @volume-change="changeVolume"
+      />
     </div>
     <p class="virtual-keyboard-tester__audio-status" role="status" aria-live="polite">{{ audioStatus }}</p>
   </div>

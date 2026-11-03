@@ -39,6 +39,9 @@ class MockAudioContext {
     createdSource = source
     return source
   }
+  createGain() {
+    return { gain: { value: 1 }, connect: vi.fn(), disconnect: vi.fn() }
+  }
 }
 
 beforeEach(() => {
@@ -59,20 +62,20 @@ afterEach(() => {
 })
 
 describe('VirtualKeyboardTester', () => {
-  it('receives focus when mounted so the first physical key press works immediately', async () => {
+  it('does not steal focus on mount and still captures physical key presses', async () => {
     const wrapper = mount(VirtualKeyboardTester, {
       props: { layout: '60', switchPart: null },
       attachTo: document.body,
     })
     await flushPromises()
 
-    expect(document.activeElement).toBe(wrapper.element)
+    expect(document.activeElement).not.toBe(wrapper.element)
 
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyA', key: 'a' }))
     expect(wrapper.find('[data-key-id="KeyA"].pressed').exists()).toBe(true)
   })
 
-  it('binds an existing MP3 one-key recording to every switch', () => {
+  it('binds an existing MP3 one-press recording to every switch', () => {
     for (const part of BASE.switches) {
       expect(part.onePressSample).toBeTruthy()
       expect(existsSync(resolve(process.cwd(), `public${part.onePressSample}`))).toBe(true)
@@ -83,7 +86,7 @@ describe('VirtualKeyboardTester', () => {
     const wrapper = mount(VirtualKeyboardTester, {
       props: {
         layout: '60',
-        switchPart: { id: 'cream', onePressSample: '/switch-audio-onekey/akko-onepress.mp3' },
+        switchPart: { id: 'cream', onePressSample: '/switch-audio-one-press/akko-one-press.mp3' },
       },
     })
     await flushPromises()
@@ -91,7 +94,7 @@ describe('VirtualKeyboardTester', () => {
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyA', key: 'a' }))
     expect(wrapper.find('[data-key-id="KeyA"].pressed').exists()).toBe(true)
     await flushPromises()
-    expect(fetchedSource).toBe('/switch-audio-onekey/akko-onepress.mp3')
+    expect(fetchedSource).toBe('/switch-audio-one-press/akko-one-press.mp3')
     expect(createdSource.start).toHaveBeenCalledWith(0)
 
     window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyA' }))
@@ -102,6 +105,56 @@ describe('VirtualKeyboardTester', () => {
     expect(wrapper.find('[data-key-id="Escape"].pressed').exists()).toBe(true)
     await escape.trigger('pointerup', { pointerId: 1 })
     expect(wrapper.find('[data-key-id="Escape"].pressed').exists()).toBe(false)
+  })
+
+  it('maps 75% Backquote, navigation, and arrow presses to their matching keycaps', async () => {
+    const wrapper = mount(VirtualKeyboardTester, { props: { layout: '75', switchPart: null } })
+    const keyIds = [...wrapper.element.querySelectorAll('[data-key-id]')].map((key) => key.dataset.keyId)
+    expect(keyIds).toHaveLength(84)
+    expect(new Set(keyIds).size).toBe(84)
+
+    for (const [code, key] of [
+      ['Backquote', '`'],
+      ['PageUp', 'PageUp'],
+      ['PageDown', 'PageDown'],
+      ['Home', 'Home'],
+      ['ArrowUp', 'ArrowUp'],
+      ['End', 'End'],
+      ['ArrowLeft', 'ArrowLeft'],
+      ['ArrowDown', 'ArrowDown'],
+      ['ArrowRight', 'ArrowRight'],
+    ]) {
+      window.dispatchEvent(new KeyboardEvent('keydown', { code, key }))
+      expect(wrapper.find(`[data-key-id="${code}"].pressed`).exists()).toBe(true)
+      window.dispatchEvent(new KeyboardEvent('keyup', { code, key }))
+      expect(wrapper.find(`[data-key-id="${code}"].pressed`).exists()).toBe(false)
+    }
+  })
+
+  it('maps the spaced 100% function groups, system keys, arrows, and numpad presses', async () => {
+    const wrapper = mount(VirtualKeyboardTester, { props: { layout: '100', switchPart: null } })
+    const keyIds = [...wrapper.element.querySelectorAll('[data-key-id]')].map((key) => key.dataset.keyId)
+    expect(keyIds).toHaveLength(104)
+    expect(new Set(keyIds).size).toBe(104)
+
+    for (const [code, key] of [
+      ['F1', 'F1'],
+      ['F5', 'F5'],
+      ['F9', 'F9'],
+      ['PrintScreen', 'PrintScreen'],
+      ['ScrollLock', 'ScrollLock'],
+      ['Pause', 'Pause'],
+      ['ArrowUp', 'ArrowUp'],
+      ['NumLock', 'NumLock'],
+      ['Numpad7', '7'],
+      ['NumpadAdd', '+'],
+      ['NumpadEnter', 'Enter'],
+    ]) {
+      window.dispatchEvent(new KeyboardEvent('keydown', { code, key }))
+      expect(wrapper.find(`[data-key-id="${code}"].pressed`).exists()).toBe(true)
+      window.dispatchEvent(new KeyboardEvent('keyup', { code, key }))
+      expect(wrapper.find(`[data-key-id="${code}"].pressed`).exists()).toBe(false)
+    }
   })
 
   it('cancels Space keydown to prevent page scrolling', async () => {
@@ -115,21 +168,23 @@ describe('VirtualKeyboardTester', () => {
     expect(space.defaultPrevented).toBe(true)
   })
 
-  it('returns focus to the keyboard tester after clicking mute', async () => {
+  it('keeps mute focused after activation while physical typing still works', async () => {
     const wrapper = mount(VirtualKeyboardTester, {
       props: { layout: '60', switchPart: null },
+      attachTo: document.body,
     })
     const muteButton = wrapper.get('.switch-audio__mute')
     muteButton.element.focus()
 
     await muteButton.trigger('click')
 
-    expect(document.activeElement).not.toBe(muteButton.element)
+    expect(document.activeElement).toBe(muteButton.element)
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyA', key: 'a' }))
     expect(wrapper.find('[data-key-id="KeyA"].pressed').exists()).toBe(true)
+    wrapper.unmount()
   })
 
-  it('does not play an unrelated sample when the switch has no one-key recording', async () => {
+  it('does not play an unrelated sample when the switch has no one-press recording', async () => {
     const wrapper = mount(VirtualKeyboardTester, {
       props: { layout: '60', switchPart: { id: 'gyellow' } },
     })
@@ -146,7 +201,7 @@ describe('VirtualKeyboardTester', () => {
     const wrapper = mount(VirtualKeyboardTester, {
       props: {
         layout: '60',
-        switchPart: { id: 'cream', name: 'Akko V3 Cream Yellow Pro', onePressSample: '/switch-audio-onekey/akko-onepress.mp3' },
+        switchPart: { id: 'cream', name: 'Akko V3 Cream Yellow Pro', onePressSample: '/switch-audio-one-press/akko-one-press.mp3' },
       },
     })
     await flushPromises()
@@ -159,7 +214,7 @@ describe('VirtualKeyboardTester', () => {
 
   it('shows an error when audio playback rejects', async () => {
     const wrapper = mount(VirtualKeyboardTester, {
-      props: { layout: '60', switchPart: { id: 'cream', onePressSample: '/switch-audio-onekey/akko-onepress.mp3' } },
+      props: { layout: '60', switchPart: { id: 'cream', onePressSample: '/switch-audio-one-press/akko-one-press.mp3' } },
     })
     await flushPromises()
     rejectNextPlayback = true
@@ -185,7 +240,7 @@ describe('VirtualKeyboardTester', () => {
   })
 
   it('ignores keyboard activation while a text control has focus', async () => {
-    const wrapper = mount(VirtualKeyboardTester, { props: { layout: '60', switchPart: { id: 'cream', onePressSample: '/switch-audio-onekey/akko-onepress.mp3' } } })
+    const wrapper = mount(VirtualKeyboardTester, { props: { layout: '60', switchPart: { id: 'cream', onePressSample: '/switch-audio-one-press/akko-one-press.mp3' } } })
     await flushPromises()
     const input = document.createElement('input')
     document.body.appendChild(input)

@@ -22,11 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Exported [`setLayout(layoutCode)`](src/store.js) in [`src/store.js`](src/store.js) dynamically updating layout answer state, recalculating catalog prices, weights, and key counts (61, 84, 104 keys), while preserving customer part selections (#22).
 - Reactive `layout` prop on [`src/components/BuildPreviewCanvas.vue`](src/components/BuildPreviewCanvas.vue) wired to `sceneController.setLayout`, updating 3D form-factor scale and announcing layout changes via `liveStatusText` (#22).
 - Integration and E2E tests covering layout switching across 60%, 75%, and 100% and validating keycap legend visibility across artwork keycap sets (#22).
-- Interactive two-dimensional keyboard testing on the summary page, with physical and pointer key highlights, layout-aware typing, shifted-symbol support, and matching one-key sounds for every switch.
-- Moved the interactive two-dimensional keyboard tester and its audio controls into the Type tester summary tab, with a larger responsive layout for the available panel space.
-- Slightly enlarged the virtual keyboard volume button in the Type tester.
-- Fixed the Type tester to receive keyboard focus immediately when opened, so the first physical key press is captured without clicking elsewhere.
-- Fixed the virtual keyboard mute button retaining focus so physical typing resumes immediately after toggling sound.
+- Interactive two-dimensional keyboard testing on the summary page, with physical and pointer key highlights, layout-aware typing, shifted-symbol support, and matching one-press sounds for every switch.
 - Google OAuth entry point and a guest-first Profile surface with saved Builds, explicit local guest-draft preservation on sign-out, and clear address/payment availability states.
 - Vercel SPA history fallback so direct links such as `/builder` resolve to the app shell.
 - Selected-switch Web Audio playback with linked self-recorded samples, mute/volume controls, accessible status and failure reporting (#17).
@@ -44,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Repository changelog in [`CHANGELOG.md`](CHANGELOG.md) tracking milestones and unreleased changes following Keep a Changelog 1.1.0.
 
 ### Changed
+- Moved the interactive two-dimensional keyboard tester and its audio controls into the Type tester summary tab, with a responsive layout for the available panel space.
+- Shared mute and volume controls and Web Audio helpers between the selected-switch player and the Type tester, and standardized recording assets as one-press samples.
 - Reworked virtual keyboard switch playback to use Web Audio API decoding and one-shot audio buffers without changing the keyboard interface.
 - Switched the frontend and shared switch catalogues to MP3 recordings; removed the M4A originals after verifying all catalogue samples decode and play in Chromium.
 - Expanded the switch-audio player with pause/resume, seeking, playback progress, and responsive card controls; linked Gazzew Boba U4 to its dedicated recording (#17).
@@ -56,6 +54,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Standardized code documentation requirements across collaboration guides, mandating JSDoc docstrings for public exports/functions and inline comments for non-obvious logic when agents or contributors write code.
 
 ### Fixed
+- Matched the 100% virtual keyboard to its spaced function-key groups, right-side navigation and arrow clusters, and 104-key geometry; fixed physical numpad presses to highlight numpad keycaps.
+- Matched the 75% virtual keyboard to its 84-key layout, including Backquote, the right-side navigation keys, and the four-key arrow cluster, with physical presses highlighting the corresponding rectangles.
+- Matched virtual keyboard key IDs to the drawn geometry for 60%, 75%, and 100% layouts, removed empty slots and duplicate Escape activation, and rejected hostile persisted layout values before rendering.
+- Kept keyboard tester focus accessible without moving focus on page load, hid decorative SVG keys from assistive technology, preserved mute-button focus, and limited touch-action suppression to the keyboard.
 - Prevented the About Us OneMap store locator from updating a removed map after visitors navigate away during a driving-route lookup; improved the map's interactive accessibility semantics and added direct OneMap store links.
 - Restored switch-audio player styling in the active frontend stylesheet so controls render correctly in the builder.
 - Made switch-audio load/decode errors visible, guarded late decode results when the selected Part changes, delayed seek restarts until slider adjustment completes, and made the player safe for missing Part data.

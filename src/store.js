@@ -175,10 +175,16 @@ export function clearCart() {
   saveCart()
 }
 // Open a cart item or saved build in the builder so it can be edited.
+/** Loads a cart Build, falling back to the default layout for untrusted persisted values.
+ * @param {{layout: string, part_ids: object}} item - Persisted Build data.
+ * @param {{fromBiscuit?: boolean}} [options] - Optional source marker.
+ * @returns {void}
+ */
 export function loadBuild(item, { fromBiscuit = false } = {}) {
-  state.answers.layout = item.layout
-  state.cat = catalog(item.layout)
-  state.build = buildFromIds(item.layout, item.part_ids)
+  const safeLayout = ['60', '75', '100'].includes(String(item?.layout)) ? String(item.layout) : '75'
+  state.answers.layout = safeLayout
+  state.cat = catalog(safeLayout)
+  state.build = buildFromIds(safeLayout, item.part_ids)
   // The parts page compares each part with the recommended build, so a loaded build needs one too.
   state.rec = { ...state.build }
   state.biscuit = fromBiscuit
@@ -314,9 +320,11 @@ export async function deleteSaved(id) {
  * @returns {{issues: Array<object>, total: number|null, purchaseReady: boolean}} Current catalogue review details.
  */
 export function openSavedBuild(savedBuild) {
-  const review = revalidateSavedBuild(savedBuild, catalog(savedBuild.layout))
-  state.answers = { ...state.answers, ...review.answers, layout: savedBuild.layout }
-  state.cat = catalog(savedBuild.layout)
+  const safeLayout = ['60', '75', '100'].includes(String(savedBuild?.layout)) ? String(savedBuild.layout) : '75'
+  const safeBuild = { ...savedBuild, layout: safeLayout }
+  const review = revalidateSavedBuild(safeBuild, catalog(safeLayout))
+  state.answers = { ...state.answers, ...review.answers, layout: safeLayout }
+  state.cat = catalog(safeLayout)
   state.build = review.build
   state.rec = { ...review.build }
   state.biscuit = false

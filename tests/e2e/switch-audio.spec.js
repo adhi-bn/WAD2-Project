@@ -28,7 +28,7 @@ test('decodes and plays every catalogued MP3 recording in Chromium', async ({ pa
   }
 })
 
-test('decodes every one-key MP3 recording used by the virtual keyboard', async ({ page }) => {
+test('decodes every one-press MP3 recording used by the virtual keyboard', async ({ page }) => {
   test.setTimeout(120_000)
   await page.goto('/')
 

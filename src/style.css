@@ -565,7 +565,7 @@ section.screen {
   max-width: 920px;
   margin: 0 auto 16px;
   user-select: none;
-  touch-action: none;
+  touch-action: auto;
 }
 
 .virtual-keyboard-tester:focus {
@@ -586,11 +586,7 @@ section.screen {
 .virtual-keyboard-tester__keyboard svg {
   width: 100%;
   height: auto;
-}
-
-.virtual-keyboard-tester__volume {
-  width: min(440px, 90%);
-  margin: 12px auto 0;
+  touch-action: none;
 }
 
 .virtual-keyboard-tester__audio-controls {
@@ -602,20 +598,16 @@ section.screen {
   margin-top: 18px;
 }
 
-.virtual-keyboard-tester__audio-controls .switch-audio__mute {
-  width: 48px;
-  height: 48px;
-}
-
-.virtual-keyboard-tester__audio-controls .switch-audio__mute svg {
-  width: 22px;
-  height: 22px;
-}
-
 .virtual-keyboard-tester__audio-status {
   margin: 12px 0 0;
   color: var(--lct-muted-ink);
   font-size: 0.95rem;
+  text-align: center;
+}
+
+.virtual-keyboard-tester__audio-error {
+  margin: 8px 0 0;
+  color: var(--lct-danger-orange);
   text-align: center;
 }
 
