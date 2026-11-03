@@ -320,7 +320,7 @@ describe('SummaryView /build 3D view and red status tags', () => {
     expect(grams({ case: null, switches: { grams: 50 } })).toBe(50)
   })
 
-  it('renders Concept 1 header with enthusiast title, chips, and in-place editing', async () => {
+  it('renders summary header with enthusiast title, spec chips, and in-place editing', async () => {
     const wrapper = await mountSummary()
 
     // 1. Default title is enthusiast-grade ("75% Custom Mechanical Keyboard")
@@ -373,16 +373,20 @@ describe('SummaryView /build 3D view and red status tags', () => {
   it('cancels inline title editing without committing changes on Cancel or Esc', async () => {
     const wrapper = await mountSummary()
 
-    // Activate editing via title click
+    // 1. Activate editing via title click and cancel with Cancel button
     await wrapper.find('.title-row h1').trigger('click')
     const input = wrapper.find('.title-edit-form input#buildName')
     expect(input.exists()).toBe(true)
-
-    // Type a draft name and cancel
     await input.setValue('Temporary Discarded Name')
     await wrapper.find('.title-edit-form button.ghost').trigger('click')
+    expect(wrapper.find('.title-edit-form').exists()).toBe(false)
+    expect(wrapper.find('.title-row h1').text()).toBe('75% Custom Mechanical Keyboard')
 
-    // Title should still be the original default
+    // 2. Activate editing again and cancel via Escape key
+    await wrapper.find('.icon-btn-edit').trigger('click')
+    const escInput = wrapper.find('.title-edit-form input#buildName')
+    await escInput.setValue('Another Discarded Draft')
+    await escInput.trigger('keydown.esc')
     expect(wrapper.find('.title-edit-form').exists()).toBe(false)
     expect(wrapper.find('.title-row h1').text()).toBe('75% Custom Mechanical Keyboard')
   })

@@ -59,33 +59,39 @@ const left = computed(() => {
   return d >= 0 ? `${money(d)} under budget` : `${money(-d)} over budget`
 })
 // Canonical enthusiast title (e.g., "75% Custom Mechanical Keyboard")
-const title = computed(() => {
-  if (!b.value?.case) return `${L.value}% Custom Mechanical Keyboard`
-  if (b.value.case?.unavailable) return `${L.value}% Saved Keyboard Build`
-  return `${L.value}% Custom Mechanical Keyboard`
-})
+const title = computed(() => (
+  b.value?.case?.unavailable
+    ? `${L.value}% Saved Keyboard Build`
+    : `${L.value}% Custom Mechanical Keyboard`
+))
 
 // Subtitle badges for layout, switch feel, and case material
 const switchChipLabel = computed(() => {
   const sw = b.value?.switches
-  if (!sw) return null
+  if (!sw || sw.unavailable) return null
   if (sw.type === 'silent') {
-    return sw.name?.toLowerCase().includes('tactile') ? 'Silent Tactile' : 'Silent Linear'
+    return (sw.id === 'shrimp' || sw.name?.toLowerCase().includes('tactile'))
+      ? 'Silent Tactile'
+      : 'Silent Linear'
   }
   if (sw.type) return sw.type.charAt(0).toUpperCase() + sw.type.slice(1)
   return null
 })
 
+const CASE_CHIP_LABELS = {
+  pc: 'Polycarbonate',
+  alu: 'Aluminium',
+  alubrass: 'Aluminium + Brass',
+  abs: 'ABS Plastic',
+  fr4: 'FR4',
+  sandwich: 'Acrylic',
+}
+
 const caseChipLabel = computed(() => {
   const cs = b.value?.case
-  if (!cs) return null
-  if (cs.id === 'pc') return 'Polycarbonate'
-  if (cs.id === 'alu') return 'Aluminium'
-  if (cs.id === 'alubrass') return 'Aluminium + Brass'
-  if (cs.id === 'abs') return 'ABS Plastic'
-  if (cs.id === 'fr4') return 'FR4'
-  if (cs.id === 'sandwich') return 'Acrylic'
-  return cs.frame === 'metal' ? 'Aluminium' : cs.frame === 'plastic' ? 'Polycarbonate' : 'Custom Frame'
+  if (!cs || cs.unavailable) return null
+  return CASE_CHIP_LABELS[cs.id]
+    || (cs.frame === 'metal' ? 'Aluminium' : cs.frame === 'plastic' ? 'Polycarbonate' : 'Custom Frame')
 })
 
 // Plain-language ratings for sound, feel and weight.
@@ -179,11 +185,11 @@ const hasBlockingIssue = computed(() => CATS.some((c) => ['Unavailable', 'Incomp
 const canAddToCart = computed(() => t.value !== null && !needsSavedBuildReview.value && !hasBlockingIssue.value)
 
 const displayTitle = computed(() => buildName.value.trim() || title.value)
-const title2 = displayTitle
 
 const isEditingTitle = ref(false)
 const tempBuildName = ref('')
 const titleInputRef = ref(null)
+const editBtnRef = ref(null)
 
 /**
  * Activates inline editing for the keyboard title and focuses the input.
@@ -191,39 +197,45 @@ const titleInputRef = ref(null)
 function startEditTitle() {
   tempBuildName.value = buildName.value || title.value
   isEditingTitle.value = true
-  nextTick(() => {
-    if (titleInputRef.value) {
-      titleInputRef.value.focus()
-      titleInputRef.value.scrollLeft = 0
-    }
-  })
+  nextTick(() => titleInputRef.value?.focus())
 }
 
 /**
- * Commits the in-place title edit.
+ * Commits the in-place title edit and restores focus to the edit trigger.
  */
 function finishEditTitle() {
   buildName.value = tempBuildName.value.trim()
   isEditingTitle.value = false
+  nextTick(() => editBtnRef.value?.focus())
 }
 
 /**
- * Discards in-progress inline title edit.
+ * Discards in-progress inline title edit and restores focus to the edit trigger.
  */
 function cancelEditTitle() {
   tempBuildName.value = ''
   isEditingTitle.value = false
+  nextTick(() => editBtnRef.value?.focus())
 }
 
 async function saveNow() {
+  if (saving.value) return
   if (isEditingTitle.value) {
     finishEditTitle()
   }
-  if (!state.user) { toast('Sign in to save your build.'); router.push('/account'); return }
+  if (!state.user) {
+    state.editingSavedBuildName = displayTitle.value
+    toast('Sign in to save your build.')
+    router.push('/account')
+    return
+  }
   saving.value = true
-  const res = await saveBuild(title2.value)
-  saving.value = false
-  toast(res.error || 'Build saved to your account.')
+  try {
+    const res = await saveBuild(displayTitle.value)
+    toast(res?.error || 'Build saved to your account.')
+  } finally {
+    saving.value = false
+  }
 }
 onMounted(() => document.body.classList.add('hasbar'))
 onBeforeUnmount(() => document.body.classList.remove('hasbar'))
@@ -235,7 +247,7 @@ function addNow() {
     toast('Review the changed Parts before adding this Saved build to your cart.')
     return
   }
-  addToCart(title2.value)
+  addToCart(displayTitle.value)
   router.push('/cart')
 }
 </script>
@@ -254,7 +266,8 @@ function addNow() {
                 id="buildName"
                 ref="titleInputRef"
                 v-model="tempBuildName"
-                class="title-input form-control"
+                class="title-input"
+                maxlength="60"
                 :placeholder="title"
                 aria-label="Name for this build"
                 @keydown.enter.prevent="finishEditTitle"
@@ -266,8 +279,9 @@ function addNow() {
 
             <!-- Default display title with edit icon button -->
             <div v-else class="title-row">
-              <h1 class="editable-heading" title="Click to rename keyboard" @click="startEditTitle">{{ displayTitle }}</h1>
+              <h1 title="Click to rename keyboard" @click="startEditTitle">{{ displayTitle }}</h1>
               <button
+                ref="editBtnRef"
                 type="button"
                 class="icon-btn-edit"
                 title="Click to rename keyboard"
@@ -470,7 +484,7 @@ function addNow() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--muted, #596072);
+  color: var(--lct-muted-ink, #596072);
   cursor: pointer;
   transition: all 0.15s ease;
   padding: 0;
@@ -478,10 +492,15 @@ function addNow() {
 }
 
 #summary .icon-btn-edit:hover {
-  background: var(--surface, #ffffff);
-  border-color: var(--line, #e2e4e9);
+  background: var(--lct-card-surface, #ffffff);
+  border-color: var(--lct-line-grey, #d6dae3);
   color: var(--lct-accent-indigo, #3346ff);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+#summary .icon-btn-edit:focus-visible {
+  outline: 2px solid var(--lct-accent-indigo, #3346ff);
+  outline-offset: 2px;
 }
 
 /* In-place title edit form */
@@ -500,8 +519,8 @@ function addNow() {
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--lct-text-ink, #12151c);
-  background: var(--surface, #ffffff);
-  border: 2px solid var(--accent, #3346ff);
+  background: var(--lct-card-surface, #ffffff);
+  border: 2px solid var(--lct-accent-indigo, #3346ff);
   border-radius: 10px;
   padding: 6px 14px;
   height: 40px;
@@ -516,11 +535,11 @@ function addNow() {
   font-size: 13px;
   font-weight: 600;
   height: 40px;
-  border-radius: 10px;
+  border-radius: var(--lct-radius-pill, 999px);
   flex-shrink: 0;
 }
 
-/* Subtitle spec chips */
+/* Subtitle spec chips (WCAG AA compliant in both light and dark modes) */
 #summary .subtitle-badge {
   display: inline-flex;
   align-items: center;
@@ -528,15 +547,16 @@ function addNow() {
   margin-top: 8px;
   font-family: var(--font-mono, "JetBrains Mono", monospace);
   font-size: 12px;
-  color: var(--muted, #596072);
+  color: var(--lct-muted-ink, #596072);
   flex-wrap: wrap;
 }
 
 #summary .subtitle-badge span {
-  background: var(--lct-app-grey, #eaecef);
+  background: var(--lct-card-surface, #ffffff);
+  border: 1px solid var(--lct-line-grey, #d6dae3);
   padding: 3px 8px;
-  border-radius: 5px;
-  color: #2d333f;
+  border-radius: var(--lct-radius-tag, 6px);
+  color: var(--lct-text-ink, #12151c);
   font-weight: 500;
 }
 
