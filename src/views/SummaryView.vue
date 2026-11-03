@@ -424,6 +424,7 @@ function addNow() {
 #summary .phead {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 16px;
   margin-bottom: 20px;
 }
@@ -433,6 +434,7 @@ function addNow() {
   align-items: flex-start;
   justify-content: space-between;
   gap: 20px;
+  width: 100%;
 }
 
 #summary .phead-main {
@@ -445,16 +447,12 @@ function addNow() {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+  margin-top: 4px;
 }
 
 #summary .title-row h1 {
   margin: 0;
-  font-family: var(--font-display, "Unbounded", system-ui, sans-serif);
-  font-size: 26px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--lct-text-ink, #12151c);
-  line-height: 1.2;
+  font-size: clamp(24px, 3.4vw, 34px);
   cursor: pointer;
   transition: color 0.15s ease;
 }
