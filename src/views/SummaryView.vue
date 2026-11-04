@@ -13,7 +13,6 @@ import { money, money2, total, grams, kg, spec, reason } from '../logic/builder.
 import { state, layout, discountOf, toast, addToCart, saveBuild } from '../store.js'
 import Keyboard3DView from '../components/Keyboard3DView.vue'
 import TypeTesterView from '../components/TypeTesterView.vue'
-import ProfileChips from '../components/ProfileChips.vue'
 
 const router = useRouter()
 const buildName = ref(state.editingSavedBuildName || '')
@@ -257,9 +256,10 @@ function addNow() {
   <section class="screen" id="summary">
     <div class="wrap">
       <div class="phead">
+        <div class="eyebrow">Build Summary</div>
+
         <div class="phead-title-row">
           <div class="phead-heading-wrap">
-            <div class="eyebrow">Step 3 · Your keyboard</div>
             <!-- In-place title edit form -->
             <div v-if="isEditingTitle" class="title-edit-form">
               <input
@@ -276,6 +276,7 @@ function addNow() {
               <button type="button" class="ui-btn primary sm" @click="finishEditTitle">Done</button>
               <button type="button" class="ui-btn ghost sm" @click="cancelEditTitle">Cancel</button>
             </div>
+
             <!-- Default display title with edit icon button -->
             <div v-else class="title-row">
               <h1 title="Click to rename keyboard" @click="startEditTitle">{{ displayTitle }}</h1>
@@ -293,9 +294,15 @@ function addNow() {
               </button>
             </div>
           </div>
+
           <!-- Save build button aligned vertically with the title line -->
           <div class="save-action-group">
-            <button type="button" class="ui-btn primary" :disabled="saving" @click="saveNow">
+            <button
+              type="button"
+              class="ui-btn primary"
+              :disabled="saving"
+              @click="saveNow"
+            >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right: 6px;">
                 <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
                 <polyline points="17 21 17 13 7 13 7 21"></polyline>
@@ -305,7 +312,6 @@ function addNow() {
             </button>
           </div>
         </div>
-        <ProfileChips />
 
         <!-- Subtitle chips row and sign-in status -->
         <div class="phead-sub-row">
@@ -415,8 +421,8 @@ function addNow() {
           <div class="amt">{{ t === null ? 'Unavailable' : disc > 0 ? money2(t - disc) : money(t) }}</div>
         </div>
         <div class="bar-actions">
-          <router-link to="/parts" class="ui-btn">&larr; Change parts</router-link>
-          <button type="button" class="ui-btn primary" :disabled="!canAddToCart" @click="addNow">{{ canAddToCart ? 'Add to cart \u2192' : 'Review Parts to add to cart' }}</button>
+          <router-link to="/parts" class="ui-btn">← Change parts</router-link>
+          <button type="button" class="ui-btn primary" :disabled="!canAddToCart" @click="addNow">{{ canAddToCart ? 'Add to cart →' : 'Review Parts to add to cart' }}</button>
         </div>
       </div>
     </div>
