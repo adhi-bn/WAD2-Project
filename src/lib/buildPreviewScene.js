@@ -1593,12 +1593,17 @@ export function createBuildPreviewScene({
     }
   }
 
+  // Scale OrbitControls rotateSpeed with canvas height (at 80% of 0.35 = 0.28 base sensitivity)
+  // so taller stages (e.g. 520px on /build -> 0.52) stay smooth and controlled across viewports.
+  const getAdaptiveRotateSpeed = (h) =>
+    Math.min(0.68, Math.max(0.28, 0.28 * ((Number(h) > 0 ? Number(h) : 280) / 280)))
+
   if (canvas && typeof canvas.addEventListener === 'function') {
     try {
       controls = new OrbitControls(camera, canvas)
       controls.enableDamping = !motionDisabled()
       controls.dampingFactor = 0.08
-      controls.rotateSpeed = 0.35
+      controls.rotateSpeed = getAdaptiveRotateSpeed(canvas.clientHeight)
       controls.zoomSpeed = 1.25
       controls.enableRotate = Boolean(interactive)
       controls.enableZoom = Boolean(interactive)
@@ -2308,6 +2313,9 @@ export function createBuildPreviewScene({
       onLoad({ fallback: false })
     }
     requestSingleFrame()
+    // Reset frame timer after synchronous GLB ingestion and first shader compilation
+    // so the next rAF tick does not mistake asset upload time for a slow GPU frame.
+    lastFrameTime = typeof performance !== 'undefined' ? performance.now() : Date.now()
   }
 
   const handleGltfLoaded = ingestGltfScene
@@ -2324,6 +2332,7 @@ export function createBuildPreviewScene({
     applyKeycapsMaterials(currentParts.keycaps)
     fitCombinedCameraToFrustum()
     requestSingleFrame()
+    lastFrameTime = typeof performance !== 'undefined' ? performance.now() : Date.now()
   }
 
   /**
@@ -2560,6 +2569,11 @@ export function createBuildPreviewScene({
     // session (the driver is not going to get faster).
     if (slowFrame) {
       disableAnimations = true
+      if (controls) {
+        // Keep OrbitControls damping in sync when animations are disabled so pointer drags
+        // apply 100% of their rotation immediately instead of waiting on a stopped rAF loop.
+        controls.enableDamping = false
+      }
       currentExplosionFactor = targetExplosionFactor
       for (const id of BUILD_PREVIEW_LAYER_IDS) {
         layers[id].dropProgress = 1
@@ -2690,9 +2704,13 @@ export function createBuildPreviewScene({
       camera.aspect = width / height
       camera.updateProjectionMatrix()
       renderer.setSize(width, height, false)
+      if (controls) {
+        controls.rotateSpeed = getAdaptiveRotateSpeed(height)
+      }
       fitCombinedCameraToFrustum()
     }
     requestSingleFrame()
+    lastFrameTime = typeof performance !== 'undefined' ? performance.now() : Date.now()
   }
 
   if (typeof window !== 'undefined') {

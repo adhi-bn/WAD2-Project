@@ -5,7 +5,7 @@ import AccountView from '../../src/views/AccountView.vue'
 import App from '../../src/App.vue'
 import HomeView from '../../src/views/HomeView.vue'
 import { catalog, CATS } from '../../src/data/catalog.js'
-import { openSavedBuild, preserveGuestDraft, resolveAccountTransition, restoreGuestDraft, signOut, state } from '../../src/store.js'
+import { loadBuild, openSavedBuild, preserveGuestDraft, resolveAccountTransition, restoreGuestDraft, signOut, state } from '../../src/store.js'
 
 function makeRouter() {
   return createRouter({
@@ -120,6 +120,20 @@ describe('profile authentication surface', () => {
 
     expect(state.editingSavedBuildId).toBe('saved-build-a')
     expect(state.editingSavedBuildName).toBe('Office keyboard')
+  })
+
+  it('falls back to the default layout for a hostile persisted layout value', () => {
+    const hostileLayout = '75" onload="alert(1)'
+    const partIds = Object.fromEntries(CATS.map((group) => [group, catalog('75')[group][0].id]))
+
+    loadBuild({ layout: hostileLayout, part_ids: partIds })
+
+    expect(state.answers.layout).toBe('75')
+    expect(state.cat).toEqual(catalog('75'))
+
+    openSavedBuild({ layout: hostileLayout, part_ids: partIds, answers: {}, part_prices: {} })
+    expect(state.answers.layout).toBe('75')
+    expect(state.cat).toEqual(catalog('75'))
   })
 
 })

@@ -27,6 +27,7 @@ export const state = reactive({
   savedBuildReview: null, // current-catalogue result for a reopened Saved build
   editingSavedBuildId: null, // existing Saved build being edited, or null for a new Build
   editingSavedBuildName: '',
+  savedBuildBaselineIds: null, // baseline part_ids snapshot for detecting user changes against a saved build
   guestDraft: savedGuestDraft, // an explicitly preserved local Build, never uploaded automatically
 })
 
@@ -43,6 +44,7 @@ function clearAccountState() {
   state.savedBuildReview = null
   state.editingSavedBuildId = null
   state.editingSavedBuildName = ''
+  state.savedBuildBaselineIds = null
   Object.assign(state.ld, { used: false, prize: null, code: null, expires: 0, applied: false })
   saveLD()
 }
@@ -52,13 +54,14 @@ function clearAccountState() {
  *
  * @returns {void}
  */
-function discardCurrentBuild() {
+export function discardCurrentBuild() {
   state.build = null
   state.cat = null
   state.rec = null
   state.biscuit = false
   state.editingSavedBuildId = null
   state.editingSavedBuildName = ''
+  state.savedBuildBaselineIds = null
 }
 
 export const layout = () => state.answers.layout || '75'
@@ -76,6 +79,9 @@ export function setLayout(layoutCode) {
   const validLayout = code === '60' || code === '100' ? code : '75'
   state.answers.layout = validLayout
   state.cat = catalog(validLayout)
+  state.savedBuildBaselineIds = null
+  state.editingSavedBuildId = null
+  state.editingSavedBuildName = ''
 
   if (state.build) {
     const nextBuild = {}
@@ -113,6 +119,11 @@ export function toast(msg) {
   toastTimer = setTimeout(() => { state.toast = '' }, 3400)
 }
 
+/**
+ * Initializes a new Build from customer quiz answers or recommended defaults.
+ *
+ * @returns {void}
+ */
 export function finishQuiz() {
   const A = { ...state.answers, layout: layout() }
   state.cat = catalog(A.layout)
@@ -121,8 +132,19 @@ export function finishQuiz() {
   state.biscuit = false
   state.editingSavedBuildId = null
   state.editingSavedBuildName = ''
+  state.savedBuildBaselineIds = null
   state.reached.build = false
   state.reached.buy = false
+}
+
+/**
+ * Starts a new Build or resets build state and saved baseline tracking.
+ *
+ * @returns {void}
+ */
+export function startBuild() {
+  finishQuiz()
+  state.savedBuildBaselineIds = null
 }
 
 export function choose(cat, id) {
@@ -175,16 +197,23 @@ export function clearCart() {
   saveCart()
 }
 // Open a cart item or saved build in the builder so it can be edited.
+/** Loads a cart Build, falling back to the default layout for untrusted persisted values.
+ * @param {{layout: string, part_ids: object}} item - Persisted Build data.
+ * @param {{fromBiscuit?: boolean}} [options] - Optional source marker.
+ * @returns {void}
+ */
 export function loadBuild(item, { fromBiscuit = false } = {}) {
-  state.answers.layout = item.layout
-  state.cat = catalog(item.layout)
-  state.build = buildFromIds(item.layout, item.part_ids)
+  const safeLayout = ['60', '75', '100'].includes(String(item?.layout)) ? String(item.layout) : '75'
+  state.answers.layout = safeLayout
+  state.cat = catalog(safeLayout)
+  state.build = buildFromIds(safeLayout, item.part_ids)
   // The parts page compares each part with the recommended build, so a loaded build needs one too.
   state.rec = { ...state.build }
   state.biscuit = fromBiscuit
   state.savedBuildReview = null
   state.editingSavedBuildId = null
   state.editingSavedBuildName = ''
+  state.savedBuildBaselineIds = null
   state.reached.build = false
 }
 
@@ -287,6 +316,8 @@ export async function saveBuild(name) {
   // Remember the newly created row too, so a second save updates it instead of duplicating it.
   state.editingSavedBuildId = data.id
   state.editingSavedBuildName = data.name
+  state.savedBuildBaselineIds = { ...snapshot.partIds }
+  state.savedBuildReview = null
   await refreshSaved()
   return {}
 }
@@ -314,15 +345,18 @@ export async function deleteSaved(id) {
  * @returns {{issues: Array<object>, total: number|null, purchaseReady: boolean}} Current catalogue review details.
  */
 export function openSavedBuild(savedBuild) {
-  const review = revalidateSavedBuild(savedBuild, catalog(savedBuild.layout))
-  state.answers = { ...state.answers, ...review.answers, layout: savedBuild.layout }
-  state.cat = catalog(savedBuild.layout)
+  const safeLayout = ['60', '75', '100'].includes(String(savedBuild?.layout)) ? String(savedBuild.layout) : '75'
+  const safeBuild = { ...savedBuild, layout: safeLayout }
+  const review = revalidateSavedBuild(safeBuild, catalog(safeLayout))
+  state.answers = { ...state.answers, ...review.answers, layout: safeLayout }
+  state.cat = catalog(safeLayout)
   state.build = review.build
   state.rec = { ...review.build }
   state.biscuit = false
   state.savedBuildReview = review
   state.editingSavedBuildId = savedBuild.id
   state.editingSavedBuildName = savedBuild.name
+  state.savedBuildBaselineIds = savedBuild?.part_ids ? { ...savedBuild.part_ids } : null
   state.reached.build = false
   return review
 }

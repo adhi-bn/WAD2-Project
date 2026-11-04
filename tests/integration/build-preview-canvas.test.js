@@ -12,6 +12,8 @@ import * as THREE from 'three'
 import BuildPreviewCanvas from '../../src/components/BuildPreviewCanvas.vue'
 import { createBuildPreviewScene } from '../../src/lib/buildPreviewScene.js'
 import { setSlot, setLimit } from '../../src/stores/build.js'
+import Keyboard3DView from '../../src/components/Keyboard3DView.vue'
+import { state } from '../../src/store.js'
 
 /**
  * Creates a mock WebGL renderer for testing Three.js scene instances in jsdom.
@@ -578,6 +580,190 @@ describe('BuildPreviewCanvas - Package A Integration', () => {
       expect(scene2).toBeDefined()
       scene1.dispose()
       scene2.dispose()
+    })
+  })
+
+  describe('Embedded Stage Mode & Keyboard3DView (AC-2, AC-3, AC-4, AC-5)', () => {
+    it('applies .lct-build-preview--embedded, hides header and caption, and renders only minimal floating controls in embeddedStage mode', async () => {
+      const mockRenderer = createMockRenderer({ canvas: document.createElement('canvas') })
+      const wrapper = safeMount(BuildPreviewCanvas, {
+        props: {
+          embeddedStage: true,
+          compact: true,
+          initialExploded: false,
+          loadGlb: false,
+          rendererFactory: () => mockRenderer,
+        },
+      })
+      await flushPromises()
+
+      // Root element contains embedded styling class
+      expect(wrapper.classes()).toContain('lct-build-preview--embedded')
+
+      // 2-row header must NOT exist
+      expect(wrapper.find('.lct-build-preview-header').exists()).toBe(false)
+      expect(wrapper.find('.lct-build-preview__header').exists()).toBe(false)
+
+      // Caption must NOT exist
+      expect(wrapper.find('.lct-build-preview-caption').exists()).toBe(false)
+
+      // Floating controls toolbar MUST exist inside stage
+      const floatingToolbar = wrapper.find('.lct-build-preview__floating-controls')
+      expect(floatingToolbar.exists()).toBe(true)
+      expect(floatingToolbar.attributes('role')).toBe('toolbar')
+      expect(floatingToolbar.attributes('aria-label')).toBe('3D view controls')
+
+      // Floating controls MUST contain ONLY the 2 expected buttons
+      const floatingButtons = floatingToolbar.findAll('button')
+      expect(floatingButtons).toHaveLength(2)
+
+      const toggleBtn = floatingToolbar.find('[data-testid="toggle-exploded-btn"]')
+      const resetBtn = floatingToolbar.find('[data-testid="reset-camera-btn"]')
+      expect(toggleBtn.exists()).toBe(true)
+      expect(resetBtn.exists()).toBe(true)
+
+      // Preset camera buttons (Isometric, Top-down, Side profile) must NOT exist
+      const btnTexts = floatingButtons.map((b) => b.text())
+      expect(btnTexts.some((t) => t.includes('Isometric'))).toBe(false)
+      expect(btnTexts.some((t) => t.includes('Top-down'))).toBe(false)
+      expect(btnTexts.some((t) => t.includes('Side profile'))).toBe(false)
+
+      // Initial state is combined (initialExploded: false) -> button text is "Explode layers"
+      expect(wrapper.vm.isExplodedView).toBe(false)
+      expect(toggleBtn.text()).toBe('Explode layers')
+      expect(toggleBtn.attributes('aria-pressed')).toBe('false')
+
+      // Clicking toggle switches to exploded view -> text becomes "Combine layers"
+      await toggleBtn.trigger('click')
+      expect(wrapper.vm.isExplodedView).toBe(true)
+      expect(toggleBtn.text()).toBe('Combine layers')
+      expect(toggleBtn.attributes('aria-pressed')).toBe('true')
+
+      // Clicking reset camera button triggers resetView back to isometric
+      wrapper.vm.selectPreset('side')
+      expect(wrapper.vm.activePreset).toBe('side')
+      await resetBtn.trigger('click')
+      expect(wrapper.vm.activePreset).toBe('isometric')
+
+      // Screen-reader text is present in DOM while visible HTML summary is hidden
+      expect(wrapper.find('[data-testid="build-preview-summary"]').classes()).toContain('lct-build-preview__sr-only')
+      expect(wrapper.find('[data-testid="build-preview-html-summary"]').exists()).toBe(false)
+    })
+
+    it('gracefully renders fallback alert and HTML summary table in embeddedStage mode when WebGL is unavailable', async () => {
+      HTMLCanvasElement.prototype.getContext = vi.fn(() => null)
+      window.WebGLRenderingContext = undefined
+
+      const wrapper = safeMount(BuildPreviewCanvas, {
+        props: {
+          embeddedStage: true,
+          compact: true,
+          loadGlb: false,
+        },
+      })
+      await flushPromises()
+
+      expect(wrapper.vm.hasLiveScene).toBe(false)
+
+      // Fallback alert is rendered
+      const fallbackAlert = wrapper.find('[data-testid="build-preview-fallback"]')
+      expect(fallbackAlert.exists()).toBe(true)
+      expect(fallbackAlert.text()).toContain('3D graphics unavailable')
+
+      // Accessible HTML summary table is rendered
+      const htmlSummary = wrapper.find('[data-testid="build-preview-html-summary"]')
+      expect(htmlSummary.exists()).toBe(true)
+      expect(htmlSummary.text()).toContain('Selected Parts Summary')
+
+      // Floating controls are NOT rendered when WebGL is unavailable
+      expect(wrapper.find('.lct-build-preview__floating-controls').exists()).toBe(false)
+    })
+
+    it('mounts Keyboard3DView.vue and renders BuildPreviewCanvas with embeddedStage and activeBuild bindings', async () => {
+      const mockRenderer = createMockRenderer({ canvas: document.createElement('canvas') })
+      const sampleBuild = {
+        case: { id: 'qk75', name: 'QK75 Anodized Purple', price: 180, color: '#6b21a8', frame: 'metal' },
+        switches: { id: 'oil-king', name: 'Gateron Oil King', price: 65, color: '#18181b' },
+        keycaps: { id: 'botanical', name: 'GMK Botanical Clone', price: 50, color: '#15803d' },
+      }
+
+      const wrapper = safeMount(Keyboard3DView, {
+        props: {
+          build: sampleBuild,
+          rendererFactory: () => mockRenderer,
+          loadGlb: false,
+        },
+      })
+      await flushPromises()
+
+      const canvasComp = wrapper.findComponent(BuildPreviewCanvas)
+      expect(canvasComp.exists()).toBe(true)
+      expect(canvasComp.props('embeddedStage')).toBe(true)
+      expect(canvasComp.props('compact')).toBe(true)
+      expect(canvasComp.props('initialExploded')).toBe(false)
+      expect(canvasComp.props('interactive')).toBe(true)
+      expect(canvasComp.props('barebones')).toEqual(sampleBuild.case)
+      expect(canvasComp.props('switches')).toEqual(sampleBuild.switches)
+      expect(canvasComp.props('keycaps')).toEqual(sampleBuild.keycaps)
+
+      // Floating controls exist
+      expect(wrapper.find('.lct-build-preview__floating-controls').exists()).toBe(true)
+    })
+
+    it('falls back to default materials cleanly when a Part has unavailable: true', async () => {
+      const mockRenderer = createMockRenderer({ canvas: document.createElement('canvas') })
+      const buildWithUnavailable = {
+        case: { id: 'discontinued-case', name: 'Vintage 1984 Case', unavailable: true, price: null },
+        switches: { id: 'ghost-sw', name: 'Phantasm Linear', unavailable: true, price: undefined },
+        keycaps: { id: 'kc-1', name: 'White PBT Keycaps', price: 40 },
+      }
+
+      const wrapper = safeMount(Keyboard3DView, {
+        props: {
+          build: buildWithUnavailable,
+          rendererFactory: () => mockRenderer,
+          loadGlb: false,
+        },
+      })
+      await flushPromises()
+
+      const canvasComp = wrapper.findComponent(BuildPreviewCanvas)
+      expect(canvasComp.exists()).toBe(true)
+      expect(canvasComp.vm.status).toBe('ready')
+      expect(canvasComp.vm.hasLiveScene).toBe(true)
+
+      // Scene normalized parts resolve defaults cleanly without throwing
+      const summaryItems = canvasComp.vm.activeLayers
+      expect(summaryItems).toHaveLength(3)
+      expect(summaryItems[0].part.name).toBe('Vintage 1984 Case')
+      expect(summaryItems[0].part.color).toBeDefined()
+      expect(summaryItems[1].part.name).toBe('Phantasm Linear')
+      expect(summaryItems[1].part.color).toBeDefined()
+    })
+
+    it('uses state.build as fallback when props.build is not provided to Keyboard3DView', async () => {
+      const mockRenderer = createMockRenderer({ canvas: document.createElement('canvas') })
+      state.build = {
+        case: { id: 'tofu65', name: 'Tofu65 Aluminium', price: 120 },
+        switches: { id: 'gateron-yellow', name: 'Gateron Milky Yellow', price: 35 },
+        keycaps: { id: 'bow-caps', name: 'BoW Keycaps', price: 45 },
+      }
+
+      const wrapper = safeMount(Keyboard3DView, {
+        props: {
+          rendererFactory: () => mockRenderer,
+          loadGlb: false,
+        },
+      })
+      await flushPromises()
+
+      const canvasComp = wrapper.findComponent(BuildPreviewCanvas)
+      expect(canvasComp.exists()).toBe(true)
+      expect(canvasComp.props('barebones')).toEqual(state.build.case)
+      expect(canvasComp.props('switches')).toEqual(state.build.switches)
+      expect(canvasComp.props('keycaps')).toEqual(state.build.keycaps)
+
+      state.build = null
     })
   })
 })

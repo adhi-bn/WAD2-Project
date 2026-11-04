@@ -1,5 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import SwitchAudioControls from './SwitchAudioControls.vue'
+import { createSwitchAudioContext, decodeSwitchSample, resumeSwitchAudioContext } from '../lib/switchAudio.js'
 
 const props = defineProps({
   part: {
@@ -62,8 +64,10 @@ function releaseSource(stopSource = true) {
     source.onended = null
     // A closed context has already stopped its sources and no longer accepts node operations.
     if (audioContext?.state !== 'closed') {
-      if (stopSource) source.stop()
-      source.disconnect()
+      if (stopSource) {
+        try { source.stop() } catch { /* an unstarted or already-ended source is already stopped */ }
+      }
+      try { source.disconnect() } catch { /* the graph may have closed during teardown */ }
     }
   }
   sourceNode = null
@@ -186,29 +190,20 @@ async function playSample() {
 
   try {
     // Construct Web Audio only after the user presses Play to comply with browser autoplay policy.
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext
-    if (!AudioContextClass) throw new Error('Web Audio is unavailable')
-
     if (!audioContext || audioContext.state === 'closed') {
-      audioContext = new AudioContextClass()
+      audioContext = createSwitchAudioContext()
       // Nodes belong to their AudioContext; a fresh context needs a new gain and decoded buffer.
       gainNode = null
       decodedSample = undefined
     }
     // Safari can report interrupted as well as suspended; resume every non-running context.
-    if (audioContext.state !== 'running') await audioContext.resume()
-    if (audioContext.state !== 'running') throw new Error('Web Audio context did not resume')
+    await resumeSwitchAudioContext(audioContext)
     if (currentRequest !== requestId) return
 
     if (!decodedSample) {
       // Fetch once per selected Part; abort the network request if selection changes mid-load.
       loadController = new AbortController()
-      const response = await fetch(targetUrl, { signal: loadController.signal })
-      if (!response.ok) throw new Error(`Sample request failed (${response.status})`)
-      const audioData = await response.arrayBuffer()
-      // Check after each await because changing Parts invalidates this request while it is pending.
-      if (currentRequest !== requestId) return
-      const decoded = await audioContext.decodeAudioData(audioData)
+      const decoded = await decodeSwitchSample(audioContext, targetUrl, { signal: loadController.signal })
       if (currentRequest !== requestId) return
       if (!Number.isFinite(decoded.duration) || decoded.duration <= 0) {
         throw new Error('Recorded sample has no usable duration')
@@ -381,11 +376,13 @@ watch([() => props.part?.id, sample], () => {
 
 onBeforeUnmount(() => {
   // Release source, gain, and context resources so the component leaves no audio graph behind.
-  cancelPlayback()
-  gainNode?.disconnect()
+  try { cancelPlayback() } catch { /* teardown must continue even if a browser node rejects stop */ }
+  try { gainNode?.disconnect() } catch { /* closed contexts may reject node operations */ }
   gainNode = null
   if (audioContext && audioContext.state !== 'closed') {
-    audioContext.close().catch((error) => console.error('Failed to close switch audio context', error))
+    try { Promise.resolve(audioContext.close()).catch((error) => console.error('Failed to close switch audio context', error)) } catch (error) {
+      console.error('Failed to close switch audio context', error)
+    }
   }
 })
 </script>
@@ -414,38 +411,15 @@ onBeforeUnmount(() => {
         >
           {{ loading ? 'Loading…' : playing ? 'Pause' : 'Play' }}
         </button>
-        <button
-          type="button"
-          class="ui-btn switch-audio__mute"
+        <SwitchAudioControls
+          v-model:volume="volume"
+          :volume-percent="volumePercent"
+          :muted="muted"
+          :volume-label="`Volume for ${partName} sample`"
           :disabled="!sample"
-          :aria-pressed="muted"
-          aria-label="Mute switch sample"
-          @click="toggleMute"
-        >
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M11 5 6 9H3v6h3l5 4V5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
-            <path v-if="muted" d="m16 9 5 6m0-6-5 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-            <template v-else>
-              <path d="M15 9a5 5 0 0 1 0 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-              <path d="M18 6a9 9 0 0 1 0 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-            </template>
-          </svg>
-        </button>
-        <label class="switch-audio__volume" :class="{ 'is-muted': muted }">
-          <span>Volume</span>
-          <input
-            v-model.number="volume"
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            :disabled="!sample"
-            :aria-label="`Volume for ${partName} sample`"
-            :aria-valuetext="volumePercent"
-            @input="changeVolume"
-          />
-          <output>{{ volumePercent }}</output>
-        </label>
+          @toggle-mute="toggleMute"
+          @volume-change="changeVolume"
+        />
       </div>
 
       <div class="switch-audio__timeline">

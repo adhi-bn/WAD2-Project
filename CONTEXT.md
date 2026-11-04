@@ -41,7 +41,7 @@ The visual and behavioral feedback shown when a component violates hardware comp
 _Avoid_: Error popup, blocker alert
 
 **3D Build Preview Boundary**:
-The architectural boundary governing the interactive 3D Build preview across the builder, Compare builds, and the build review surface (`/build`). The 3D preview displays and updates only 3 active exterior visual layers: Keycaps, Switches, and Base (Case). Internal components (PCB, Plate, Foam, Stabilizers) do NOT visually alter or mutate the 3D model geometry or exploded rendering, but register selection state and present high-fidelity 2D product imagery.
+The architectural boundary governing the interactive 3D Build preview across the builder, Compare builds, and the `3D view` tab on the build review surface (`/build`, alongside the separate `Type tester` tab). The 3D preview displays and updates only 3 active exterior visual layers: Keycaps, Switches, and Base (Case). Internal components (PCB, Plate, Foam, Stabilizers) do NOT visually alter or mutate the 3D model geometry or exploded rendering, but register selection state and present high-fidelity 2D product imagery.
 _Avoid_: Full 3D rendering, interior 3D view
 
 **Budget**:
