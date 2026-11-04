@@ -415,8 +415,8 @@ function addNow() {
           <div class="amt">{{ t === null ? 'Unavailable' : disc > 0 ? money2(t - disc) : money(t) }}</div>
         </div>
         <div class="bar-actions">
-          <router-link to="/parts" class="ui-btn">← Change parts</router-link>
-          <button type="button" class="ui-btn primary" :disabled="!canAddToCart" @click="addNow">{{ canAddToCart ? 'Add to cart →' : 'Review Parts to add to cart' }}</button>
+          <router-link to="/parts" class="ui-btn">&larr; Change parts</router-link>
+          <button type="button" class="ui-btn primary" :disabled="!canAddToCart" @click="addNow">{{ canAddToCart ? 'Add to cart \u2192' : 'Review Parts to add to cart' }}</button>
         </div>
       </div>
     </div>

@@ -21,8 +21,8 @@ describe('Saved Build review on the preview page', () => {
       global: { stubs: { ProfileChips: true, RouterLink: true } },
     })
 
-    expect(wrapper.text()).toContain('← Change parts')
-    expect(wrapper.text()).toContain('Add to cart →')
+    expect(wrapper.text()).toContain('\u2190 Change parts')
+    expect(wrapper.text()).toContain('Add to cart \u2192')
   })
 
   it('never shows a removed Part as zero-priced or allows it into the cart', () => {
