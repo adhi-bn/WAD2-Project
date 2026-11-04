@@ -18,7 +18,12 @@ describe('Saved Build review on the preview page', () => {
     state.savedBuildReview = null
 
     const wrapper = mount(SummaryView, {
-      global: { stubs: { ProfileChips: true, RouterLink: true } },
+      global: {
+        stubs: {
+          ProfileChips: true,
+          RouterLink: { template: '<a><slot /></a>' },
+        },
+      },
     })
 
     expect(wrapper.text()).toContain('\u2190 Change parts')
