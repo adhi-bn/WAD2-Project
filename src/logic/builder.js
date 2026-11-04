@@ -8,27 +8,99 @@ export const money2 = (n) => {
 }
 export const signed = (n) => (n === 0 ? 'Same price' : (n > 0 ? '+' : '−') + 'S$' + Math.abs(Math.round(n)).toLocaleString('en-SG'))
 export const total = (b) => CATS.reduce((s, c) => s + (b[c] ? b[c].price : 0), 0)
-export const grams = (b) => CATS.reduce((s, c) => s + (b[c].grams || 0), 0)
+export const grams = (b) => CATS.reduce((s, c) => s + (b?.[c]?.grams || 0), 0)
 export const kg = (g) => (g / 1000).toFixed(g < 1000 ? 2 : 1) + ' kg'
 const cap = (s) => s[0].toUpperCase() + s.slice(1)
 
 /* ---------- small drawings ---------- */
-export function kbSVG(L) {
-  const main = [[...Array(13).fill(1), 2], [1.5, ...Array(12).fill(1), 1.5], [1.75, ...Array(11).fill(1), 2.25], [2.25, ...Array(10).fill(1), 2.75], [1.25, 1.25, 1.25, 6.25, 1.25, 1.25, 1.25, 1.25]]
-  const top = L === '60' ? 0 : 1.25, R = []
-  main.forEach((r, ri) => { let x = 0; r.forEach((w) => { R.push([x, top + ri, w]); x += w }) })
-  let W = 15
-  if (L === '75') { for (let i = 0; i < 16; i++) R.push([i, 0, 1]); for (let r = 0; r < 5; r++) R.push([15, top + r, 1]); W = 16 }
-  if (L === '100') {
-    for (let i = 0; i < 15; i++) R.push([i, 0, 1])
-    const nx = 15.5
-    for (let i = 0; i < 3; i++) { R.push([nx + i, 0, 1]); R.push([nx + i, top, 1]); R.push([nx + i, top + 1, 1]); R.push([nx + i, top + 4, 1]) }
-    R.push([nx + 1, top + 3, 1])
-    for (let r = 0; r < 5; r++) for (let c = 0; c < 4; c++) R.push([19.5 + c, top + r, 1])
-    W = 23.5
+const MAIN_KEY_IDS = [
+  ['Escape', ...'1234567890'.split('').map((digit) => `Digit${digit}`), 'Minus', 'Equal', 'Backspace'],
+  ['Tab', ...'QWERTYUIOP'.split('').map((letter) => `Key${letter}`), 'BracketLeft', 'BracketRight', 'Backslash'],
+  ['CapsLock', ...'ASDFGHJKL'.split('').map((letter) => `Key${letter}`), 'Semicolon', 'Quote', 'Enter'],
+  ['ShiftLeft', ...'ZXCVBNM,.'.split('').map((value) => ({ '.': 'Period', ',': 'Comma' }[value] || `Key${value}`)), 'Slash', 'ShiftRight'],
+  ['ControlLeft', 'MetaLeft', 'AltLeft', 'Space', 'AltRight', 'MetaRight', 'ContextMenu', 'ControlRight'],
+]
+
+const FUNCTION_ROW_75 = ['Escape', ...Array.from({ length: 12 }, (_, i) => `F${i + 1}`), 'Insert', 'PrintScreen', 'Delete']
+const KEYBOARD_75_ROWS = [
+  { ids: ['Backquote', ...'1234567890'.split('').map((digit) => `Digit${digit}`), 'Minus', 'Equal', 'Backspace', 'PageUp'], widths: [...Array(13).fill(1), 2, 1] },
+  { ids: ['Tab', ...'QWERTYUIOP'.split('').map((letter) => `Key${letter}`), 'BracketLeft', 'BracketRight', 'Backslash', 'PageDown'], widths: [1.5, ...Array(12).fill(1), 1.5, 1] },
+  { ids: ['CapsLock', ...'ASDFGHJKL'.split('').map((letter) => `Key${letter}`), 'Semicolon', 'Quote', 'Enter', 'Home'], widths: [1.75, ...Array(11).fill(1), 2.25, 1] },
+  { ids: ['ShiftLeft', ...'ZXCVBNM'.split('').map((letter) => `Key${letter}`), 'Comma', 'Period', 'Slash', 'ShiftRight', 'ArrowUp', 'End'], widths: [2.25, ...Array(10).fill(1), 1.75, 1, 1] },
+  { ids: ['ControlLeft', 'AltLeft', 'MetaLeft', 'Space', 'MetaRight', 'ContextMenu', 'ControlRight', 'ArrowLeft', 'ArrowDown', 'ArrowRight'], widths: [1.25, 1.25, 1.25, 6.25, 1, 1, 1, 1, 1, 1] },
+]
+
+/** Returns the logical key identities in the same geometry order as the 2D keyboard.
+ * @param {string} L - Supported layout code: 60, 75, or 100.
+ * @returns {Array<{code: string}>} Logical identities in SVG rectangle order.
+ */
+export function virtualKeyboardKeys(L) {
+  const layout = ['60', '75', '100'].includes(String(L)) ? String(L) : '75'
+  const main = MAIN_KEY_IDS.flat()
+  if (layout === '60') return main.map((code) => ({ code }))
+  if (layout === '75') {
+    return [...KEYBOARD_75_ROWS.flatMap(({ ids }) => ids), ...FUNCTION_ROW_75].map((code) => ({ code }))
   }
-  const u = 10, H = top + 5, accent = L === '60' ? 0 : main.flat().length
-  return `<svg class="kb" viewBox="-6 -6 ${W * u + 12} ${H * u + 12}" aria-hidden="true"><rect class="f" x="-5" y="-5" width="${W * u + 10}" height="${H * u + 10}" rx="6"/>${R.map(([x, y, w], i) => `<rect class="k ${i === accent ? 'a' : ''}" x="${x * u + 0.8}" y="${y * u + 0.8}" width="${w * u - 1.6}" height="${u - 1.6}" rx="1.6"/>`).join('')}</svg>`
+
+  // The full-size main block starts with Backquote; Escape is present only in the function row.
+  const fullMain = [...main]
+  fullMain[0] = 'Backquote'
+  const functionRow = ['Escape', ...Array.from({ length: 12 }, (_, i) => `F${i + 1}`)]
+  const keys = [...fullMain, ...functionRow]
+  if (layout === '100') {
+    // SVG geometry emits the system row first, then the navigation block column by column.
+    keys.push('PrintScreen', 'ScrollLock', 'Pause', 'Insert', 'Delete', 'ArrowLeft', 'Home', 'End', 'ArrowDown', 'PageUp', 'PageDown', 'ArrowRight', 'ArrowUp')
+    keys.push('NumLock', 'NumpadDivide', 'NumpadMultiply', 'NumpadSubtract', 'Numpad7', 'Numpad8', 'Numpad9', 'NumpadAdd', 'Numpad4', 'Numpad5', 'Numpad6', 'Numpad1', 'Numpad2', 'Numpad3', 'NumpadEnter', 'Numpad0', 'NumpadDecimal')
+  }
+  return keys.map((code) => ({ code }))
+}
+
+/** Builds an aria-hidden schematic keyboard SVG with IDs ordered to match its rectangles.
+ * @param {string} L - Supported layout code: 60, 75, or 100.
+ * @returns {string} Markup for the decorative keyboard drawing.
+ */
+export function kbSVG(L) {
+  L = ['60', '75', '100'].includes(String(L)) ? String(L) : '75'
+  const main = [[...Array(L === '75' ? 12 : 13).fill(1), 2], [1.5, ...Array(12).fill(1), 1.5], [1.75, ...Array(11).fill(1), 2.25], [2.25, ...Array(10).fill(1), 2.75], [1.25, 1.25, 1.25, 6.25, 1.25, 1.25, 1.25, 1.25]]
+  const top = L === '60' ? 0 : 1.25, R = []
+  let W = 15
+  if (L === '75') {
+    KEYBOARD_75_ROWS.forEach(({ widths }, row) => {
+      let x = 0
+      widths.forEach((width) => { R.push([x, top + row, width]); x += width })
+    })
+    for (let i = 0; i < FUNCTION_ROW_75.length; i++) R.push([i, 0, 1])
+    W = 16
+  } else {
+    main.forEach((r, ri) => { let x = 0; r.forEach((w) => { R.push([x, top + ri, w]); x += w }) })
+  }
+  if (L === '100') {
+    // Function keys are split into the same three groups as the full-size keyboard diagram.
+    const functionKeyX = [0, 1.5, 2.5, 3.5, 4.5, 6, 7, 8, 9, 10.5, 11.5, 12.5, 13.5]
+    functionKeyX.forEach((x) => R.push([x, 0, 1]))
+    const nx = 16.5
+    const systemX = nx
+    for (let i = 0; i < 3; i++) R.push([systemX + i, 0, 1])
+    for (let i = 0; i < 3; i++) {
+      R.push([nx + i, top, 1])
+      R.push([nx + i, top + 1, 1])
+      R.push([nx + i, top + 4, 1])
+    }
+    R.push([nx + 1, top + 3, 1])
+    const numpad = [
+      [['NumLock', 0, 0], ['NumpadDivide', 1, 0], ['NumpadMultiply', 2, 0], ['NumpadSubtract', 3, 0]],
+      [['Numpad7', 0, 1], ['Numpad8', 1, 1], ['Numpad9', 2, 1], ['NumpadAdd', 3, 1, 2]],
+      [['Numpad4', 0, 2], ['Numpad5', 1, 2], ['Numpad6', 2, 2]],
+      [['Numpad1', 0, 3], ['Numpad2', 1, 3], ['Numpad3', 2, 3], ['NumpadEnter', 3, 3, 2]],
+      [['Numpad0', 0, 4, 1, 2], ['NumpadDecimal', 2, 4]],
+    ]
+    // Model the merged Add, Enter, and zero keys as single rectangles with unique IDs.
+    numpad.flat().forEach(([, column, row, height = 1, width = 1]) => R.push([20.5 + column, top + row, width, height]))
+    W = 24.5
+  }
+  const keyIds = virtualKeyboardKeys(L)
+  const u = 10, H = top + 5, accent = L === '60' ? 0 : L === '75' ? KEYBOARD_75_ROWS.reduce((count, row) => count + row.ids.length, 0) : main.flat().length
+  return `<svg class="kb" viewBox="-6 -6 ${W * u + 12} ${H * u + 12}" aria-hidden="true"><rect class="f" x="-5" y="-5" width="${W * u + 10}" height="${H * u + 10}" rx="6"/>${R.map(([x, y, w, h = 1], i) => `<rect class="k ${i === accent ? 'a' : ''}" data-key-id="${keyIds[i]?.code || ''}" x="${x * u + 0.8}" y="${y * u + 0.8}" width="${w * u - 1.6}" height="${h * u - 1.6}" rx="1.6"/>`).join('')}</svg>`
 }
 export function curve(t) {
   const d = { linear: 'M6 25 L58 5', tactile: 'M6 25 L20 14 L25 9 L29 16 L58 5', clicky: 'M6 25 L20 13 L24 6 L26 18 L58 5', silent: 'M6 25 L50 9 Q56 7 58 7' }[t]

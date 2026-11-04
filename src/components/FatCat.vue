@@ -232,7 +232,7 @@ function confetti() {
         <button type="button" class="ic lct-chat__close" aria-label="Minimise chat" @click="chatOpen = false">–</button>
         <button type="button" class="ic" aria-label="Hide Biscuit" @click="hiddenCat = true">×</button>
       </header>
-      <div ref="msgBox" class="msgs lct-chat__messages" aria-live="polite">
+      <div ref="msgBox" class="msgs lct-chat__messages" aria-live="polite" data-lenis-prevent>
         <template v-for="m in msgs" :key="m.id">
           <div v-if="m.typing" class="msg bot typing"><i></i><i></i><i></i></div>
           <div v-else-if="m.who === 'me'" class="msg me lct-chat__msg">{{ m.html }}</div>

@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Exported [`setLayout(layoutCode)`](src/store.js) in [`src/store.js`](src/store.js) dynamically updating layout answer state, recalculating catalog prices, weights, and key counts (61, 84, 104 keys), while preserving customer part selections (#22).
 - Reactive `layout` prop on [`src/components/BuildPreviewCanvas.vue`](src/components/BuildPreviewCanvas.vue) wired to `sceneController.setLayout`, updating 3D form-factor scale and announcing layout changes via `liveStatusText` (#22).
 - Integration and E2E tests covering layout switching across 60%, 75%, and 100% and validating keycap legend visibility across artwork keycap sets (#22).
+- Interactive two-dimensional keyboard testing on the summary page, with physical and pointer key highlights, layout-aware typing, shifted-symbol support, and matching one-press sounds for every switch.
 - Google OAuth entry point and a guest-first Profile surface with saved Builds, explicit local guest-draft preservation on sign-out, and clear address/payment availability states.
 - Vercel SPA history fallback so direct links such as `/builder` resolve to the app shell.
 - Selected-switch Web Audio playback with linked self-recorded samples, mute/volume controls, accessible status and failure reporting (#17).
@@ -53,6 +54,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Standardized code documentation requirements across collaboration guides, mandating JSDoc docstrings for public exports/functions and inline comments for non-obvious logic when agents or contributors write code.
 
 ### Fixed
+- Removed the unnecessary keyboard tester host tab stop and its outline suppression; physical-key listeners remain on `window`, and audio controls retain their focus indicators (#IMP-9).
+- Added a regression assertion to keep the Build summary actions readable as `← Change parts` and `Add to cart →` (#IMP-11).
+- Matched the 100% virtual keyboard to its spaced function-key groups, right-side navigation and arrow clusters, and 104-key geometry; fixed physical numpad presses to highlight numpad keycaps.
+- Matched the 75% virtual keyboard to its 84-key layout, including Backquote, the right-side navigation keys, and the four-key arrow cluster, with physical presses highlighting the corresponding rectangles.
+- Matched virtual keyboard key IDs to the drawn geometry for 60%, 75%, and 100% layouts, removed empty slots and duplicate Escape activation, and rejected hostile persisted layout values before rendering.
+- Kept keyboard tester focus accessible without moving focus on page load, hid decorative SVG keys from assistive technology, preserved mute-button focus, and limited touch-action suppression to the keyboard.
 - Prevented the About Us OneMap store locator from updating a removed map after visitors navigate away during a driving-route lookup; improved the map's interactive accessibility semantics and added direct OneMap store links.
 - Restored switch-audio player styling in the active frontend stylesheet so controls render correctly in the builder.
 - Made switch-audio load/decode errors visible, guarded late decode results when the selected Part changes, delayed seek restarts until slider adjustment completes, and made the player safe for missing Part data.

@@ -3,6 +3,7 @@
 // The id on each layer is the layer id the 3D scene uses, so the matching part lights up as you scroll.
 import { ref, onMounted, onUnmounted } from 'vue'
 import ExplodedAnatomyCanvas from '../components/ExplodedAnatomyCanvas.vue'
+import { scrollToTarget } from '../lib/smoothScroll.js'
 
 const layers = [
   { id: 'keycaps', n: 'Layer 1 of 6 · top', t: 'Keycaps', d: 'What your fingers touch, and most of the look. PBT keeps its texture; ABS gets shiny but takes bright colours.', facts: [['Profiles', 'Cherry, XDA, MOA'], ['You choose', 'Plain, styled or textured']] },
@@ -15,6 +16,19 @@ const layers = [
 
 // The layer whose card is nearest the middle of the screen is the one the 3D model highlights.
 const activeLayerId = ref('')
+
+/**
+ * Scrolls smoothly to a target layer section by its ID.
+ *
+ * @param {string} id - The layer ID to scroll to.
+ */
+function scrollToLayer(id) {
+  if (typeof document === 'undefined') return
+  const el = document.querySelector(`[data-layer-id="${id}"]`)
+  if (el) {
+    scrollToTarget(el, { offset: -96, duration: 1.0 })
+  }
+}
 let ticking = false
 
 function updateActiveLayer() {
@@ -44,6 +58,10 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('scroll', onScroll)
 })
+defineExpose({
+  scrollToLayer,
+  activeLayerId,
+})
 </script>
 
 <template>
@@ -56,7 +74,7 @@ onUnmounted(() => {
           <div class="eyebrow">Know your keyboard</div>
           <h1>Every keyboard is six layers.</h1>
           <p>Scroll to take this one apart. Each layer is something you choose in the builder.</p>
-          <div class="cue"><i></i>Scroll to explode</div>
+          <div class="cue" role="button" tabindex="0" @click="scrollToLayer('keycaps')" @keydown.enter="scrollToLayer('keycaps')"><i></i>Scroll to explode</div>
         </div>
       </div>
     </div>

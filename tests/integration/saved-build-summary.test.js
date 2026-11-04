@@ -12,6 +12,24 @@ function activeBuild() {
 }
 
 describe('Saved Build review on the preview page', () => {
+  it('keeps the primary summary actions readable', () => {
+    state.build = activeBuild()
+    state.answers = { ...state.answers, layout: '75', budget: 350 }
+    state.savedBuildReview = null
+
+    const wrapper = mount(SummaryView, {
+      global: {
+        stubs: {
+          ProfileChips: true,
+          RouterLink: { template: '<a><slot /></a>' },
+        },
+      },
+    })
+
+    expect(wrapper.text()).toContain('\u2190 Change parts')
+    expect(wrapper.text()).toContain('Add to cart \u2192')
+  })
+
   it('never shows a removed Part as zero-priced or allows it into the cart', () => {
     const build = activeBuild()
     build.keycaps = { ...build.keycaps, price: null, unavailable: true }

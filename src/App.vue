@@ -1,5 +1,6 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
+import { initSmoothScroll, destroySmoothScroll } from './lib/smoothScroll.js'
 import { state, openWheel } from './store.js'
 import { CAT_SVG } from './data/fatcat.js'
 import FatCat from './components/FatCat.vue'
@@ -18,6 +19,14 @@ const countdown = computed(() => {
   const s = Math.max(0, Math.floor((evEnd - state.now) / 1000))
   const p = (n) => String(n).padStart(2, '0')
   return `Ends in ${Math.floor(s / 86400)}d ${p(Math.floor((s % 86400) / 3600))}:${p(Math.floor((s % 3600) / 60))}:${p(s % 60)}`
+})
+
+onMounted(() => {
+  initSmoothScroll()
+})
+
+onUnmounted(() => {
+  destroySmoothScroll()
 })
 </script>
 

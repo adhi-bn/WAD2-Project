@@ -1,6 +1,8 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import BuildPreviewCanvas from '../components/BuildPreviewCanvas.vue'
+import { toCents } from '../domain/build.js'
 import { CATS } from '../data/catalog.js'
 import { money, total } from '../logic/builder.js'
 import { buildFromIds, openSavedBuild, refreshSaved, state } from '../store.js'
@@ -8,7 +10,6 @@ import { buildFromIds, openSavedBuild, refreshSaved, state } from '../store.js'
 const router = useRouter()
 const leftId = ref('')
 const rightId = ref('')
-const failedImageIds = ref(new Set())
 
 const COMPONENT_GROUPS = [
   { id: 'case', label: 'Case', partKeys: ['case'] },
@@ -20,6 +21,16 @@ const COMPONENT_GROUPS = [
 ]
 
 /**
+ * Determines whether a part descriptor is present and has a valid finite numeric price.
+ *
+ * @param {object|null|undefined} part - Part object to validate.
+ * @returns {boolean} True if part exists and has a finite numeric price.
+ */
+function isPartValid(part) {
+  return Boolean(part && Number.isFinite(part?.price))
+}
+
+/**
  * Prepares a saved Build for comparison without silently replacing discontinued Parts.
  *
  * @param {object} saved - Row from the saved-Build library.
@@ -28,7 +39,7 @@ const COMPONENT_GROUPS = [
 function comparisonBuild(saved) {
   // A saved Build may reference a discontinued Part, so keep the missing selection visible.
   const parts = buildFromIds(saved.layout, saved.part_ids || {})
-  const hasUnavailablePart = CATS.some((key) => !Number.isFinite(parts[key]?.price))
+  const hasUnavailablePart = CATS.some((key) => !isPartValid(parts[key]))
   return { ...saved, parts, total: hasUnavailablePart ? null : total(parts) }
 }
 
@@ -65,7 +76,7 @@ function priceClass(amount, comparedAmount) {
  * @returns {string} A compact visual marker.
  */
 function priceMarker(amount, comparedAmount) {
-  return { 'is-higher': '↑', 'is-lower': '↓', 'is-equal': '•', 'is-unavailable': '—' }[priceClass(amount, comparedAmount)]
+  return { 'is-higher': '↑', 'is-lower': '↓', 'is-equal': '•', 'is-unavailable': '-' }[priceClass(amount, comparedAmount)]
 }
 
 /**
@@ -91,6 +102,17 @@ function partsForGroup(build, group) {
 }
 
 /**
+ * Determines whether any Part in a Component Group is missing or discontinued.
+ *
+ * @param {object} build - Saved Build prepared for comparison.
+ * @param {{partKeys: string[]}} group - Canonical Component Group definition.
+ * @returns {boolean} True if any part is null, undefined, or lacks a valid price.
+ */
+function hasGroupMissingPart(build, group) {
+  return partsForGroup(build, group).some((part) => !isPartValid(part))
+}
+
+/**
  * Formats a Component Group without crashing when a historical Part disappeared.
  *
  * @param {object} build - Saved Build prepared for comparison.
@@ -98,12 +120,18 @@ function partsForGroup(build, group) {
  * @returns {string} Joined Part names or an unavailable fallback.
  */
 function groupPartNames(build, group) {
-  const names = partsForGroup(build, group).map((part) => part?.name).filter(Boolean)
+  const parts = partsForGroup(build, group)
+  // If any part in the group is missing or has no finite price, report Unavailable
+  if (parts.some((part) => !isPartValid(part))) {
+    return 'Unavailable'
+  }
+  const names = parts.map((part) => part?.name).filter(Boolean)
   return names.length === group.partKeys.length ? names.join(' · ') : 'Unavailable'
 }
 
 /**
  * Calculates a Component Group amount only when all of its Parts are available.
+ * Accumulates integer cents via toCents to avoid floating-point drift (REV-5).
  *
  * @param {object} build - Saved Build prepared for comparison.
  * @param {{partKeys: string[]}} group - Canonical Component Group definition.
@@ -111,9 +139,14 @@ function groupPartNames(build, group) {
  */
 function groupAmount(build, group) {
   const parts = partsForGroup(build, group)
-  return parts.every((part) => Number.isFinite(part?.price))
-    ? parts.reduce((sum, part) => sum + part.price, 0)
-    : null
+  if (!parts.every(isPartValid)) return null
+  let totalCents = 0
+  for (const part of parts) {
+    const cents = toCents(part?.price)
+    if (cents === null) return null
+    totalCents += cents
+  }
+  return totalCents / 100
 }
 
 /**
@@ -124,26 +157,6 @@ function groupAmount(build, group) {
  */
 function displayAmount(amount) {
   return Number.isFinite(amount) ? money(amount) : 'Unavailable'
-}
-
-/**
- * Checks whether a saved Build image should be rendered instead of its placeholder.
- *
- * @param {object} build - Saved Build to inspect.
- * @returns {boolean} Whether its image URL is usable in this render.
- */
-function hasBuildImage(build) {
-  return Boolean(build.image_url) && !failedImageIds.value.has(build.id)
-}
-
-/**
- * Falls back to the keyboard placeholder if a future saved Build image cannot load.
- *
- * @param {string} buildId - Saved Build identifier whose image failed.
- * @returns {void}
- */
-function useImagePlaceholder(buildId) {
-  failedImageIds.value = new Set([...failedImageIds.value, buildId])
 }
 
 function selectDefaults() {
@@ -216,7 +229,7 @@ watch(() => state.savedBuilds.map((build) => build.id).join(','), selectDefaults
         </div>
 
         <div v-if="canCompare" class="compare-cards">
-          <article v-for="(build, index) in [leftBuild, rightBuild]" :key="build.id" class="compare-card">
+          <article v-for="(build, index) in [leftBuild, rightBuild]" :key="index === 0 ? 'left' : 'right'" class="compare-card">
             <div class="compare-card-top">
               <span class="compare-side">{{ index === 0 ? 'Build A' : 'Build B' }}</span>
               <span class="chip">{{ build.layout }}% layout</span>
@@ -225,12 +238,17 @@ watch(() => state.savedBuilds.map((build) => build.id).join(','), selectDefaults
               <h2 :title="build.name">{{ build.name }}</h2>
               <p class="compare-saved">Saved {{ new Date(build.created_at).toLocaleDateString('en-SG') }}</p>
             </div>
-            <!-- A saved Build can provide image_url later; this keeps the card polished until then. -->
-            <img v-if="hasBuildImage(build)" class="compare-preview" :src="build.image_url" :alt="`${build.name} keyboard Build`" width="480" height="210" loading="lazy" @error="useImagePlaceholder(build.id)" />
-            <div v-else class="compare-preview compare-preview--placeholder" role="img" :aria-label="`${build.name} keyboard image placeholder`">
-              <div class="compare-preview__keys" aria-hidden="true"><i v-for="key in 24" :key="key"></i></div>
-              <span>Build image</span>
-              <small>Image coming soon</small>
+            <div class="compare-preview compare-preview--3d" :data-testid="`compare-preview-${index === 0 ? 'left' : 'right'}`">
+              <BuildPreviewCanvas
+                :barebones="build.parts?.case ?? null"
+                :switches="build.parts?.switches ?? null"
+                :keycaps="build.parts?.keycaps ?? null"
+                :layout="String(build.layout || '75')"
+                :compact="true"
+                :canvas-only="true"
+                :initial-exploded="false"
+                :interactive="false"
+              />
             </div>
             <div class="compare-total">
               <span>Total</span>
@@ -241,9 +259,9 @@ watch(() => state.savedBuilds.map((build) => build.id).join(','), selectDefaults
               </strong>
             </div>
             <div class="compare-card-parts">
-              <span>{{ build.parts?.case?.name ?? 'Unavailable Case' }}</span>
-              <span>{{ build.parts?.switches?.name ?? 'Unavailable Switches' }}</span>
-              <span>{{ build.parts?.keycaps?.name ?? 'Unavailable Keycaps' }}</span>
+              <span :class="{ 'is-missing-part': !isPartValid(build.parts?.case) }">{{ isPartValid(build.parts?.case) ? build.parts.case.name : 'Unavailable Case' }}</span>
+              <span :class="{ 'is-missing-part': !isPartValid(build.parts?.switches) }">{{ isPartValid(build.parts?.switches) ? build.parts.switches.name : 'Unavailable Switches' }}</span>
+              <span :class="{ 'is-missing-part': !isPartValid(build.parts?.keycaps) }">{{ isPartValid(build.parts?.keycaps) ? build.parts.keycaps.name : 'Unavailable Keycaps' }}</span>
             </div>
             <button type="button" class="ui-btn primary" :aria-label="`Edit ${build.name}`" @click="editBuild(build)">Edit this Build</button>
           </article>
@@ -273,16 +291,18 @@ watch(() => state.savedBuilds.map((build) => build.id).join(','), selectDefaults
               <tbody>
                 <tr v-for="group in COMPONENT_GROUPS" :key="group.id" :class="{ 'is-different': groupPartNames(leftBuild, group) !== groupPartNames(rightBuild, group) }">
                   <th scope="row">{{ group.label }}</th>
-                  <td>
+                  <td :class="{ 'is-missing-cell': hasGroupMissingPart(leftBuild, group) }">
                     <span class="compare-part-name">{{ groupPartNames(leftBuild, group) }}</span>
+                    <span v-if="hasGroupMissingPart(leftBuild, group)" class="compare-missing-badge" data-testid="compare-missing-badge">Missing part</span>
                     <b :class="priceClass(groupAmount(leftBuild, group), groupAmount(rightBuild, group))">
                       <span class="compare-price-marker" aria-hidden="true">{{ priceMarker(groupAmount(leftBuild, group), groupAmount(rightBuild, group)) }}</span>
                       <span class="visually-hidden">{{ priceDescription(groupAmount(leftBuild, group), groupAmount(rightBuild, group)) }}</span>
                       {{ displayAmount(groupAmount(leftBuild, group)) }}
                     </b>
                   </td>
-                  <td>
+                  <td :class="{ 'is-missing-cell': hasGroupMissingPart(rightBuild, group) }">
                     <span class="compare-part-name">{{ groupPartNames(rightBuild, group) }}</span>
+                    <span v-if="hasGroupMissingPart(rightBuild, group)" class="compare-missing-badge" data-testid="compare-missing-badge">Missing part</span>
                     <b :class="priceClass(groupAmount(rightBuild, group), groupAmount(leftBuild, group))">
                       <span class="compare-price-marker" aria-hidden="true">{{ priceMarker(groupAmount(rightBuild, group), groupAmount(leftBuild, group)) }}</span>
                       <span class="visually-hidden">{{ priceDescription(groupAmount(rightBuild, group), groupAmount(leftBuild, group)) }}</span>
