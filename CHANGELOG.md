@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Part pictures on the Parts page for Case, Keycap and Switch options, rendered from the 3D model. Each picture path comes from the catalogue row's `image` field, with a default under `public/parts/` (see the `supabase/seed/catalog-images.sql` update).
 - Compare Builds page (`/compare`) for selecting two saved Builds, comparing the six canonical Component Groups side by side, and reopening either Build for editing; includes resilient future `image_url` support and accessible higher/lower amount indicators (#33).
 - OneMap-powered two-store locator on the About Us page, including Jewel Changi Airport and Marina Bay Sands store cards with photos, browser-location driving-route comparison, distance and estimated travel-time summaries, and an interactive route map.
 - Saved-build snapshots now retain the selected eight Parts, quiz preferences, target Budget, and historical prices; reopening flags catalogue drift and offers alternatives without silently replacing a Part (#12).
@@ -37,6 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Repository changelog in [`CHANGELOG.md`](CHANGELOG.md) tracking milestones and unreleased changes following Keep a Changelog 1.1.0.
 
 ### Changed
+- The parts catalogue is loaded from Supabase at startup (`categories` and `parts` tables). The loader checks every category before replacing the local copy, times out after 4 seconds, and falls back to the local copy if anything fails.
+- Checkout prices each build from the Supabase `parts` table, the same source the app shows, and stops if that table cannot be read.
+- The HitPay webhook accepts the `completed` and `succeeded` statuses and finds the order by reference number or by payment request id.
+- Parts page: unavailable options grey out their picture, and bottom clearance for the floating bar is set in one place in `src/style.css`.
 - Switched the frontend and shared switch catalogues to MP3 recordings; removed the M4A originals after verifying all catalogue samples decode and play in Chromium.
 - Expanded the switch-audio player with pause/resume, seeking, playback progress, and responsive card controls; linked Gazzew Boba U4 to its dedicated recording (#17).
 - Moved the switch-audio card below the Switches description, compacted its controls, and replaced visible status text and the Mute label with accessible status and an icon (#17).

@@ -347,15 +347,6 @@ function addNow() {
     min-height: 380px;
   }
 }
-/* Leave room under the page for the floating bar, so the footer stays visible. Only while this page is open. */
-:global(body.hasbar) {
-  padding-bottom: 180px;
-}
-@media (max-width: 760px) {
-  :global(body.hasbar) {
-    padding-bottom: 260px;
-  }
-}
 /* Full-width tabs for the 3D view and type tester. */
 #summary .viewtoggle {
   display: grid;

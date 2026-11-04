@@ -10,7 +10,7 @@
 //   const supabase = createClient(URL, SERVICE_ROLE_KEY)   // server/script only, never in the browser
 //   await importAll(supabase)
 
-import { BASE, catalog, KEYS } from '../src/data/catalog.js'
+import { BASE, catalog, KEYS, META } from '../src/data/catalog.js'
 
 const PART_CATS = ['case', 'plate', 'pcb', 'switches', 'keycaps', 'stabs', 'foam', 'cable']
 
@@ -18,16 +18,17 @@ const PART_CATS = ['case', 'plate', 'pcb', 'switches', 'keycaps', 'stabs', 'foam
 // price_sgd  = the flat base price (60% layout). Null for per-switch and per-stabiliser items.
 // unit_price = per-switch (ps) or per-stabiliser (pp) price, otherwise null.
 // attributes = everything else about the part (weight, feel, switch type, etc.).
+// One row per category, for the labels the app shows.
+export const categories = PART_CATS.map((key, sort_order) => ({
+  key,
+  label: META[key].label,
+  short: META[key].short,
+  sort_order,
+}))
+
+// One row per option. data holds the full part object, the same shape the app loads.
 export const parts = PART_CATS.flatMap((category) =>
-  BASE[category].map(({ id, name, p, ps, pp, g, ...attributes }) => ({
-    id,
-    category,
-    name,
-    price_sgd: p ?? null,
-    unit_price: ps ?? pp ?? null,
-    grams_base: g ?? null,
-    attributes,
-  }))
+  BASE[category].map((o, i) => ({ category_key: category, id: o.id, sort_order: i, data: o }))
 )
 
 /* ---------- 2. Prebuilt keyboards ---------- */
@@ -104,7 +105,9 @@ export const prebuilts = prebuiltDefs.map((b) => {
 /* ---------- 3. Import helper ---------- */
 // Pass a Supabase client. Upserts parts first (prebuilts refer to them), then prebuilts.
 export async function importAll(supabase) {
-  const p = await supabase.from('parts').upsert(parts, { onConflict: 'id' })
+  const c = await supabase.from('categories').upsert(categories, { onConflict: 'key' })
+  if (c.error) throw c.error
+  const p = await supabase.from('parts').upsert(parts, { onConflict: 'category_key,id' })
   if (p.error) throw p.error
   const b = await supabase.from('prebuilts').upsert(prebuilts, { onConflict: 'id' })
   if (b.error) throw b.error

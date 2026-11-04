@@ -10,7 +10,9 @@ import router from './router/index.js'
 import { loadRemoteCatalog } from './data/remoteCatalog.js'
 
 // Load the parts from Supabase before the first render, so every page sees the same catalogue.
-// loadRemoteCatalog() never throws; if it fails, the local catalog.js copy is used.
-loadRemoteCatalog().then(() => {
-  createApp(App).use(router).mount('#app')
-})
+// If the load fails, the local catalog.js copy is used. The app is mounted either way.
+loadRemoteCatalog()
+  .catch(() => {})
+  .finally(() => {
+    createApp(App).use(router).mount('#app')
+  })

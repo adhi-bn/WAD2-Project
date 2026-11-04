@@ -86,6 +86,12 @@ Vue Router (URL) ──> Views (src/views/)
 
 ---
 
+## Catalogue Loading
+
+At startup, [`src/data/remoteCatalog.js`](../src/data/remoteCatalog.js) loads the `categories` and `parts` tables from Supabase before the app mounts. The loader builds the complete new catalogue first and replaces the local copy in [`src/data/catalog.js`](../src/data/catalog.js) only when every category is valid. The local copy is the fallback when Supabase is not configured, the request fails or times out, or the data is incomplete.
+
+Checkout ([`supabase/functions/checkout`](../supabase/functions/checkout/index.ts)) reads the same `parts` table to price each build, so the price shown and the price charged come from one source. The `supabase/data.js` import writes that table for a new project.
+
 ## Styling Architecture
 
 The styling system combines standard Bootstrap utilities for structure with a dedicated custom class namespace for brand expression, governed by [DESIGN.md](../DESIGN.md) and [docs/adr/0002-bootstrap-styling.md](adr/0002-bootstrap-styling.md):

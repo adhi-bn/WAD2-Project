@@ -18,6 +18,7 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } })
 
 const LAYOUTS = ['60', '75', '100']
+const CATS = ['case', 'plate', 'pcb', 'switches', 'keycaps', 'stabs', 'foam', 'cable']
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
 Deno.serve(async (req) => {
@@ -33,16 +34,24 @@ Deno.serve(async (req) => {
     const allowed = (Deno.env.get('ALLOWED_ORIGINS') ?? '').split(',').map((s) => s.trim()).filter(Boolean)
     if (!allowed.includes(origin)) return json({ error: 'This site is not allowed to take payments.' }, 403)
 
+    const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+
+    // Prices come from the Supabase parts table, the same table the app loads.
+    // If the table cannot be read, checkout stops rather than charging from a stale copy.
+    const { data: partRows, error: partsErr } = await admin.from('parts').select('category_key,data')
+    if (partsErr) throw partsErr
+    const base: Record<string, unknown[]> = {}
+    for (const r of partRows ?? []) (base[r.category_key] ??= []).push(r.data)
+    for (const c of CATS) if (!base[c]?.length) throw new Error(`Catalogue is missing ${c}`)
+
     // Price every item on the server. priceIds throws if a part id is unknown.
     let subtotal = 0
     const lines = items.map((it) => {
       if (!LAYOUTS.includes(it.layout)) throw new Error('Unknown layout.')
-      const { total } = priceIds(it.layout, it.part_ids)
+      const { total } = priceIds(it.layout, it.part_ids, base)
       subtotal += total
       return { name: String(it.name ?? 'Custom keyboard').slice(0, 120), layout: it.layout, part_ids: it.part_ids, price: total }
     })
-
-    const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 
     // Optional voucher: must exist, be unused and not expired.
     let discount = 0

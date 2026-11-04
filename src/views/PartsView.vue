@@ -53,7 +53,11 @@ const tag = (c, o) => (isFit(c, o) ? 'Best fit for you' : o.price < fitOf(c).pri
 const IMG_CATS = ['case', 'keycaps', 'switches']
 // The picture path comes from the catalogue row (Supabase `image` field). If a row has none
 // (for example, the local fallback), use the default file under public/parts/.
-const partImg = (c, o) => o.image ?? (IMG_CATS.includes(c) ? `/parts/${o.id}.png` : null)
+const partImg = (c, o) => {
+  const img = typeof o.image === 'string' ? o.image.trim() : ''
+  if (img) return img
+  return IMG_CATS.includes(c) ? `/parts/${o.id}.png` : null
+}
 const delta = (c, o) => {
   const cu = curOf(c)
   if (isSel(c, o)) return { cls: 'same', text: 'Selected' }
@@ -165,7 +169,7 @@ onBeforeUnmount(() => document.body.classList.remove('hasbar'))
               <div v-for="o in allOf(c)" :key="o.id" class="col-12 col-md-4">
                 <button type="button" class="opt w-100 h-100" :class="{ sel: isSel(c, o) }" :disabled="!!reason(c, o, b)" @click="choose(c, o.id)">
                   <span class="tag" :class="{ fit: isFit(c, o) }">{{ tag(c, o) }}</span>
-                  <img v-if="partImg(c, o)" :src="partImg(c, o)" :alt="o.name" class="part-img" :class="{ 'part-img--small': c === 'switches' }" loading="lazy" />
+                  <img v-if="partImg(c, o)" :src="partImg(c, o)" alt="" class="part-img" :class="{ 'part-img--small': c === 'switches' }" loading="lazy" @error="$event.target.hidden = true" />
                   <span v-if="prefOf(c).some((p) => p.id === o.id) && prefOf(c).length < allOf(c).length" class="tagmatch">your style</span>
                   <span class="name">{{ o.name }}</span>
                   <span :class="reason(c, o, b) ? 'why' : 'spec'">{{ reason(c, o, b) || spec(c, o) }}</span>
@@ -277,20 +281,21 @@ onBeforeUnmount(() => document.body.classList.remove('hasbar'))
   display: block;
   width: 100%;
   max-width: 220px;
-  height: auto;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
   margin: 0 auto 8px;
+}
+/* Unavailable options look inactive, with their picture greyed out too. */
+.opt:disabled .part-img {
+  filter: grayscale(1);
+  opacity: 0.6;
 }
 /* Switch pictures are small, so they do not dominate the card. */
 .part-img--small {
   max-width: 130px;
 }
-/* Leave room under the page for the floating bar, so the last cards are not covered by it. */
+/* This page needs less room under the floating bar than the default in style.css. */
 :global(body.hasbar) {
-  padding-bottom: 100px;
-}
-@media (max-width: 760px) {
-  :global(body.hasbar) {
-    padding-bottom: 260px;
-  }
+  --bar-clearance: 100px;
 }
 </style>

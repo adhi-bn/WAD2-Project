@@ -80,17 +80,17 @@ export const STABS = { 60: 5, 75: 5, 100: 8 }
 export const ALLOC = { case: 0.33, plate: 0.05, pcb: 0.15, switches: 0.18, keycaps: 0.18, stabs: 0.04, foam: 0.03, cable: 0.04 }
 
 /** Price and weight every option for one layout. */
-export function catalog(L) {
+export function catalog(L, base = BASE) {
   const f = SIZE[L], keys = KEYS[L], buy = Math.ceil(keys / 10) * 10
   return {
-    case: BASE.case.map((o) => ({ ...o, price: Math.round(o.p * f), grams: Math.round(o.g * f) })),
-    plate: BASE.plate.map((o) => ({ ...o, price: Math.round(o.p * f), grams: Math.round(o.g * f) })),
-    pcb: BASE.pcb.map((o) => ({ ...o, price: Math.round(o.p * f), grams: Math.round(o.g * f) })),
-    switches: BASE.switches.map((o) => ({ ...o, price: Math.round(o.ps * buy), grams: Math.round(keys * 5.5), buy })),
-    keycaps: BASE.keycaps.map((o) => ({ ...o, price: Math.round(o.p * (L === '100' ? 1.1 : 1)), grams: Math.round(keys * 2.6) })),
-    stabs: BASE.stabs.map((o) => ({ ...o, price: Math.round(o.pp * STABS[L]), grams: 0, n: STABS[L] })),
-    foam: BASE.foam.map((o) => ({ ...o, price: Math.round(o.p * f), grams: Math.round(o.g * f) })),
-    cable: BASE.cable.map((o) => ({ ...o, price: o.p, grams: 0 })),
+    case: base.case.map((o) => ({ ...o, price: Math.round(o.p * f), grams: Math.round(o.g * f) })),
+    plate: base.plate.map((o) => ({ ...o, price: Math.round(o.p * f), grams: Math.round(o.g * f) })),
+    pcb: base.pcb.map((o) => ({ ...o, price: Math.round(o.p * f), grams: Math.round(o.g * f) })),
+    switches: base.switches.map((o) => ({ ...o, price: Math.round(o.ps * buy), grams: Math.round(keys * 5.5), buy })),
+    keycaps: base.keycaps.map((o) => ({ ...o, price: Math.round(o.p * (L === '100' ? 1.1 : 1)), grams: Math.round(keys * 2.6) })),
+    stabs: base.stabs.map((o) => ({ ...o, price: Math.round(o.pp * STABS[L]), grams: 0, n: STABS[L] })),
+    foam: base.foam.map((o) => ({ ...o, price: Math.round(o.p * f), grams: Math.round(o.g * f) })),
+    cable: base.cable.map((o) => ({ ...o, price: o.p, grams: 0 })),
   }
 }
 
@@ -123,8 +123,8 @@ export const QUESTIONS = [
  * Price a build from its part ids, the same way the app does. Throws on an unknown id.
  * Used by the checkout function so the charge never trusts prices sent from the browser.
  */
-export function priceIds(L, ids) {
-  const options = catalog(L)
+export function priceIds(L, ids, base = BASE) {
+  const options = catalog(L, base)
   const lines = {}
   let total = 0
   for (const c of CATS) {
