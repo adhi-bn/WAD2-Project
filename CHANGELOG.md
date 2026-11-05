@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- `/build` mobile: the **Save build** action moves out of the summary header into the compact floating bar at ≤900px (collapsing to a 44px icon button on the narrowest phones), so the header keeps only the name and rename control and the bar stays a two-row tray within 320px; desktop ≥901px keeps Save in the header beside the title.
+- `/build` parts breakdown on phones: each part is now one card with its price as a right-hand column on the group-name line instead of a separate vertical price row, reducing vertical space while the semantic table headers and accessibility roles stay intact.
+- Global site navigation: the active link is now a filled ink pill with contrasting text (theme-aware, inverting cleanly in dark mode) instead of ink weight alone; the Build progress strip keeps its existing active treatment.
+- `/build` mobile: the build attribute chips (`75% Layout`, `Silent Tactile`, `Polycarbonate`) use compact sizing and tighter spacing so all three fit on one row from 320px up, with full labels preserved (no clipping or ellipsis); desktop sizing is unchanged.
+
+### Fixed
+- Mobile shell, supported from 320px phones through 1024px tablets in both orientations: at ≤900px the global navigation links move behind an accessible full-screen menu (focus moves in and is trapped, Escape or the close button dismisses and returns focus to the trigger, any navigation — including same-route activation — closes it, the page behind is inert and scroll-locked, and resizing above 900px resets it), while the separate Progress row keeps visible `Swipe`/`Parts`/`Build`/`Cart` labels, contained and internally scrollable instead of hidden below 760px.
+- Horizontal page overflow on phones from the single-row header; locked Progress steps keep readable labels plus a screen-reader `locked` state.
+- `/build` parts table on narrow phones: rows stack semantically (`data-label` driven, explicit table roles and header associations preserved) with all specs, status tags, and prices retained; voucher totals wrap on narrow phones; mobile body/toast/mascot clearance tracks the rendered checkout bar height (`--lct-bar-h`, measured in `src/App.vue`, set only at ≤900px on `/parts`/`/build`; desktop and barless routes keep their fixed clearance offsets); the rename form wraps instead of overflowing at 320px.
+- Touch-only scroll-first 3D stage: on coarse pointers the canvas re-enables vertical page pan (`touch-action: pan-y` after `OrbitControls` construction, which forces `none`), so one-finger vertical swipes scroll while horizontal drags rotate; mouse orbit is unchanged.
+- Biscuit's auto-teaser no longer pops over task controls below 1024px, and hiding the mascot stays a per-visit choice with the paw tab as the recovery path.
+- `/build` header identity group: the rename icon sits directly beside the build name (it no longer drops onto its own row when the title wraps) and the Save action stays in the same header group — right-aligned with the title on desktop, wrapping tightly beneath it on phones — instead of floating on separate rows; long custom build names wrap without overflowing the header.
+
 ### Added
 - Order history on the Account page: signed-in customers see their orders, status and items (reads their own rows under RLS).
 - `supabase/seed/catalog-images.sql` sets the picture path for Case, Keycap and Switch options. Optional: the app falls back to `/parts/<id>.png`.
@@ -44,6 +58,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Repository changelog in [`CHANGELOG.md`](CHANGELOG.md) tracking milestones and unreleased changes following Keep a Changelog 1.1.0.
 
 ### Changed
+- Simplified global navigation to plain-text links and a separate slim Progress row; moved the phone/tablet hamburger to the far right and expanded its accessible menu to fill the viewport.
+- Compacted the `/build` checkout bar with an inline total and side-by-side phone actions while retaining 44px touch targets.
 - Removed the unused Address book placeholder from the Profile page so a signed-in customer's order history uses the full available row.
 - Moved the interactive two-dimensional keyboard tester and its audio controls into the Type tester summary tab, with a responsive layout for the available panel space.
 - Shared mute and volume controls and Web Audio helpers between the selected-switch player and the Type tester, and standardized recording assets as one-press samples.

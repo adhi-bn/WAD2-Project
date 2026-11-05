@@ -55,14 +55,18 @@ h1,h2,h3{font-family:var(--display);font-weight:600;letter-spacing:-.01em;text-w
 
 /* header */
 header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
-.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-block:12px}
+.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:24px;padding-block:6px;min-height:56px}
+.top .brand{flex:0 0 auto;font-size:15px}
+.progress-row{border-top:1px solid var(--line)}
+.progress-row .wrap{min-height:36px;padding-block:2px;justify-content:flex-end}
+.progress-row .stages{flex:0 1 auto}
 .brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:700;font-size:17px;background:none;border:0;padding:0}
 .brand svg{width:26px;height:26px;color:var(--accent)}
-.stages{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
-.stages .stg{border:0;background:none;padding:6px 10px;border-radius:999px;font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap}
-.stages .stg .n{font-family:var(--mono);font-size:11px;margin-right:4px}
-.stages .stg.on{background:var(--ink);color:var(--bg)}
-.stages .stg.dis{opacity:.4;cursor:default}
+.stages{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;min-width:0;flex:1 1 auto}
+  .stages .stg{border:0;background:none;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:500;color:var(--muted);white-space:nowrap;position:relative}
+  .stages .stg .n{font-family:var(--mono);font-size:11px;margin-right:4px}
+  .stages .stg.on{background:var(--surface-2);color:var(--ink);font-weight:700}
+  .stages .stg.dis{cursor:default;pointer-events:none}
 
 section.screen{padding-block:36px 120px}
 
@@ -287,7 +291,6 @@ footer{border-top:1px solid var(--line);padding-block:20px;color:var(--muted);fo
   .steps{grid-template-columns:1fr 1fr}
   .opts{grid-template-columns:1fr}
   .opt{min-height:0}
-  .stages .lbl{display:none}
   .bar .meter{display:none}
 }
 @media (max-width:420px){
@@ -335,7 +338,7 @@ footer{border-top:1px solid var(--line);padding-block:20px;color:var(--muted);fo
 .event button{margin-left:auto;background:#FFB020;color:#15171C;border:0;border-radius:999px;padding:5px 14px;font-weight:700;font-size:13px}
 .brandcat svg{width:34px;height:34px;display:block}
 /* ---------- fat cat widget ---------- */
-.kitty{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:30;display:flex;flex-direction:column;align-items:flex-end;gap:10px;pointer-events:none;transition:bottom .2s}
+.kitty{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:30;display:flex;flex-direction:column;align-items:flex-end;gap:10px;pointer-events:none;transition:bottom .2s,right .2s}
 body.hasbar .kitty{bottom:calc(100px + env(safe-area-inset-bottom,0px))}
 .kitty>*{pointer-events:auto}
 .catbtn{position:relative;width:88px;height:88px;border:0;background:none;padding:0;filter:drop-shadow(0 8px 14px rgba(0,0,0,.22));animation:bob 3.2s ease-in-out infinite}
@@ -442,27 +445,64 @@ main,footer{position:relative;z-index:2}
 .cue i{width:22px;height:34px;border:2px solid var(--muted);border-radius:12px;position:relative}
 .cue i::after{content:"";position:absolute;left:50%;top:7px;width:4px;height:7px;margin-left:-2px;border-radius:2px;background:var(--accent);animation:cue 1.6s infinite}
 @keyframes cue{60%{transform:translateY(9px);opacity:0}}
-.topnav{display:flex;align-items:center;gap:10px;min-width:0}
-.navlink{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;white-space:nowrap}
-.navlink:hover{border-color:var(--ink)}
-.navlink.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
-.navlink .short{display:none}
+.topnav{display:flex;align-items:center;justify-content:flex-end;gap:24px;min-width:0}
+.topnav-links{display:flex;align-items:center;gap:24px}
+.navtoggle{display:none}
+.lct-drawer{display:none}
+.drawer-close{display:none}
+.navlink{border:0;background:none;border-radius:0;padding:12px 0;font-size:13px;font-weight:500;white-space:nowrap;color:var(--muted);text-underline-offset:6px}
+.navlink:hover{background:none;color:var(--ink);text-decoration:underline}
+.navlink.on{background:none;color:var(--ink);font-weight:700}
+/* Active site-nav link: filled ink pill with contrasting text (theme-aware via
+   --lct-text-ink fill / --lct-card-surface text, so dark mode inverts cleanly).
+   Scoped to the header row so the Build progress strip keeps its own treatment. */
+.topnav-links .navlink.on{background:var(--lct-text-ink);color:var(--lct-card-surface);border-radius:var(--lct-radius-pill);padding:6px 12px;font-weight:700}
 @media (max-width:760px){
   .hs,.ks{align-items:flex-end;padding-bottom:56px}
   .glass{max-width:none}
-  .navlink .full{display:none}.navlink .short{display:inline}
   .l3d{font-size:10.5px}
 }
-@media (max-width:520px){ .brandtxt{display:none} .top .wrap{gap:10px} }
+/* Keep site navigation and Build progress on separate rows. The full-screen menu
+   lives outside the blurred header so its fixed bounds remain the viewport. */
+@media (max-width:900px){
+  .navtoggle{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;flex:0 0 auto;border:0;background:none;border-radius:6px;color:var(--ink)}
+  .navtoggle:hover{background:var(--surface-2)}
+  .topnav{margin-left:auto}
+  .topnav-links{display:none}
+  /* Drawer is a focus-managed dismissible surface: safe-area aware, closes on
+     Escape/navigation, and the page behind it is inert + scroll-locked. */
+  .lct-drawer{position:fixed;inset:0;z-index:70;display:none;background:var(--surface);padding:calc(72px + env(safe-area-inset-top,0px)) calc(32px + env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) calc(32px + env(safe-area-inset-left,0px));overflow-y:auto;overscroll-behavior:contain}
+  .lct-drawer.open{display:flex;animation:drawer-in .25s ease}
+  @keyframes drawer-in{from{opacity:0}}
+  .drawer-links{display:flex;flex-direction:column;align-items:flex-start;gap:4px;width:100%;max-width:1056px;margin-inline:auto}
+  .lct-drawer .navlink{padding:10px 0;font-size:clamp(24px,4vw,36px);line-height:1.3;white-space:normal}
+  .drawer-close{display:block;position:absolute;top:calc(6px + env(safe-area-inset-top,0px));right:calc(20px + env(safe-area-inset-right,0px));width:44px;height:44px;border-radius:6px;border:0;background:none;font-size:30px;line-height:1;color:var(--muted)}
+  .drawer-close:hover{background:var(--surface-2);color:var(--ink)}
+  .stages{flex:0 1 auto;min-width:0}
+  /* Locked steps remain readable without looking actionable. */
+  .stages .stg.dis{opacity:1;pointer-events:none}
+  /* Mobile: Biscuit and the paw tab clear the measured checkout bar instead of the
+     fixed desktop offsets; --lct-bar-h is only set on bar routes at <=900px. */
+  body.hasbar .kitty{bottom:calc(var(--lct-bar-h, 140px) + 16px + env(safe-area-inset-bottom,0px))}
+  body.hasbar .pawtab{bottom:calc(var(--lct-bar-h, 140px) + 16px + env(safe-area-inset-bottom,0px))}
+  .catbtn{width:60px;height:60px}
+  /* Toast floats above the bar with enough gap that its slide-in never touches it. */
+  .lct-toast{bottom:calc(var(--lct-bar-h, 96px) + 24px + env(safe-area-inset-bottom,0px))}
+  /* Scrolled-into-view controls land above the fixed bar + mascot, never under. */
+  main :where(a, button, input, select, summary, [role="tab"]){scroll-margin-bottom:calc(var(--lct-bar-h, 0px) + 96px)}
+}
+/* Background scroll lock while the mobile drawer is open. */
+body.drawer-lock{overflow:hidden}
+@media (max-width:520px){ .top .wrap{gap:12px} .top .brand{font-size:12px;gap:8px} .top .brandcat svg{width:28px;height:28px} .progress-row .wrap{justify-content:center} }
+@media (max-width:360px){ .stages .stg{padding:6px 8px;font-size:12px} }
 
 /* ---------- Vue + Bootstrap fixes ---------- */
 p{margin-bottom:0}
 img{max-width:100%}
 .brand,.navlink,.stages .stg{color:var(--ink);text-decoration:none}
 .brand:hover{color:var(--ink)}
-.stages .stg.on{color:var(--bg)}
-.stages .stg.dis{pointer-events:none;opacity:.4}
-.navlink.on{color:var(--bg)}
+.stages .stg.on{color:var(--ink)}
+.navlink.on{color:var(--ink)}
 a.ui-btn{color:var(--ink);text-decoration:none}
 a.ui-btn.primary{color:var(--accent-ink)}
 .step{height:100%}

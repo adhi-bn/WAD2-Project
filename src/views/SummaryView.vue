@@ -374,24 +374,26 @@ function addNow() {
         <!-- 2-Column lower grid: Left column = Parts breakdown table -->
         <div class="panel parts-panel">
           <div class="panel-header">
-            <h3>Parts breakdown</h3>
+            <h3 id="parts-breakdown-heading">Parts breakdown</h3>
             <button type="button" class="ui-btn" @click="copyList">Copy parts list</button>
           </div>
           <div class="scroll">
-            <table class="tbl">
-              <thead><tr><th>Part</th><th>Pick</th><th class="r">Price</th></tr></thead>
-              <tbody>
-                <tr v-for="c in CATS" :key="c" :class="{ 'is-flagged-part': Boolean(partStatusTags[c]) }">
-                  <td>{{ META[c].label }}</td>
-                  <td>
+            <!-- Explicit table roles keep the semantic table (and header associations)
+                 intact in the stacked narrow-phone layout where CSS displays rows as blocks. -->
+            <table class="tbl" role="table" aria-labelledby="parts-breakdown-heading">
+              <thead role="rowgroup"><tr role="row"><th role="columnheader" scope="col">Part</th><th role="columnheader" scope="col">Pick</th><th role="columnheader" scope="col" class="r">Price</th></tr></thead>
+              <tbody role="rowgroup">
+                <tr v-for="c in CATS" :key="c" role="row" :class="{ 'is-flagged-part': Boolean(partStatusTags[c]) }">
+                  <td role="cell" data-label="Part">{{ META[c].label }}</td>
+                  <td role="cell" data-label="Pick">
                     {{ b[c]?.name || 'Unavailable' }}
                     <span v-if="partStatusTags[c]" class="part-status-tag" :data-testid="'part-status-tag-' + c">{{ partStatusTags[c] }}</span>
                     <span v-if="b[c] && !b[c].unavailable" class="sub">{{ spec(c, b[c]) }}</span>
                   </td>
-                  <td class="r">{{ !Number.isFinite(b[c]?.price) ? 'Unavailable' : b[c].price ? money(b[c].price) : 'Included' }}</td>
+                  <td role="cell" class="r" data-label="Price">{{ !Number.isFinite(b[c]?.price) ? 'Unavailable' : b[c].price ? money(b[c].price) : 'Included' }}</td>
                 </tr>
               </tbody>
-              <tfoot><tr><td colspan="2">Total</td><td class="r">{{ t === null ? 'Unavailable' : disc > 0 ? `${money2(t - disc)} after voucher` : money(t) }}</td></tr></tfoot>
+              <tfoot role="rowgroup"><tr role="row"><td role="cell" colspan="2">Total</td><td role="cell" class="r">{{ t === null ? 'Unavailable' : disc > 0 ? `${money2(t - disc)} after voucher` : money(t) }}</td></tr></tfoot>
             </table>
           </div>
         </div>
@@ -413,6 +415,7 @@ function addNow() {
     <div class="bar">
       <div class="wrap">
         <div class="t">
+          <!-- Voucher codes are unbroken strings; allow wrapping on narrow phones. -->
           <div class="lab">
             <template v-if="t === null">Build total · Unavailable until every Part has a current price</template>
             <template v-else-if="disc > 0">Build total with {{ state.ld.code }} · you save {{ money2(disc) }}</template>
@@ -421,6 +424,21 @@ function addNow() {
           <div class="amt">{{ t === null ? 'Unavailable' : disc > 0 ? money2(t - disc) : money(t) }}</div>
         </div>
         <div class="bar-actions">
+          <!-- Save moved here on phones/tablets so the header keeps just the
+               name + rename control. Desktop keeps Save in the header. -->
+          <button
+            type="button"
+            class="ui-btn bar-save"
+            :disabled="saving"
+            @click="saveNow"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+              <polyline points="17 21 17 13 7 13 7 21"></polyline>
+              <polyline points="7 3 7 8 15 8"></polyline>
+            </svg>
+            <span class="bar-save__lbl">{{ saving ? 'Saving…' : state.editingSavedBuildId ? 'Update build' : 'Save build' }}</span>
+          </button>
           <router-link to="/parts" class="ui-btn">← Change parts</router-link>
           <button type="button" class="ui-btn primary" :disabled="!canAddToCart" @click="addNow">{{ canAddToCart ? 'Add to cart →' : 'Review Parts to add to cart' }}</button>
         </div>
@@ -466,7 +484,10 @@ function addNow() {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
+  /* Never let the rename icon wrap onto its own row: the title shrinks and
+     wraps internally instead, keeping icon anchored beside it. */
+  flex-wrap: nowrap;
+  min-width: 0;
 }
 
 #summary .title-row h1 {
@@ -475,6 +496,10 @@ function addNow() {
   line-height: 1.15;
   cursor: pointer;
   transition: color 0.15s ease;
+  /* Long custom names wrap anywhere instead of pushing the icon away or
+     overflowing the flex row. */
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 #summary .title-row h1:hover {
@@ -545,6 +570,19 @@ function addNow() {
   flex-shrink: 0;
 }
 
+/* Narrow phones: let the title input shrink and wrap Done/Cancel below it.
+   Placed after the base rules so the overrides win at equal specificity. */
+@media (max-width: 520px) {
+  #summary .title-edit-form {
+    flex-wrap: wrap;
+  }
+
+  #summary .title-input {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+}
+
 /* Save build button group aligned vertically with the title line */
 #summary .save-action-group {
   display: flex;
@@ -555,6 +593,14 @@ function addNow() {
 #summary .save-action-group .ui-btn {
   padding: 8px 18px;
   white-space: nowrap;
+}
+
+/* Phones/tablets move Save into the floating bar (see .bar-save), so the
+   header keeps just the name + rename control and stops feeling cramped. */
+@media (max-width: 900px) {
+  #summary .save-action-group {
+    display: none;
+  }
 }
 
 /* Subtitle row with tags and sign-in hint */
@@ -607,6 +653,22 @@ function addNow() {
   }
 }
 
+/* Phones: shrink the spec chips just enough that all three fit on one row
+   within 320px (20px gutters leave 280px). Full labels are kept — no clipping
+   or ellipsis; flex-wrap stays as a safety net for unusually long combinations. */
+@media (max-width: 520px) {
+  #summary .subtitle-badge {
+    gap: 3px;
+    font-size: 10.5px;
+  }
+
+  #summary .subtitle-badge span {
+    padding: 3px 6px;
+    letter-spacing: 0;
+    white-space: nowrap;
+  }
+}
+
 /* Full-width 3-column diagnostic rating row - Kept in exact same format */
 #summary .perf {
   display: grid;
@@ -629,13 +691,16 @@ function addNow() {
 /* Responsive header stacking */
 @media (max-width: 768px) {
   #summary .phead-title-row {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 14px;
+    /* Group identity and action: Save shares the title row when it fits
+       (tablets) and wraps directly beneath the title on phones — tight,
+       not a detached row. */
+    flex-wrap: wrap;
+    gap: 8px 12px;
   }
 
-  #summary .save-action-group {
-    align-items: flex-start;
+  #summary .phead-heading-wrap {
+    /* Forces Save to wrap below once the title needs most of the row. */
+    flex: 1 1 260px;
   }
 
   #summary .phead-sub-row {
@@ -712,6 +777,83 @@ function addNow() {
   align-items: center;
   justify-content: flex-end;
 }
+
+/* Narrow phones: each part becomes a compact card — group name and price share
+   the top line (price column on the right), part name + spec run full width
+   below. Column headers stay in the DOM for screen readers; the card layout
+   replaces the tall per-cell labels. */
+@media (max-width: 520px) {
+  #summary .tbl,
+  #summary .tbl tbody {
+    display: block;
+    width: 100%;
+  }
+
+  #summary .tbl thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  #summary .tbl tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    column-gap: 12px;
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--lct-line-grey, #d6dae3);
+  }
+
+  /* Part/Price micro-labels are redundant once the card header carries them. */
+  #summary .tbl td[data-label]::before {
+    content: none;
+  }
+
+  #summary .tbl td {
+    border-bottom: 0;
+    padding: 0;
+  }
+
+  #summary .tbl td[data-label="Part"] {
+    grid-column: 1;
+    grid-row: 1;
+    font-weight: 600;
+  }
+
+  #summary .tbl td[data-label="Price"] {
+    grid-column: 2;
+    grid-row: 1;
+    text-align: right;
+    margin-top: 0;
+  }
+
+  #summary .tbl td[data-label="Pick"] {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  #summary .tbl tfoot {
+    display: block;
+  }
+
+  #summary .tbl tfoot tr {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 8px 0;
+  }
+
+  #summary .tbl tfoot td {
+    border-bottom: 0;
+    padding: 0;
+  }
+}
+
 /* Red status alert tags and flagged part rows */
 .part-status-tag {
   background: var(--lct-danger-tint, #FCE6DD);
@@ -730,5 +872,108 @@ function addNow() {
 }
 #summary .tbl tbody tr.is-flagged-part {
   background-color: rgba(210, 70, 26, 0.04);
+}
+
+/* Sticky bar actions and body padding */
+#summary .bar .wrap {
+  padding-block: 6px;
+  gap: 12px;
+}
+
+#summary .bar .t {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+#summary .bar .lab {
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+
+#summary .bar .amt {
+  flex-shrink: 0;
+  font-size: 20px;
+}
+
+#summary .bar .ui-btn {
+  min-height: 44px;
+  padding: 6px 14px;
+  font-size: 13px;
+}
+
+/* Save lives in the header on desktop; the bar copy is only shown at <=900px. */
+#summary .bar-save {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  #summary .bar-save {
+    display: inline-flex;
+  }
+}
+
+#summary .bar-actions > a {
+  background: none;
+  border-color: transparent;
+}
+
+#summary .bar-actions > a:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* Phones keep both actions on one row instead of a three-row checkout tray. */
+@media (max-width: 520px) {
+  #summary .bar .wrap {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+
+  #summary .bar .t {
+    text-align: left;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  #summary .bar-actions {
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+
+  /* Tighten the two labelled actions so they stay on one line beside the
+     44px Save button inside 320px (touch height stays 44px). */
+  #summary .bar .ui-btn {
+    padding: 6px 8px;
+    font-size: 12.5px;
+  }
+
+  #summary .bar-actions > * {
+    flex: 1 1 0;
+    min-width: 0;
+    text-align: center;
+    justify-content: center;
+  }
+
+  /* Narrowest phones: Save collapses to a 44px icon button so all three
+     actions share one row inside 320px without wrapping the bar. Its label
+     stays in the accessible name. */
+  #summary .bar-actions > .bar-save {
+    flex: 0 0 44px;
+    padding: 0;
+  }
+
+  #summary .bar-save .bar-save__lbl {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
 }
 </style>

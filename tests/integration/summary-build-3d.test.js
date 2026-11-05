@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { enableAutoUnmount, mount } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import SummaryView from '../../src/views/SummaryView.vue'
 import Keyboard3DView from '../../src/components/Keyboard3DView.vue'
@@ -389,6 +389,56 @@ describe('SummaryView /build 3D view and red status tags', () => {
     await escInput.trigger('keydown.esc')
     expect(wrapper.find('.title-edit-form').exists()).toBe(false)
     expect(wrapper.find('.title-row h1').text()).toBe('75% Custom Mechanical Keyboard')
+  })
+
+  it('keeps the rename control beside the title and the Save action in one header group', async () => {
+    const wrapper = await mountSummary()
+
+    // 1. Rename control is a direct sibling of the title inside the title row
+    // (never a detached row): h1 first, rename button last.
+    const titleRow = wrapper.find('.title-row')
+    const rowChildren = () => Array.from(wrapper.find('.title-row').element.children)
+    expect(rowChildren()[0].tagName).toBe('H1')
+    expect(rowChildren().at(-1).classList.contains('icon-btn-edit')).toBe(true)
+    expect(rowChildren()).toHaveLength(2)
+
+    // 2. Save shares the same header row container as the title, ahead of the chips.
+    const headerRow = wrapper.find('.phead-title-row')
+    expect(headerRow.find('.phead-heading-wrap').exists()).toBe(true)
+    expect(headerRow.find('.save-action-group button.primary').exists()).toBe(true)
+
+    // 3. A 60-character custom name renders in the same two-child title row
+    // (no extra wrapper that could push the rename control away).
+    const longName = 'A'.repeat(60)
+    await wrapper.find('.icon-btn-edit').trigger('click')
+    await wrapper.find('.title-edit-form input#buildName').setValue(longName)
+    await wrapper.find('.title-edit-form input#buildName').trigger('keydown.enter')
+    expect(wrapper.find('.title-row h1').text()).toBe(longName)
+    expect(rowChildren()).toHaveLength(2)
+
+    // 4. Cancel discards a fresh draft but keeps the committed long name.
+    await wrapper.find('.icon-btn-edit').trigger('click')
+    await wrapper.find('.title-edit-form input#buildName').setValue('Discarded draft')
+    await wrapper.find('.title-edit-form button.ghost').trigger('click')
+    expect(wrapper.find('.title-row h1').text()).toBe(longName)
+  })
+
+  it('offers Save in the floating bar with the same auth path as the header', async () => {
+    state.user = null
+    const wrapper = await mountSummary()
+
+    // Both placements stay in the DOM: desktop header copy + mobile bar copy.
+    expect(wrapper.find('.save-action-group button.primary').exists()).toBe(true)
+    const barSave = wrapper.find('.bar-save')
+    expect(barSave.exists()).toBe(true)
+    expect(barSave.text()).toContain('Save build')
+    expect(barSave.attributes('disabled')).toBeUndefined()
+
+    // Signed out: the bar Save takes the same auth path as the header Save.
+    await barSave.trigger('click')
+    await flushPromises()
+    expect(wrapper.vm.$router.currentRoute.value.path).toBe('/account')
+    expect(state.editingSavedBuildName).toBeTruthy()
   })
 })
 

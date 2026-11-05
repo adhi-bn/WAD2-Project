@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import AccountView from '../../src/views/AccountView.vue'
@@ -29,11 +29,17 @@ afterEach(() => {
   state.ui.accountTransition = false
   Object.assign(state.ld, { used: false, prize: null, code: null, expires: 0, applied: false })
   localStorage.removeItem('lct_guest_draft')
+  vi.unstubAllEnvs()
+  vi.resetModules()
 })
 
 describe('profile authentication surface', () => {
-  it('keeps the guest profile usable when cloud authentication is unavailable', () => {
-    const wrapper = mount(AccountView)
+  it('keeps the guest profile usable when cloud authentication is unavailable', async () => {
+    vi.stubEnv('VITE_SUPABASE_URL', '')
+    vi.stubEnv('VITE_SUPABASE_ANON_KEY', '')
+    vi.resetModules()
+    const { default: FreshAccountView } = await import('../../src/views/AccountView.vue')
+    const wrapper = mount(FreshAccountView)
 
     expect(wrapper.get('h1').text()).toBe('Sign in to save your builds')
     expect(wrapper.text()).toContain('Accounts are not connected yet.')
