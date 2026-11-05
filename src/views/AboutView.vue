@@ -74,3 +74,20 @@ import AboutStoreLocation from '../components/AboutStoreLocation.vue'
     </section>
   </div>
 </template>
+
+<style scoped>
+/* Phones: the keyboard graphic is scaled down so it stays inside the screen. */
+@media (max-width: 560px) {
+  .about-keyboard-visual {
+    transform: rotate(-3deg) scale(0.9);
+  }
+}
+/* Phones: the hero row drops Bootstrap's wide column gap, so it matches the screen width. */
+@media (max-width: 760px) {
+  .row.g-5 {
+    --bs-gutter-x: 0;
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+</style>
