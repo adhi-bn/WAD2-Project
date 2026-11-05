@@ -66,10 +66,21 @@ function edit(l) {
           <div class="bigtotal" style="margin-top: 12px"><span class="eyebrow">Total</span><span class="amt">{{ money2(due) }}</span></div>
           <p class="sub">Prices in SGD. The final amount is confirmed at payment.</p>
           <div class="actions">
-            <router-link to="/checkout" class="ui-btn primary big">Checkout →</router-link>
+            <router-link to="/checkout" class="ui-btn primary big checkout-btn">Checkout →</router-link>
           </div>
         </div>
       </div>
     </div>
   </section>
 </template>
+
+<style scoped>
+/* Phones: the checkout button spans the summary panel. */
+@media (max-width: 760px) {
+  .checkout-btn {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+  }
+}
+</style>

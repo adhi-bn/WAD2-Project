@@ -89,7 +89,7 @@ async function pay() {
           <p v-if="repriced" class="sub" role="status">The prices have changed since you added these parts. The subtotal is now {{ money2(repriced.subtotal) }}. Check it, then confirm to pay.</p>
           <p v-if="err" class="sub" role="alert" style="color: #b42318">{{ err }}</p>
           <div class="actions">
-            <button type="submit" class="ui-btn primary big" :disabled="!canPay">
+            <button type="submit" class="ui-btn primary big pay-btn" :disabled="!canPay">
               {{ busy ? 'Starting payment…' : repriced ? 'Confirm new price and pay →' : 'Pay securely with HitPay →' }}
             </button>
           </div>
@@ -110,3 +110,16 @@ async function pay() {
     </div>
   </section>
 </template>
+
+<style scoped>
+/* Phones: fields and the pay button are finger-sized, and the button spans the form. */
+@media (max-width: 760px) {
+  .form-control {
+    min-height: 44px;
+  }
+  .pay-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+</style>
