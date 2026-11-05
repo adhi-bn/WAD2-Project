@@ -189,4 +189,31 @@ const { plainText, emText, isComplete, reducedMotion } = useTypewriter()
   outline: 2px solid var(--lct-accent-indigo);
   outline-offset: 8px;
 }
+/* Phones: the quiz preview card is tall enough for its last line. */
+@media (max-width: 760px) {
+  .stackdemo {
+    height: 400px;
+  }
+}
+/* Phones: the 3D keyboard backdrop is faint, so it sits behind the hero text instead of over it. */
+@media (max-width: 760px) {
+  .exploded-anatomy-container {
+    opacity: 0.3;
+  }
+}
+/* The hero text sits on a frosted panel, so it stays readable over the 3D keyboard. */
+.hero > div:first-child {
+  background: color-mix(in srgb, var(--surface) 62%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid color-mix(in srgb, var(--surface) 70%, transparent);
+  border-radius: 24px;
+  padding: 24px;
+}
+@media (max-width: 760px) {
+  .hero > div:first-child {
+    padding: 18px;
+    border-radius: 18px;
+  }
+}
 </style>
