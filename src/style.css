@@ -286,9 +286,9 @@ section.screen {
   opacity: 0.55;
 }
 
-/* Phones: both range sliders (seek and volume) get a 44px-tall, finger-sized target. */
+/* Phones: a 44px-tall slider gives the seek bar a finger-sized target. */
 @media (max-width: 760px) {
-  .switch-audio input[type="range"] {
+  .switch-audio__seek {
     height: 44px;
   }
 }
@@ -795,9 +795,13 @@ section.screen {
 body.hasbar {
   padding-bottom: var(--bar-clearance, 180px);
 }
-/* Phones (up to the 900px bar contract): clear the bar by its measured height, set in App.vue. */
-@media (max-width: 900px) {
+@media (max-width: 760px) {
   body.hasbar {
-    padding-bottom: calc(var(--lct-bar-h, 104px) + 12px);
+    padding-bottom: var(--bar-clearance-mobile, 260px);
   }
+}
+
+/* The footer sits below the page content, so the fixed bottom bar (inside <main>) stays on top of it. */
+#app footer {
+  z-index: 1;
 }

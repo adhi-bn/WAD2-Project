@@ -277,7 +277,7 @@ footer{border-top:1px solid var(--line);padding-block:20px;color:var(--muted);fo
 .legal-page__content{max-width:780px}.legal-page h1{font-size:clamp(34px,5vw,48px);margin:8px 0}.legal-page__updated{margin:0 0 32px;color:var(--muted);font-size:13px}.legal-page section{border-top:1px solid var(--line);padding:22px 0}.legal-page h2{font-size:20px;margin:0 0 8px}.legal-page p{margin:0 0 10px;max-width:75ch;color:var(--muted)}.legal-page p:last-child{margin-bottom:0}
 
 @media (max-width:900px){
-  .layout{grid-template-columns:minmax(0,1fr)}
+  .layout{grid-template-columns:1fr}
   aside.sheet{position:static}
   .sumgrid,.reco{grid-template-columns:1fr}
 }
@@ -423,8 +423,7 @@ body.hasbar .kitty{bottom:calc(100px + env(safe-area-inset-bottom,0px))}
 .l3d{position:absolute;left:0;top:0;display:flex;flex-direction:row-reverse;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);white-space:nowrap;transition:opacity .25s,color .25s;background:color-mix(in srgb,var(--bg) 85%,transparent);padding:2px 6px;border-radius:6px}
 .l3d::before{content:"";width:26px;height:1px;background:currentColor;opacity:.7}
 .l3d.on{color:var(--accent);font-weight:600}
-main{position:relative;z-index:2}
-footer{position:relative;z-index:1}
+main,footer{position:relative;z-index:2}
 .hs{min-height:85vh;display:flex;align-items:center;padding-block:40px}
 .hs .wrap,.ks .wrap{width:100%}
 .glass{max-width:480px;background:color-mix(in srgb,var(--surface) 86%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:20px;padding:26px;box-shadow:var(--shadow)}
