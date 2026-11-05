@@ -282,6 +282,7 @@ function hideCat() {
 function showCat() {
   hiddenCat.value = false
 }
+
 /**
  * Handles Escape keypress to dismiss wheel or chat.
  *

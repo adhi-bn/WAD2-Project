@@ -1615,6 +1615,23 @@ export function createBuildPreviewScene({
       controls.target.set(defaultIso.target[0], defaultIso.target[1], defaultIso.target[2])
       controls.update()
 
+      // Scroll-first on touch: let vertical pans scroll the page while horizontal
+      // drags rotate the model (OrbitControls releases the pointer on pointercancel).
+      // OrbitControls' constructor forces touchAction 'none' on the canvas, so the
+      // override must run after construction. Mouse orbit is untouched — touch-action
+      // only applies to touch input.
+      // any-pointer detects touch-capable hybrid devices whose primary pointer is a
+      // mouse; a plain pointer:coarse check would miss those touchscreens.
+      // ponytail: touch-capability is read once at scene creation; an input-mode switch
+      // mid-session keeps the creation-time behavior until the stage remounts.
+      if (
+        typeof window !== 'undefined' &&
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(any-pointer: coarse)').matches
+      ) {
+        controls.domElement.style.touchAction = 'pan-y'
+      }
+
       if (interactive) {
         controls.addEventListener('start', handleControlsStart)
         controls.addEventListener('change', handleControlsChange)
