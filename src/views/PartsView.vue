@@ -105,13 +105,10 @@ const nextLabel = computed(() => (onAddons.value ? 'See my keyboard →' : catId
 onMounted(() => {
   document.body.classList.add('hasbar')
   document.body.style.setProperty('--bar-clearance', '100px')
-  // On phones the bar is about 78-96px tall, so 104px keeps the last cards clear of it.
-  document.body.style.setProperty('--bar-clearance-mobile', '104px')
 })
 onBeforeUnmount(() => {
   document.body.classList.remove('hasbar')
   document.body.style.removeProperty('--bar-clearance')
-  document.body.style.removeProperty('--bar-clearance-mobile')
 })
 </script>
 
