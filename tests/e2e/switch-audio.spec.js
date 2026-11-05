@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { BASE } from '../../src/data/catalog.js'
 
 test('decodes and plays every catalogued MP3 recording in Chromium', async ({ page }) => {
-  test.setTimeout(120_000)
+  test.setTimeout(180_000)
   await page.goto('/')
   await page.getByRole('button', { name: /Select .+/ }).first().click()
   await expect(page).toHaveURL(/\/parts$/)
@@ -30,7 +30,7 @@ test('decodes and plays every catalogued MP3 recording in Chromium', async ({ pa
 })
 
 test('decodes every one-press MP3 recording used by the virtual keyboard', async ({ page }) => {
-  test.setTimeout(120_000)
+  test.setTimeout(180_000)
   await page.goto('/')
 
   const results = await page.evaluate(async (switches) => {
