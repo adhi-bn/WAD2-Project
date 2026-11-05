@@ -381,14 +381,16 @@ watch(() => state.savedBuilds.map((build) => build.id).join(','), selectDefaults
     width: 100%;
   }
   .compare-table thead,
-  .compare-table tbody {
+  .compare-table tbody,
+  .compare-table tfoot {
     display: block;
   }
   .compare-table thead th:first-child {
     display: none;
   }
   .compare-table thead tr,
-  .compare-table tbody tr {
+  .compare-table tbody tr,
+  .compare-table tfoot tr {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
@@ -396,7 +398,8 @@ watch(() => state.savedBuilds.map((build) => build.id).join(','), selectDefaults
     padding: 14px 12px;
     font-size: 13px;
   }
-  .compare-table tbody th[scope="row"] {
+  .compare-table tbody th[scope="row"],
+  .compare-table tfoot th[scope="row"] {
     grid-column: 1 / -1;
     grid-row: 1;
     width: auto;
@@ -408,18 +411,21 @@ watch(() => state.savedBuilds.map((build) => build.id).join(','), selectDefaults
     text-transform: uppercase;
     color: var(--muted);
   }
-  .compare-table tbody td {
+  .compare-table tbody td,
+  .compare-table tfoot td {
     grid-row: 2;
     width: auto;
     min-width: 0;
     padding: 10px 12px 14px;
     border-top: 0;
   }
-  .compare-table tbody td:nth-child(2) {
+  .compare-table tbody td:nth-child(2),
+  .compare-table tfoot td:nth-child(2) {
     grid-column: 1;
     border-right: 1px solid var(--line);
   }
-  .compare-table tbody td:nth-child(3) {
+  .compare-table tbody td:nth-child(3),
+  .compare-table tfoot td:nth-child(3) {
     grid-column: 2;
   }
   .compare-table thead th:not(:first-child) {
