@@ -108,6 +108,7 @@ Rules:
 - ${hasImage ? 'The customer sent a photo. Describe the keyboard you see (layout, case, keycaps, switch feel if visible) and pick the closest matching parts from the catalogue. Say clearly that this is an estimate from a photo.' : 'Base the build on what the customer asks for.'}
 - "reply" is for the customer: friendly, plain English, under 80 words. Mention the total in S$.
 - If the request has nothing to do with keyboards, say so kindly in "reply", and set both "build" and "change" to null.
+- Keep internal reasoning concise (under 3 sentences) and emit the JSON payload immediately.
 - Respond with a valid JSON object matching this schema:
 {
   "reply": "string",
@@ -229,7 +230,7 @@ Deno.serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(20000),
+        signal: AbortSignal.timeout(60000),
       })
     }
 
