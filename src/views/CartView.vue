@@ -75,10 +75,12 @@ function edit(l) {
 </template>
 
 <style scoped>
-/* Phones: the checkout button spans the summary panel (.ui-btn already centres its label). */
+/* Phones: the checkout button spans the summary panel. */
 @media (max-width: 760px) {
   .checkout-btn {
+    display: flex;
     width: 100%;
+    justify-content: center;
   }
 }
 </style>
