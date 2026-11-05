@@ -82,9 +82,9 @@ function handle(k) {
     return
   }
   if (k === 'apply') return applyVoucher()
-  if (k === 'switch') return botSay('Quick guide: <b>Linear</b> is smooth, <b>Tactile</b> has a bump you feel, <b>Clicky</b> adds a click, and <b>Silent</b> keeps the office happy. Want me to start the swipe cards?', [['quiz', 'Start swiping'], ['spin', 'Spin the wheel'], ['store', 'Visit the store']])
+  if (k === 'switch') return botSay('(Demo guide) Quick guide: <b>Linear</b> is smooth, <b>Tactile</b> has a bump you feel, <b>Clicky</b> adds a click, and <b>Silent</b> keeps the office happy. Want me to start the swipe cards?', [['quiz', 'Start swiping'], ['spin', 'Spin the wheel'], ['store', 'Visit the store']])
   if (k === 'quiz') { botSay("Off you go! I'll be right here."); setTimeout(() => router?.push?.('/swipe'), 700); return }
-  if (k === 'store') return botSay('Le Chaton Typers has stores at <b>Jewel Changi Airport</b> and <b>Marina Bay Sands</b>. Come try your build in store before you buy.')
+  if (k === 'store') return botSay('(Demo store info) Le Chaton Typers has stores at <b>Jewel Changi Airport</b> and <b>Marina Bay Sands</b>. Come try your build in store before you buy.')
   if (k === 'browse') {
     if (router) router.push('/parts')
     return
@@ -489,16 +489,16 @@ function confetti() {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--ink, #15171C);
-  color: var(--on-accent, #FFFFFF);
+  border-radius: var(--lct-radius-pill, 999px);
+  background: var(--lct-text-ink, #12151C);
+  color: var(--lct-card-surface, #FFFFFF);
   line-height: 1.4;
   white-space: nowrap;
   flex-shrink: 0;
 }
 
 .lct-chat__header .ic:focus-visible {
-  outline: 2px solid var(--accent-ink, #FFFFFF);
+  outline: 2px solid var(--lct-accent-indigo, #3346FF);
   outline-offset: 2px;
 }
 </style>

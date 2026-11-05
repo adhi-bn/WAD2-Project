@@ -52,7 +52,7 @@ npx playwright test tests/e2e/smoke.spec.js -g "shell loads and nav renders"
 
 ## Codebase boundaries & conventions
 
-- Plain JavaScript (ESM) only across the entire codebase — no TypeScript (`.ts`/`.tsx`).
+- Plain JavaScript (ESM) only across the client codebase (`src/`, `tests/`) — no TypeScript (`.ts`/`.tsx`). Backend Edge Functions in `supabase/functions/` execute on Deno and use Deno standard TypeScript.
 - Styling uses Bootstrap 5.3.3 + custom CSS namespace in `src/style.css` governed by `DESIGN.md` (ADR-0002; no Tailwind classes).
 - Domain vocabulary in code, tests, issues, and PRs follows `CONTEXT.md`. Parts expose `part.price` in major currency units (converted internally to integer cents via `toCents(part?.price)` inside `src/domain/build.js` to avoid floating-point drift), and the reactive build store (`src/stores/build.js`) tracks the budget cap as `build.limit`.
 - Pure domain rules live in `src/domain/`; reactive state in `src/stores/`; external I/O seams in `src/lib/`.

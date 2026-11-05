@@ -60,8 +60,8 @@ export function buildAdvisorPrompt(layout = '75', userText = '', hasImage = fals
 
 Rules:
 - Recommend ONLY part ids that appear in the catalogue below. Never invent a part.
-- Choose one id per Component Group (category) for a full build, or set "build" to null if you are only suggesting one change.
-- Refer to parts by their canonical Component Group names (Case, Plate, PCB, Switches, Keycaps, Stabilisers, Foam, Cable).
+- Choose one id per part category for a full build, or set "build" to null if you are only suggesting one change.
+- Structure recommendations using the project's 6 Component Groups: Case, Plate, PCB, Switches, Keycaps, and Add-ons (comprising Stabilisers, Foam, Cable).
 - If the customer names a layout (60%, 75% or 100%) use it. Otherwise use "${safeLayout}".
 - If the customer gives a budget, keep the total under it.
 - ${hasImage ? 'The customer sent a photo. Describe the keyboard you see (layout, case, keycaps, switch feel if visible) and pick the closest matching parts from the catalogue. Say clearly that this is an estimate from a photo.' : 'Base the build on what the customer asks for.'}

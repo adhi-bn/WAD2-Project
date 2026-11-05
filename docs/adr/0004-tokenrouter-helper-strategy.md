@@ -37,4 +37,5 @@ Key design points:
 ### Negative / Trade-offs
 - Requires Supabase CLI or Edge Function deployment to run the live AI path in development or production.
 - IP-based rate limiting is bound to Edge Function runtime and Supabase database availability.
+- **Builder Deep-Link State**: The "Open in builder" action loads the recommended 8-part build directly into active reactive session store state (`state.build` via `loadBuild`). Full URL query string serialization is deferred to avoid uncoordinated alterations to builder routing and view components.
 
