@@ -82,3 +82,33 @@ onBeforeUnmount(() => clearInterval(timer))
     </div>
   </section>
 </template>
+
+<style scoped>
+@media (max-width: 600px) {
+  .panel {
+    padding: 16px;
+  }
+
+  .tbl {
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  .tbl td:first-child {
+    overflow-wrap: anywhere;
+  }
+
+  .tbl .r {
+    padding-left: 12px;
+    white-space: nowrap;
+    width: 96px;
+  }
+
+  .actions > .ui-btn,
+  .actions > a.ui-btn {
+    justify-content: center;
+    min-height: 44px;
+    width: 100%;
+  }
+}
+</style>

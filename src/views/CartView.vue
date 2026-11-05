@@ -73,3 +73,53 @@ function edit(l) {
     </div>
   </section>
 </template>
+
+<style scoped>
+@media (max-width: 600px) {
+  .phead {
+    align-items: stretch;
+    gap: 14px;
+  }
+
+  .phead > .ui-btn {
+    justify-content: center;
+    min-height: 44px;
+    width: 100%;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+
+  .phead .amt,
+  .sub,
+  .vline > span:first-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .vline {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .vline > span:last-child {
+    flex: 0 0 auto;
+  }
+
+  .actions > .ui-btn,
+  .actions > a.ui-btn {
+    flex: 1 1 140px;
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  .actions > .big {
+    width: 100%;
+  }
+
+  .bigtotal .amt {
+    font-size: clamp(30px, 10vw, 38px);
+  }
+}
+</style>

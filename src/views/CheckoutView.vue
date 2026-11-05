@@ -110,3 +110,47 @@ async function pay() {
     </div>
   </section>
 </template>
+
+<style scoped>
+@media (max-width: 600px) {
+  .phead {
+    align-items: stretch;
+    gap: 14px;
+  }
+
+  .phead > .ui-btn,
+  .actions > .ui-btn,
+  .actions > button.ui-btn {
+    justify-content: center;
+    min-height: 44px;
+    width: 100%;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+
+  .form-control {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .vline {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .vline > span:first-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .vline > span:last-child {
+    flex: 0 0 auto;
+  }
+
+  .bigtotal .amt {
+    font-size: clamp(30px, 10vw, 38px);
+  }
+}
+</style>

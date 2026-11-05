@@ -276,4 +276,73 @@ function continueGuestDraft() {
 .order-items { list-style: none; margin: 6px 0; padding: 0; font-size: 14px; }
 .order-items li { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
 .order-total { font-weight: 600; text-align: right; }
+
+@media (max-width: 600px) {
+  .phead {
+    align-items: stretch;
+    gap: 14px;
+  }
+
+  .phead > .ui-btn,
+  .profile-identity > .ui-btn,
+  .profile-draft > .ui-btn {
+    justify-content: center;
+    min-height: 44px;
+    width: 100%;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+
+  .profile-identity,
+  .profile-draft {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .account-auth-actions > .ui-btn,
+  .actions > .ui-btn,
+  .actions > a.ui-btn,
+  form > .ui-btn {
+    flex: 1 1 140px;
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  form > .ui-btn,
+  .account-auth-actions > .google-btn {
+    width: 100%;
+  }
+
+  .phead .amt,
+  .saved-build-warning,
+  .saved-build-parts dd,
+  .profile-identity p {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .saved-build-parts dl {
+    grid-template-columns: minmax(88px, 0.55fr) minmax(0, 1fr);
+    gap: 8px 12px;
+  }
+
+  .order-head,
+  .order-items li {
+    align-items: flex-start;
+  }
+
+  .order-items li > span:first-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .order-items li > span:last-child,
+  .order-status {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}
 </style>
