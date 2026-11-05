@@ -103,3 +103,8 @@ project environment variables. The SPA uses history routing, so configure and
 verify a SPA history fallback that rewrites unknown paths to `index.html`, and
 test a direct reload of `/builder` after deploying — do not assume the platform
 already rewrites unknown routes.
+
+## AI DECLARATION
+
+Codex was used as an assistant for interface and responsive-design planning work. It was used to give layout recommendations based on our current build.
+For the responsive UI commit, it helped improve the mobile navigation layout, keyboard focus behaviour, build-summary presentation, and mobile save controls. It also assisted with responsive test coverage.
