@@ -21,8 +21,6 @@ describe('supabase seam', () => {
 
   it('getSupabase is null when env vars are unset', async () => {
     vi.resetModules()
-    vi.stubEnv('VITE_SUPABASE_URL', '')
-    vi.stubEnv('VITE_SUPABASE_ANON_KEY', '')
     const mod = await import('../../src/lib/supabase.js')
     expect(mod.getSupabase()).toBeNull()
   })

@@ -68,7 +68,7 @@ The fixed, scroll-driven visual breakdown (accessible via `/know` or the home su
 _Avoid_: Live preview, customiser preview
 
 **Helper**:
-The conversational mascot assistant (Biscuit) that provides guidance on keyboard mechanics, Lucky Draw rewards, and catalog-grounded Part or Build recommendations. Displays a header badge (`AI Advisor` when the backend advisor seam is connected; `Advisor` when running offline with local rules).
+The conversational mascot assistant (Biscuit) that provides guidance on keyboard mechanics, Lucky Draw rewards, and switch recommendations.
 _Avoid_: Chatbot, AI agent, wizard
 
 **Prefilled build**:

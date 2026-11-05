@@ -862,27 +862,6 @@ body.hasbar {
   }
 }
 
-/* Biscuit (FatCat) mascot chat badge and header controls */
-.lct-chat__badge {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 2px 8px;
-  border-radius: var(--lct-radius-pill);
-  background: var(--lct-text-ink);
-  color: var(--lct-card-surface);
-  line-height: 1.4;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.lct-chat__header .ic:focus-visible {
-  outline: 2px solid var(--lct-accent-indigo);
-  outline-offset: 2px;
-}
-
 /* The footer sits below the page content, so the fixed bottom bar (inside <main>) stays on top of it. */
 #app footer {
   z-index: 1;

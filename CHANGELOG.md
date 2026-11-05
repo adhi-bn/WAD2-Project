@@ -23,9 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/build` header identity group: the rename icon sits directly beside the build name (it no longer drops onto its own row when the title wraps) and the Save action stays in the same header group — right-aligned with the title on desktop, wrapping tightly beneath it on phones — instead of floating on separate rows; long custom build names wrap without overflowing the header.
 
 ### Added
-- TokenRouter OpenAI-compatible endpoint migration for Biscuit's advisor Edge Function ([`supabase/functions/advisor/index.ts`](supabase/functions/advisor/index.ts)) using `z-ai/glm-5.3-flash`, backed by client advisor seam ([`src/lib/advisor.js`](src/lib/advisor.js)) with resilient JSON parsing, `<think>` tag stripping, multimodal image fallback, and live Supabase `parts` catalog grounding with static fallback (#19).
-- Semantic header badge in FatCat chat (neutral `Advisor` until a live request succeeds, then `AI Advisor`; reverts to `Advisor` on failure) using Design tokens (`var(--lct-text-ink)`, `var(--lct-card-surface)`), and screen-reader status announcements (`aria-live="polite"`, `role="status"`) for thinking, answered, and error states (#19).
-- Overwrite confirmation prompt in Biscuit's chat before replacing an existing build with a suggested build when navigating to `/build` (#19).
 - Hero typewriter effect with accessible name preservation, layout shift prevention, and reduced-motion fallback.
 - Order history on the Account page: signed-in customers see their orders, status and items (reads their own rows under RLS).
 - `supabase/seed/catalog-images.sql` sets the picture path for Case, Keycap and Switch options. Optional: the app falls back to `/parts/<id>.png`.
@@ -63,7 +60,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Repository changelog in [`CHANGELOG.md`](CHANGELOG.md) tracking milestones and unreleased changes following Keep a Changelog 1.1.0.
 
 ### Changed
-- Updated environment documentation and server secrets to use `TOKENROUTER_API_KEY`, `TOKENROUTER_BASE_URL` (default `https://api.tokenrouter.com/v1`), and `TOKENROUTER_MODEL` (default `z-ai/glm-5.3-flash`) for server-side advisor recommendations (#19).
 - Simplified global navigation to plain-text links and a separate slim Progress row; moved the phone/tablet hamburger to the far right and expanded its accessible menu to fill the viewport.
 - Compacted the `/build` checkout bar with an inline total and side-by-side phone actions while retaining 44px touch targets.
 - Removed the unused Address book placeholder from the Profile page so a signed-in customer's order history uses the full available row.
