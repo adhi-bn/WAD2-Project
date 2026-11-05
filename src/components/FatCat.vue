@@ -480,25 +480,3 @@ function confetti() {
   </div>
   <canvas ref="canvas" id="confetti" hidden></canvas>
 </template>
-
-<style scoped>
-.lct-chat__badge {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 2px 8px;
-  border-radius: var(--lct-radius-pill, 999px);
-  background: var(--lct-text-ink, #12151C);
-  color: var(--lct-card-surface, #FFFFFF);
-  line-height: 1.4;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.lct-chat__header .ic:focus-visible {
-  outline: 2px solid var(--lct-accent-indigo, #3346FF);
-  outline-offset: 2px;
-}
-</style>

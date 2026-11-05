@@ -13,7 +13,7 @@ const LAYOUTS = ['60', '75', '100']
  * Summarises the catalogue for the AI prompt: one line per option with salient specs.
  *
  * @param {string} layout Target layout ('60', '75', '100').
- * @returns {string} Formatted catalogue text grouped by category.
+ * @returns {string} Formatted catalogue text grouped by Component Group.
  */
 function catalogueText(layout) {
   const options = catalog(layout)
@@ -60,7 +60,7 @@ export function buildAdvisorPrompt(layout = '75', userText = '', hasImage = fals
 
 Rules:
 - Recommend ONLY part ids that appear in the catalogue below. Never invent a part.
-- Choose one id per part category for a full build, or set "build" to null if you are only suggesting one change.
+- Choose one id per slot across the Component Groups for a full build, or set "build" to null if you are only suggesting one change.
 - Structure recommendations using the project's 6 Component Groups: Case, Plate, PCB, Switches, Keycaps, and Add-ons (comprising Stabilisers, Foam, Cable).
 - If the customer names a layout (60%, 75% or 100%) use it. Otherwise use "${safeLayout}".
 - If the customer gives a budget, keep the total under it.

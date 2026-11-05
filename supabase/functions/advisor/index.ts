@@ -101,7 +101,7 @@ function buildPrompt(layout: string, userText: string, hasImage: boolean, base: 
 
 Rules:
 - Recommend ONLY part ids that appear in the catalogue below. Never invent a part.
-- Choose one id per part category for a full build, or set "build" to null if you are only suggesting one change.
+- Choose one id per slot across the Component Groups for a full build, or set "build" to null if you are only suggesting one change.
 - Structure recommendations using the project's 6 Component Groups: Case, Plate, PCB, Switches, Keycaps, and Add-ons (comprising Stabilisers, Foam, Cable).
 - If the customer names a layout (60%, 75% or 100%) use it. Otherwise use "${safeLayout}".
 - If the customer gives a budget, keep the total under it.
