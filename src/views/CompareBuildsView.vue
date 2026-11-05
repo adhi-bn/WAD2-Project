@@ -325,3 +325,112 @@ watch(() => state.savedBuilds.map((build) => build.id).join(','), selectDefaults
     </div>
   </section>
 </template>
+
+<style scoped>
+/* Phones: the two Builds sit side by side, with tighter cards so both fit the screen. */
+@media (max-width: 760px) {
+  .compare-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .compare-card {
+    padding: 12px;
+    border-radius: 16px;
+  }
+  .compare-card-top {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .compare-card h2 {
+    font-size: 17px;
+    margin-top: 10px;
+  }
+  .compare-card-parts {
+    font-size: 12px;
+  }
+  .compare-card-parts span {
+    max-width: 100%;
+  }
+  .compare-total {
+    flex-wrap: wrap;
+    margin: 12px 0 10px;
+  }
+  .compare-total strong {
+    font-size: 20px;
+  }
+  .compare-preview {
+    height: 130px;
+    margin-top: 12px;
+  }
+  .compare-preview--3d {
+    height: 140px;
+    margin-top: 8px;
+  }
+  .compare-card .ui-btn {
+    width: 100%;
+    justify-content: center;
+    font-size: 14px;
+    padding: 8px 10px;
+  }
+}
+/* Phones: each part group is one block: the group name, then Build A and Build B side by side. */
+@media (max-width: 760px) {
+  .compare-table {
+    display: block;
+    min-width: 0;
+    width: 100%;
+  }
+  .compare-table thead,
+  .compare-table tbody,
+  .compare-table tfoot {
+    display: block;
+  }
+  .compare-table thead th:first-child {
+    display: none;
+  }
+  .compare-table thead tr,
+  .compare-table tbody tr,
+  .compare-table tfoot tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .compare-table thead th {
+    padding: 14px 12px;
+    font-size: 13px;
+  }
+  .compare-table tbody th[scope="row"],
+  .compare-table tfoot th[scope="row"] {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    width: auto;
+    border-top: 0;
+    padding: 12px 12px 4px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .compare-table tbody td,
+  .compare-table tfoot td {
+    grid-row: 2;
+    width: auto;
+    min-width: 0;
+    padding: 10px 12px 14px;
+    border-top: 0;
+  }
+  .compare-table tbody td:nth-child(2),
+  .compare-table tfoot td:nth-child(2) {
+    grid-column: 1;
+    border-right: 1px solid var(--line);
+  }
+  .compare-table tbody td:nth-child(3),
+  .compare-table tfoot td:nth-child(3) {
+    grid-column: 2;
+  }
+  .compare-table thead th:not(:first-child) {
+    width: auto;
+    min-width: 0;
+  }
+}
+</style>

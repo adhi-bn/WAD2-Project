@@ -276,4 +276,14 @@ function continueGuestDraft() {
 .order-items { list-style: none; margin: 6px 0; padding: 0; font-size: 14px; }
 .order-items li { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
 .order-total { font-weight: 600; text-align: right; }
+/* Phones: long emails, build names and part names wrap instead of pushing the page wider. */
+@media (max-width: 760px) {
+  .profile-layout { grid-template-columns: minmax(0, 1fr); }
+  .profile-identity > div { min-width: 0; }
+  .profile-identity h2,
+  .profile-identity p,
+  .phead h2,
+  .phead h3 { overflow-wrap: anywhere; }
+  .saved-build-parts dd { min-width: 0; overflow-wrap: anywhere; }
+}
 </style>
