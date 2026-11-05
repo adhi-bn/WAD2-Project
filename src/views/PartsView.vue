@@ -105,10 +105,13 @@ const nextLabel = computed(() => (onAddons.value ? 'See my keyboard →' : catId
 onMounted(() => {
   document.body.classList.add('hasbar')
   document.body.style.setProperty('--bar-clearance', '100px')
+  // On phones the bar is about 78-96px tall, so 104px keeps the last cards clear of it.
+  document.body.style.setProperty('--bar-clearance-mobile', '104px')
 })
 onBeforeUnmount(() => {
   document.body.classList.remove('hasbar')
   document.body.style.removeProperty('--bar-clearance')
+  document.body.style.removeProperty('--bar-clearance-mobile')
 })
 </script>
 
@@ -138,11 +141,11 @@ onBeforeUnmount(() => {
             <span class="chip pill mono">Budget {{ money(state.answers.budget) }}</span>
           </div>
         </div>
-        <router-link to="/swipe" class="ui-btn">Retake the quiz</router-link>
+        <router-link to="/swipe" class="ui-btn retake-btn">Retake the quiz</router-link>
       </div>
 
       <div class="layout">
-        <div>
+        <div class="parts-main">
           <div class="tabs" role="tablist">
             <button v-for="(c, i) in MAIN" :key="c" type="button" class="tab" :class="{ on: i === catIdx }" role="tab" :aria-selected="i === catIdx" @click="go(i)">
               <span class="k">{{ String(i + 1).padStart(2, '0') }} · {{ META[c].short }}</span>
@@ -200,7 +203,7 @@ onBeforeUnmount(() => {
             :keycaps="domainBuild.keycaps ?? b?.keycaps"
             :layout="state.answers.layout || '75'"
             compact
-            class="mb-3"
+            class="mb-3 sheet-preview"
           />
           <h3>Build so far</h3>
           <ol>
@@ -282,6 +285,30 @@ onBeforeUnmount(() => {
   #parts .layout,
   .layout {
     grid-template-columns: minmax(0, 1fr) 390px;
+  }
+}
+/* Phones: let the single column shrink to the screen. The tab row would otherwise widen it.
+   The 3D preview moves above the part tabs: its sidebar and the main column pass their
+   children straight into the grid, and the preview takes order -1. Desktop keeps the sidebar. */
+@media (max-width: 900px) {
+  #parts .layout,
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .parts-main,
+  aside.sheet {
+    display: contents;
+  }
+  .sheet-preview {
+    order: -1;
+  }
+}
+/* Phones: the quiz button spans the full width instead of leaving a gap beside it. */
+@media (max-width: 760px) {
+  .retake-btn {
+    display: flex;
+    width: 100%;
+    justify-content: center;
   }
 }
 /* Part picture from the 3D model, shown above the name on the option card. */

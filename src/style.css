@@ -286,6 +286,13 @@ section.screen {
   opacity: 0.55;
 }
 
+/* Phones: a 44px-tall slider gives the seek bar a finger-sized target. */
+@media (max-width: 760px) {
+  .switch-audio__seek {
+    height: 44px;
+  }
+}
+
 .switch-audio__time {
   display: flex;
   justify-content: space-between;
@@ -790,6 +797,11 @@ body.hasbar {
 }
 @media (max-width: 760px) {
   body.hasbar {
-    padding-bottom: 260px;
+    padding-bottom: var(--bar-clearance-mobile, 260px);
   }
+}
+
+/* The footer sits below the page content, so the fixed bottom bar (inside <main>) stays on top of it. */
+#app footer {
+  z-index: 1;
 }
