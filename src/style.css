@@ -782,3 +782,14 @@ section.screen {
     max-width: min(340px, calc(100vw - 64px));
   }
 }
+
+/* Room under the page for the floating bar, so the footer and last cards are not covered.
+   A page can set --bar-clearance on body to change the desktop value. */
+body.hasbar {
+  padding-bottom: var(--bar-clearance, 180px);
+}
+@media (max-width: 760px) {
+  body.hasbar {
+    padding-bottom: 260px;
+  }
+}

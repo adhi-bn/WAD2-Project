@@ -693,24 +693,25 @@ function addNow() {
     min-height: 280px;
   }
 }
-
-/* Parts breakdown panel header with compact action */
-#summary .parts-panel .panel-header {
+/* Panel header with a title on the left and actions on the right. */
+.panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
 }
-
-#summary .parts-panel .panel-header h3 {
+.panel-header h3 {
   margin: 0;
 }
-
-#summary .parts-panel .panel-header .ui-btn {
-  font-size: 13px;
-  padding: 6px 12px;
+#summary .bar-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
 }
-
 /* Red status alert tags and flagged part rows */
 .part-status-tag {
   background: var(--lct-danger-tint, #FCE6DD);
@@ -727,27 +728,7 @@ function addNow() {
   border: 1px solid var(--lct-danger-orange, #D2461A);
   line-height: 1.3;
 }
-
 #summary .tbl tbody tr.is-flagged-part {
-  background-color: color-mix(in srgb, var(--lct-danger-orange, #D2461A) 5%, transparent);
-}
-
-/* Sticky bar actions and body padding */
-#summary .bar-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-:global(body.hasbar) {
-  padding-bottom: 104px;
-}
-
-@media (max-width: 760px) {
-  :global(body.hasbar) {
-    padding-bottom: 148px;
-  }
+  background-color: rgba(210, 70, 26, 0.04);
 }
 </style>

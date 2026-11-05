@@ -1,15 +1,40 @@
--- Run once in the Supabase SQL editor (Database > SQL), then import data with supabase/data.js.
+-- Rollout order (the script can be run again safely):
+--   1. Run this file in the Supabase SQL editor (Database > SQL).
+--   2. Import the catalogue with supabase/data.js. Until this runs, the tables are empty: the storefront
+--      uses its local copy, and checkout refuses to price orders.
+--   3. Deploy the checkout function (npx supabase functions deploy checkout --no-verify-jwt).
+--   4. Optional: run supabase/seed/catalog-images.sql to point each option at its picture.
 
 /* ---------- catalogue ---------- */
 
+-- If older versions of these tables exist with a different layout, keep them as *_backup first.
+do $$
+begin
+  if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'parts')
+     and not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'parts' and column_name = 'category_key') then
+    alter table public.parts rename to parts_backup;
+  end if;
+  if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'categories')
+     and not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'categories' and column_name = 'sort_order') then
+    alter table public.categories rename to categories_backup;
+  end if;
+end $$;
+
+-- One row per category (Case, Plate, ...). The app reads these for the labels.
+create table if not exists categories (
+  key        text primary key,
+  label      text not null,
+  short      text not null,
+  sort_order integer not null
+);
+
+-- One row per part option. data holds the full part object (name, price, grams, ...), the same shape the app uses.
 create table if not exists parts (
-  id           text primary key,
-  category     text not null check (category in ('case','plate','pcb','switches','keycaps','stabs','foam','cable')),
-  name         text not null,
-  price_sgd    integer,            -- flat base price (60% layout); null for per-switch / per-stabiliser items
-  unit_price   numeric,            -- per-switch or per-stabiliser price; null otherwise
-  grams_base   integer,
-  attributes   jsonb not null default '{}'::jsonb
+  category_key text not null references categories(key) on delete cascade,
+  id           text not null,
+  sort_order   integer not null,
+  data         jsonb not null,
+  primary key (category_key, id)
 );
 
 create table if not exists prebuilts (
@@ -67,24 +92,34 @@ create table if not exists orders (
 
 /* ---------- row level security ---------- */
 
+alter table categories    enable row level security;
 alter table parts         enable row level security;
 alter table prebuilts     enable row level security;
 alter table saved_builds  enable row level security;
 alter table vouchers      enable row level security;
 alter table orders        enable row level security;
 
--- Anyone can read the catalogue.
-create policy "public read parts"     on parts     for select using (true);
+-- Anyone can read the catalogue (read only; writes use the service role in the import script).
+drop policy if exists "public read categories" on categories;
+create policy "public read categories" on categories for select to anon, authenticated using (true);
+drop policy if exists "public read parts" on parts;
+create policy "public read parts" on parts for select to anon, authenticated using (true);
+grant select on categories, parts to anon, authenticated;
+drop policy if exists "public read prebuilts" on prebuilts;
 create policy "public read prebuilts" on prebuilts for select using (published);
 
 -- Signed-in customers manage their own saved builds and can see their own orders.
+drop policy if exists "own saved builds" on saved_builds;
 create policy "own saved builds" on saved_builds for all
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "own orders" on orders;
 create policy "own orders" on orders for select
   using (auth.uid() = user_id);
 
 -- Authenticated browser users still pass through the RLS ownership policy.
 grant select, insert, update, delete on saved_builds to authenticated;
+-- Lets a signed-in customer read their own orders on the Account page (RLS limits it to their rows).
+grant select on orders to authenticated;
 
 -- No public policies on vouchers or order writes: edge functions use the service role.
 

@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Order history on the Account page: signed-in customers see their orders, status and items (reads their own rows under RLS).
+- `supabase/seed/catalog-images.sql` sets the picture path for Case, Keycap and Switch options. Optional: the app falls back to `/parts/<id>.png`.
 - Interactive 3D Build Preview on the `/build` review page ([`src/views/SummaryView.vue`](src/views/SummaryView.vue)) via [`src/components/Keyboard3DView.vue`](src/components/Keyboard3DView.vue) and [`src/components/BuildPreviewCanvas.vue`](src/components/BuildPreviewCanvas.vue) in embedded stage mode (`:embedded-stage="true"`), rendering edge-to-edge interactive 3D keyboard models with initial combined assembly state, orbit/zoom controls, and floating top-right action pills (`Explode layers` / `Combine layers` and `Reset view`).
 - Red part status alert tags (`.part-status-tag`) in the `/build` summary table highlighting `Unavailable` parts, `Incompatible` parts, `Price changed` Parts, and slots that `Differs from saved` when compared against loaded saved build baseline IDs tracked in [`src/store.js`](src/store.js) (`savedBuildBaselineIds`).
 - Synchronized inertia smooth scrolling powered by GSAP (`ScrollTrigger`) and Lenis in [`src/lib/smoothScroll.js`](src/lib/smoothScroll.js) across the application shell (`src/App.vue`) and router (`src/router/index.js`), with full `prefers-reduced-motion` accessibility compliance and scroll-trap isolation (`data-lenis-prevent`) on interactive 3D model canvases and Biscuit's assistant chat window.
@@ -57,6 +59,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Standardized code documentation requirements across collaboration guides, mandating JSDoc docstrings for public exports/functions and inline comments for non-obvious logic when agents or contributors write code.
 
 ### Fixed
+- Restored the `/build` review page styles for the part status tags, flagged table rows, action bar and panel headers, and removed the duplicated view-toggle rule in `SummaryView.vue`.
+- The Parts page's bottom clearance is set only while that page is open, so `/build` and other pages keep their default. Disabled Part cards no longer show the hover border.
+- Checkout function could not be deployed: `base` was declared twice. The HitPay URL is now `hitpayBase`.
+- Checkout asks the customer to confirm a changed subtotal before it starts payment (HTTP 409 with `priceChanged`), instead of charging the new price silently.
+- Checkout returns 503 for server or database faults and 400 only for problems with the cart. Voucher lookup errors are no longer treated as invalid codes.
+- Catalogue loader and checkout reject parts whose price (or weight) is missing or not a finite, non-negative number.
+- `supabase/schema.sql` runs again on an existing database (policies are dropped before they are created), grants signed-in customers read access to their orders, and documents the rollout order.
+- App startup waits at most 2 seconds for the Supabase catalogue, then uses the local copy.
 - Removed the unnecessary keyboard tester host tab stop and its outline suppression; physical-key listeners remain on `window`, and audio controls retain their focus indicators (#IMP-9).
 - Added a regression assertion to keep the Build summary actions readable as `← Change parts` and `Add to cart →` (#IMP-11).
 - Matched the 100% virtual keyboard to its spaced function-key groups, right-side navigation and arrow clusters, and 104-key geometry; fixed physical numpad presses to highlight numpad keycaps.

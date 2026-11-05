@@ -11,9 +11,12 @@ const email = ref('')
 const voucher = ref(state.ld.applied && state.ld.code ? state.ld.code : '')
 const busy = ref(false)
 const err = ref('')
+// Set when the server's prices differ from the ones shown: the new subtotal, which the customer must confirm.
+const repriced = ref(null)
 
 const subtotal = computed(() => state.cart.reduce((s, it) => s + total(buildFromIds(it.layout, it.part_ids)), 0))
-const disc = computed(() => discountOf(subtotal.value))
+const shownSubtotal = computed(() => repriced.value?.subtotal ?? subtotal.value)
+const disc = computed(() => discountOf(shownSubtotal.value))
 const canPay = computed(() => name.value.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.value.trim()) && !busy.value)
 
 onMounted(() => {
@@ -31,11 +34,20 @@ async function pay() {
       customer: { name: name.value.trim(), email: email.value.trim() },
       voucher: voucher.value.trim() || null,
       origin: window.location.origin,
+      // The subtotal the customer is confirming: the one they were shown, or the new one after a price change.
+      expectedSubtotal: repriced.value?.subtotal ?? subtotal.value,
     },
   })
   if (error) {
     // Errors come back as a non-2xx response with a readable message in the body.
     const body = await error.context?.json?.().catch(() => null)
+    if (body?.priceChanged) {
+      // Stop before paying: show the new subtotal and wait for the customer to confirm it.
+      repriced.value = { subtotal: body.subtotal }
+      err.value = ''
+      busy.value = false
+      return
+    }
     err.value = body?.error || 'Could not start payment. Please try again.'
     busy.value = false
     return
@@ -74,10 +86,11 @@ async function pay() {
             <label class="form-label" for="ckVoucher">Voucher code (optional)</label>
             <input id="ckVoucher" v-model="voucher" class="form-control" placeholder="e.g. FATCAT10" />
           </div>
+          <p v-if="repriced" class="sub" role="status">The prices have changed since you added these parts. The subtotal is now {{ money2(repriced.subtotal) }}. Check it, then confirm to pay.</p>
           <p v-if="err" class="sub" role="alert" style="color: #b42318">{{ err }}</p>
           <div class="actions">
             <button type="submit" class="ui-btn primary big" :disabled="!canPay">
-              {{ busy ? 'Starting payment…' : 'Pay securely with HitPay →' }}
+              {{ busy ? 'Starting payment…' : repriced ? 'Confirm new price and pay →' : 'Pay securely with HitPay →' }}
             </button>
           </div>
         </form>
@@ -88,9 +101,9 @@ async function pay() {
             <span>{{ it.name }}</span>
             <span class="mono">{{ money2(total(buildFromIds(it.layout, it.part_ids))) }}</span>
           </div>
-          <div class="vline"><span>Subtotal</span><span class="mono">{{ money2(subtotal) }}</span></div>
+          <div class="vline"><span>Subtotal</span><span class="mono">{{ money2(shownSubtotal) }}</span></div>
           <div v-if="disc > 0" class="vline"><span>Voucher (estimate)</span><span class="mono">−{{ money2(disc) }}</span></div>
-          <div class="bigtotal" style="margin-top: 12px"><span class="eyebrow">Total</span><span class="amt">{{ money2(subtotal - disc) }}</span></div>
+          <div class="bigtotal" style="margin-top: 12px"><span class="eyebrow">Total</span><span class="amt">{{ money2(shownSubtotal - disc) }}</span></div>
           <p class="sub">The server recalculates the total when you pay, so the amount charged is always the one shown on the payment page.</p>
         </div>
       </div>
