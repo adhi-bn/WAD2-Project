@@ -236,34 +236,27 @@ function continueGuestDraft() {
           </div>
         </div>
 
-        <div class="profile-details" aria-label="Profile details">
-          <section class="panel">
-            <div class="eyebrow">Address</div>
-            <h3>Address book</h3>
-            <p>Address saving is not connected yet. No address data is collected or stored in this demo.</p>
-          </section>
-          <section class="panel order-history" aria-labelledby="order-history-title">
-            <div class="eyebrow">Orders</div>
-            <h3 id="order-history-title">Order history</h3>
-            <p v-if="!state.user">Sign in to see the orders placed with your account.</p>
-            <p v-else-if="state.orders.length === 0">No orders yet. Orders placed while signed in appear here.</p>
-            <ul v-else class="order-list">
-              <li v-for="o in state.orders" :key="o.id" class="order-row">
-                <div class="order-head">
-                  <span>{{ new Date(o.created_at).toLocaleDateString('en-SG') }}</span>
-                  <span class="order-status" :class="`is-${o.status}`">{{ statusLabel(o.status) }}</span>
-                </div>
-                <ul class="order-items">
-                  <li v-for="(it, i) in o.items" :key="i">
-                    <span>{{ it.name }}</span>
-                    <span v-if="it.price != null" class="mono">{{ money(it.price) }}</span>
-                  </li>
-                </ul>
-                <div class="order-total mono">Total {{ money(o.total) }}</div>
-              </li>
-            </ul>
-          </section>
-        </div>
+        <section class="panel order-history" aria-labelledby="order-history-title">
+          <div class="eyebrow">Orders</div>
+          <h3 id="order-history-title">Order history</h3>
+          <p v-if="!state.user">Sign in to see the orders placed with your account.</p>
+          <p v-else-if="state.orders.length === 0">No orders yet. Orders placed while signed in appear here.</p>
+          <ul v-else class="order-list">
+            <li v-for="o in state.orders" :key="o.id" class="order-row">
+              <div class="order-head">
+                <span>{{ new Date(o.created_at).toLocaleDateString('en-SG') }}</span>
+                <span class="order-status" :class="`is-${o.status}`">{{ statusLabel(o.status) }}</span>
+              </div>
+              <ul class="order-items">
+                <li v-for="(it, i) in o.items" :key="i">
+                  <span>{{ it.name }}</span>
+                  <span v-if="it.price != null" class="mono">{{ money(it.price) }}</span>
+                </li>
+              </ul>
+              <div class="order-total mono">Total {{ money(o.total) }}</div>
+            </li>
+          </ul>
+        </section>
       </div>
 
       <div v-if="state.guestDraft && !state.user" class="panel profile-draft">

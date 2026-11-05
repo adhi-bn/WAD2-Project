@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reactive `layout` prop on [`src/components/BuildPreviewCanvas.vue`](src/components/BuildPreviewCanvas.vue) wired to `sceneController.setLayout`, updating 3D form-factor scale and announcing layout changes via `liveStatusText` (#22).
 - Integration and E2E tests covering layout switching across 60%, 75%, and 100% and validating keycap legend visibility across artwork keycap sets (#22).
 - Interactive two-dimensional keyboard testing on the summary page, with physical and pointer key highlights, layout-aware typing, shifted-symbol support, and matching one-press sounds for every switch.
-- Google OAuth entry point and a guest-first Profile surface with saved Builds, explicit local guest-draft preservation on sign-out, and clear address/payment availability states.
+- Google OAuth entry point and a guest-first Profile surface with saved Builds, explicit local guest-draft preservation on sign-out, and clear payment availability states.
 - Vercel SPA history fallback so direct links such as `/builder` resolve to the app shell.
 - Selected-switch Web Audio playback with linked self-recorded samples, mute/volume controls, accessible status and failure reporting (#17).
 - Linked dedicated Gazzew Boba recordings to U4 and U4T (#17).
@@ -48,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Updated environment documentation and server secrets to use `TOKENROUTER_API_KEY`, `TOKENROUTER_BASE_URL` (default `https://api.tokenrouter.com/v1`), and `TOKENROUTER_MODEL` (default `z-ai/glm-5.3-flash`) for server-side advisor recommendations (#19).
+- Removed the unused Address book placeholder from the Profile page so a signed-in customer's order history uses the full available row.
 - Moved the interactive two-dimensional keyboard tester and its audio controls into the Type tester summary tab, with a responsive layout for the available panel space.
 - Shared mute and volume controls and Web Audio helpers between the selected-switch player and the Type tester, and standardized recording assets as one-press samples.
 - Reworked virtual keyboard switch playback to use Web Audio API decoding and one-shot audio buffers without changing the keyboard interface.
