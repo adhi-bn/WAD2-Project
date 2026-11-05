@@ -119,7 +119,6 @@ async function pay() {
   }
   .pay-btn {
     width: 100%;
-    justify-content: center;
   }
 }
 </style>

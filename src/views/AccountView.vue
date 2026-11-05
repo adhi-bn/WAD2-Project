@@ -278,7 +278,6 @@ function continueGuestDraft() {
 .order-total { font-weight: 600; text-align: right; }
 /* Phones: long emails, build names and part names wrap instead of pushing the page wider. */
 @media (max-width: 760px) {
-  .profile-layout { grid-template-columns: minmax(0, 1fr); }
   .profile-identity > div { min-width: 0; }
   .profile-identity h2,
   .profile-identity p,
