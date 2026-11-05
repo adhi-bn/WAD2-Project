@@ -67,6 +67,7 @@ Rules:
 - ${hasImage ? 'The customer sent a photo. Describe the keyboard you see (layout, case, keycaps, switch feel if visible) and pick the closest matching parts from the catalogue. Say clearly that this is an estimate from a photo.' : 'Base the build on what the customer asks for.'}
 - "reply" is for the customer: friendly, plain English, under 80 words. Mention the total in S$.
 - If the request has nothing to do with keyboards, say so kindly in "reply", and set both "build" and "change" to null.
+- Keep internal reasoning concise (under 3 sentences) and emit the JSON payload immediately.
 - Respond with a valid JSON object matching this schema:
 {
   "reply": "string",
@@ -291,7 +292,7 @@ export function validateAdvisorCatalogResponse(ai, defaultLayout = '75') {
  * @param {{ mime_type: string, data: string } | null} [params.image=null] Optional image object.
  * @param {string} [params.layout='75'] Preferred layout ('60', '75', '100').
  * @param {string} [params.origin] Calling website origin (defaults to window.location.origin or localhost).
- * @param {number} [params.timeoutMs=15000] Timeout in milliseconds.
+ * @param {number} [params.timeoutMs=60000] Timeout in milliseconds.
  * @returns {Promise<{ ok: boolean, reply?: string, layout?: string, build?: object|null, change?: object|null, note?: string|null, error?: string }>}
  */
 export async function askAdvisor({
@@ -299,7 +300,7 @@ export async function askAdvisor({
   image = null,
   layout = '75',
   origin = undefined,
-  timeoutMs = 15000,
+  timeoutMs = 60000,
 } = {}) {
   if (!isAdvisorReady()) {
     return { ok: false, error: 'Advisor is not configured.' }
