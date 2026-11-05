@@ -1,7 +1,7 @@
 <script setup>
 // Biscuit the fat cat: floating mascot, chat box and the Spin-to-Win lucky draw.
 // Presenter tip: type /win10, /win15, /win5 or /lose in the chat to fix the next spin.
-import { ref, computed, watch, nextTick, onMounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { CAT_SVG, PRIZES, SLICES, VOUCHER_MINUTES } from '../data/fatcat.js'
 import { state, toast, saveLD, resetLD, activeVoucher, timeLeft, openWheel, loadBuild, addToCart, choose } from '../store.js'
@@ -135,9 +135,48 @@ function openChat() {
     setTimeout(() => botSay('This week only: spin my lucky wheel for up to <b>15% off</b> your keyboard build.'), 1300)
   }
 }
+/**
+ * Hides the Biscuit mascot for this visit; the paw tab brings him back.
+ *
+ * @returns {void}
+ */
+function hideCat() {
+  hiddenCat.value = true
+}
+
+/**
+ * Brings the Biscuit mascot back for this visit.
+ *
+ * @returns {void}
+ */
+function showCat() {
+  hiddenCat.value = false
+}
+
+/**
+ * Handles Escape keypress to dismiss wheel or chat.
+ *
+ * @param {KeyboardEvent} e - Keydown event.
+ * @returns {void}
+ */
+function onKeydown(e) {
+  if (e.key === 'Escape') {
+    if (state.ui.wheel) closeWheel()
+    else if (chatOpen.value) chatOpen.value = false
+  }
+}
+
 onMounted(() => {
-  setTimeout(() => { if (!chatOpen.value && !hiddenCat.value && !state.ld.used) tease.value = true }, 3500)
-  addEventListener('keydown', (e) => { if (e.key === 'Escape' && state.ui.wheel) closeWheel() })
+  setTimeout(() => {
+    // No auto-tease on small screens: the fixed bottom-right bubble would cover task controls.
+    const roomy = typeof window === 'undefined' || typeof window.matchMedia !== 'function' || window.matchMedia('(min-width: 1024px)').matches
+    if (roomy && !chatOpen.value && !hiddenCat.value && !state.ld.used) tease.value = true
+  }, 3500)
+  addEventListener('keydown', onKeydown)
+})
+
+onUnmounted(() => {
+  removeEventListener('keydown', onKeydown)
 })
 
 /* ---------- spin wheel ---------- */
@@ -230,7 +269,7 @@ function confetti() {
         <span class="av lct-chat__av" v-html="CAT_SVG"></span>
         <div class="who"><b>Biscuit</b><span>Le Chaton Typers' fat cat</span></div>
         <button type="button" class="ic lct-chat__close" aria-label="Minimise chat" @click="chatOpen = false">–</button>
-        <button type="button" class="ic" aria-label="Hide Biscuit" @click="hiddenCat = true">×</button>
+        <button type="button" class="ic" aria-label="Hide Biscuit" @click="hideCat">×</button>
       </header>
       <div ref="msgBox" class="msgs lct-chat__messages" aria-live="polite" data-lenis-prevent>
         <template v-for="m in msgs" :key="m.id">
@@ -256,7 +295,7 @@ function confetti() {
       <span v-html="CAT_SVG"></span><span v-if="badge" class="cat-badge">1</span>
     </button>
   </div>
-  <button v-if="hiddenCat" type="button" class="pawtab" aria-label="Bring Biscuit back" @click="hiddenCat = false">
+  <button v-if="hiddenCat" type="button" class="pawtab" aria-label="Bring Biscuit back" @click="showCat">
     <span v-html="CAT_SVG"></span>Biscuit
   </button>
 
