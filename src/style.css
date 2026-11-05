@@ -421,6 +421,66 @@ section.screen {
   color: var(--lct-accent-indigo);
 }
 
+/* Hero typewriter title & caret */
+.hero-typewriter {
+  display: inline-grid;
+  grid-template-areas: "hero-stack";
+  align-items: start;
+  justify-items: start;
+  white-space: pre-wrap;
+  max-width: 100%;
+}
+
+.hero-typewriter-ghost {
+  grid-area: hero-stack;
+  visibility: hidden;
+  user-select: none;
+  pointer-events: none;
+}
+
+.hero-typewriter-live {
+  grid-area: hero-stack;
+}
+
+.hero-caret {
+  display: inline-block;
+  width: 3px;
+  height: 0.88em;
+  margin-left: 4px;
+  margin-right: -7px;
+  vertical-align: -0.04em;
+  background-color: var(--lct-accent-indigo);
+  border-radius: 1.5px;
+  animation: lct-caret-blink 0.9s steps(1, start) infinite;
+}
+
+.hero-caret.hero-caret--done {
+  animation: lct-caret-blink 0.9s steps(1, start) 2, lct-caret-fade 0.8s ease 1.8s forwards;
+}
+
+@keyframes lct-caret-blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes lct-caret-fade {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-caret {
+    display: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
 .hero p.lede {
   font-size: 18px;
   line-height: 1.55;

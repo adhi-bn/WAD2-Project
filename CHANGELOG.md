@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/build` mobile: the build attribute chips (`75% Layout`, `Silent Tactile`, `Polycarbonate`) use compact sizing and tighter spacing so all three fit on one row from 320px up, with full labels preserved (no clipping or ellipsis); desktop sizing is unchanged.
 
 ### Fixed
+- Landing 3D model fully collapses at page bottom.
 - Mobile shell, supported from 320px phones through 1024px tablets in both orientations: at ≤900px the global navigation links move behind an accessible full-screen menu (focus moves in and is trapped, Escape or the close button dismisses and returns focus to the trigger, any navigation — including same-route activation — closes it, the page behind is inert and scroll-locked, and resizing above 900px resets it), while the separate Progress row keeps visible `Swipe`/`Parts`/`Build`/`Cart` labels, contained and internally scrollable instead of hidden below 760px.
 - Horizontal page overflow on phones from the single-row header; locked Progress steps keep readable labels plus a screen-reader `locked` state.
 - `/build` parts table on narrow phones: rows stack semantically (`data-label` driven, explicit table roles and header associations preserved) with all specs, status tags, and prices retained; voucher totals wrap on narrow phones; mobile body/toast/mascot clearance tracks the rendered checkout bar height (`--lct-bar-h`, measured in `src/App.vue`, set only at ≤900px on `/parts`/`/build`; desktop and barless routes keep their fixed clearance offsets); the rename form wraps instead of overflowing at 320px.
@@ -22,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/build` header identity group: the rename icon sits directly beside the build name (it no longer drops onto its own row when the title wraps) and the Save action stays in the same header group — right-aligned with the title on desktop, wrapping tightly beneath it on phones — instead of floating on separate rows; long custom build names wrap without overflowing the header.
 
 ### Added
+- Hero typewriter effect with accessible name preservation, layout shift prevention, and reduced-motion fallback.
 - Order history on the Account page: signed-in customers see their orders, status and items (reads their own rows under RLS).
 - `supabase/seed/catalog-images.sql` sets the picture path for Case, Keycap and Switch options. Optional: the app falls back to `/parts/<id>.png`.
 - Interactive 3D Build Preview on the `/build` review page ([`src/views/SummaryView.vue`](src/views/SummaryView.vue)) via [`src/components/Keyboard3DView.vue`](src/components/Keyboard3DView.vue) and [`src/components/BuildPreviewCanvas.vue`](src/components/BuildPreviewCanvas.vue) in embedded stage mode (`:embedded-stage="true"`), rendering edge-to-edge interactive 3D keyboard models with initial combined assembly state, orbit/zoom controls, and floating top-right action pills (`Explode layers` / `Combine layers` and `Reset view`).
