@@ -4,7 +4,7 @@ import { ref, computed, nextTick, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabaseReady } from '../lib/supabase.js'
 import { money } from '../logic/builder.js'
-import { state, signIn, signUp, signOut, signInWithGoogle, refreshSaved, deleteSaved, openSavedBuild, restoreGuestDraft, resolveAccountTransition } from '../store.js'
+import { state, signIn, signUp, signOut, signInWithGoogle, refreshSaved, refreshOrders, deleteSaved, openSavedBuild, restoreGuestDraft, resolveAccountTransition } from '../store.js'
 import { revalidateSavedBuild } from '../domain/saved-build.js'
 import { catalog, CATS, META } from '../data/catalog.js'
 
@@ -29,7 +29,11 @@ const saved = computed(() => state.savedBuilds.map((savedBuild) => ({
   review: revalidateSavedBuild(savedBuild, catalog(savedBuild.layout)),
 })))
 
-onMounted(() => { if (state.user) refreshSaved() })
+onMounted(() => { if (state.user) { refreshSaved(); refreshOrders() } })
+
+// Order status as shown to the customer.
+const STATUS_LABELS = { pending: 'Awaiting payment', paid: 'Paid', failed: 'Payment failed' }
+const statusLabel = (status) => STATUS_LABELS[status] ?? status
 
 watch(() => state.ui.accountTransition, async (needsDecision) => {
   if (!needsDecision) return
@@ -238,10 +242,26 @@ function continueGuestDraft() {
             <h3>Address book</h3>
             <p>Address saving is not connected yet. No address data is collected or stored in this demo.</p>
           </section>
-          <section class="panel">
-            <div class="eyebrow">Payment</div>
-            <h3>Payment details</h3>
-            <p>Payment details are unavailable. This app does not collect or store card information.</p>
+          <section class="panel order-history" aria-labelledby="order-history-title">
+            <div class="eyebrow">Orders</div>
+            <h3 id="order-history-title">Order history</h3>
+            <p v-if="!state.user">Sign in to see the orders placed with your account.</p>
+            <p v-else-if="state.orders.length === 0">No orders yet. Orders placed while signed in appear here.</p>
+            <ul v-else class="order-list">
+              <li v-for="o in state.orders" :key="o.id" class="order-row">
+                <div class="order-head">
+                  <span>{{ new Date(o.created_at).toLocaleDateString('en-SG') }}</span>
+                  <span class="order-status" :class="`is-${o.status}`">{{ statusLabel(o.status) }}</span>
+                </div>
+                <ul class="order-items">
+                  <li v-for="(it, i) in o.items" :key="i">
+                    <span>{{ it.name }}</span>
+                    <span v-if="it.price != null" class="mono">{{ money(it.price) }}</span>
+                  </li>
+                </ul>
+                <div class="order-total mono">Total {{ money(o.total) }}</div>
+              </li>
+            </ul>
           </section>
         </div>
       </div>
@@ -253,3 +273,14 @@ function continueGuestDraft() {
     </div>
   </section>
 </template>
+
+<style scoped>
+.order-history .order-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 12px; }
+.order-row { border-top: 1px solid var(--lct-line-grey, #e5e5e5); padding-top: 12px; }
+.order-head { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; }
+.order-status { font-weight: 600; }
+.order-status.is-failed { color: #b42318; }
+.order-items { list-style: none; margin: 6px 0; padding: 0; font-size: 14px; }
+.order-items li { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
+.order-total { font-weight: 600; text-align: right; }
+</style>

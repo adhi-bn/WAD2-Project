@@ -42,6 +42,8 @@ const router = createRouter({
 // Parts and Build need a recommended build first, so send people to the swipe cards.
 // Checkout needs something in the cart.
 router.beforeEach((to) => {
+  // HitPay sends the customer back to the site root with ?reference=<order id>. Show that order's page.
+  if (to.path === '/' && typeof to.query.reference === 'string') return `/order/${to.query.reference}`
   if (to.name === 'parts' && !state.build) finishQuiz()
   if (to.meta.needsBuild && !state.build) return '/swipe'
   if (to.meta.needsCart && state.cart.length === 0) return '/cart'

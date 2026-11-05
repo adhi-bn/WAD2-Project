@@ -38,7 +38,7 @@ function validRows() {
 
 function fakeClient({ categories, parts }) {
   return {
-    from: (table) => query(table === 'categories' ? categories : parts),
+    from: (table) => query({ data: table === 'categories' ? categories : parts, error: null }),
   }
 }
 
@@ -100,6 +100,26 @@ describe('loadRemoteCatalog', () => {
     expect(await loadRemoteCatalog()).toBe(false)
     expect(BASE).toEqual(LOCAL_BASE)
     expect(console.warn).toHaveBeenCalled()
+  })
+
+  it('keeps the local copy when a price is missing, null, text or NaN', async () => {
+    for (const bad of [undefined, null, 'free', NaN]) {
+      const rows = validRows()
+      rows.parts = rows.parts.map((r) => (r.category_key === 'case' && r.id === 'abs' ? { ...r, data: { ...r.data, p: bad } } : r))
+      state.client = fakeClient(rows)
+
+      expect(await loadRemoteCatalog()).toBe(false)
+      expect(BASE).toEqual(LOCAL_BASE)
+    }
+  })
+
+  it('checks the switch price field (ps), not the case field', async () => {
+    const rows = validRows()
+    rows.parts = rows.parts.map((r) => (r.category_key === 'switches' && r.id === 'gyellow' ? { ...r, data: { ...r.data, ps: -1 } } : r))
+    state.client = fakeClient(rows)
+
+    expect(await loadRemoteCatalog()).toBe(false)
+    expect(BASE).toEqual(LOCAL_BASE)
   })
 
   it('keeps the local copy when a row is malformed, without partly applying the others', async () => {

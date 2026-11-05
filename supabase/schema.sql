@@ -1,4 +1,9 @@
--- Run once in the Supabase SQL editor (Database > SQL), then import data with supabase/data.js.
+-- Rollout order (the script can be run again safely):
+--   1. Run this file in the Supabase SQL editor (Database > SQL).
+--   2. Import the catalogue with supabase/data.js. Until this runs, the tables are empty: the storefront
+--      uses its local copy, and checkout refuses to price orders.
+--   3. Deploy the checkout function (npx supabase functions deploy checkout --no-verify-jwt).
+--   4. Optional: run supabase/seed/catalog-images.sql to point each option at its picture.
 
 /* ---------- catalogue ---------- */
 
@@ -100,16 +105,21 @@ create policy "public read categories" on categories for select to anon, authent
 drop policy if exists "public read parts" on parts;
 create policy "public read parts" on parts for select to anon, authenticated using (true);
 grant select on categories, parts to anon, authenticated;
+drop policy if exists "public read prebuilts" on prebuilts;
 create policy "public read prebuilts" on prebuilts for select using (published);
 
 -- Signed-in customers manage their own saved builds and can see their own orders.
+drop policy if exists "own saved builds" on saved_builds;
 create policy "own saved builds" on saved_builds for all
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "own orders" on orders;
 create policy "own orders" on orders for select
   using (auth.uid() = user_id);
 
 -- Authenticated browser users still pass through the RLS ownership policy.
 grant select, insert, update, delete on saved_builds to authenticated;
+-- Lets a signed-in customer read their own orders on the Account page (RLS limits it to their rows).
+grant select on orders to authenticated;
 
 -- No public policies on vouchers or order writes: edge functions use the service role.
 

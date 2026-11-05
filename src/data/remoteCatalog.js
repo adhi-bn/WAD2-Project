@@ -4,10 +4,18 @@
 import { supabase, supabaseReady } from '../lib/supabase.js'
 import { BASE, META, CATS } from './catalog.js'
 
-const TIMEOUT_MS = 4000
+// The app waits for this long at startup at most, then uses the local copy.
+const TIMEOUT_MS = 2000
+
+// The price field for each category. Every other category is priced with `p`.
+const PRICE_FIELD = { switches: 'ps', stabs: 'pp' }
+
+// Prices and weights must be finite, non-negative numbers.
+const isAmount = (n) => typeof n === 'number' && Number.isFinite(n) && n >= 0
 
 /**
- * Turn one parts row into the part object the app uses. The row's id must match the part's id.
+ * Turn one parts row into the part object the app uses. The row's id must match the part's id,
+ * and its price (and weight, when present) must be a finite, non-negative number.
  * @param {{category_key: string, id: string, data: object}} row
  * @returns {object} the part object from the row's data
  * @throws {Error} when the row does not hold a valid part
@@ -16,6 +24,10 @@ function rowToPart(row) {
   const part = row.data
   if (!part || typeof part !== 'object' || part.id !== row.id || typeof part.name !== 'string') {
     throw new Error(`Bad part row: ${row.category_key}/${row.id}`)
+  }
+  const field = PRICE_FIELD[row.category_key] ?? 'p'
+  if (!isAmount(part[field]) || (part.g !== undefined && !isAmount(part.g))) {
+    throw new Error(`Bad part price: ${row.category_key}/${row.id}`)
   }
   return part
 }

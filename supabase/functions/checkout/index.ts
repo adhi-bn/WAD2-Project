@@ -8,7 +8,7 @@
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided automatically.
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { priceIds } from '../_shared/catalog.js'
+import { priceIds, CATS } from '../_shared/catalog.js'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -18,7 +18,14 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } })
 
 const LAYOUTS = ['60', '75', '100']
-const CATS = ['case', 'plate', 'pcb', 'switches', 'keycaps', 'stabs', 'foam', 'cable']
+// The price field for each category. Every other category is priced with `p`.
+const PRICE_FIELD: Record<string, string> = { switches: 'ps', stabs: 'pp' }
+
+// A mistake in the customer's cart, answered with 400. Anything else is a server or database fault, answered with 503.
+class CustomerError extends Error {}
+
+// Prices and weights must be finite, non-negative numbers before anything is charged.
+const isAmount = (n: unknown) => typeof n === 'number' && Number.isFinite(n) && n >= 0
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
 Deno.serve(async (req) => {
@@ -26,7 +33,7 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'Use POST' }, 405)
 
   try {
-    const { items, customer, voucher, origin } = await req.json()
+    const { items, customer, voucher, origin, expectedSubtotal } = await req.json()
 
     // Basic input checks.
     if (!Array.isArray(items) || items.length === 0 || items.length > 10) return json({ error: 'Your cart is empty or too large.' }, 400)
@@ -40,25 +47,45 @@ Deno.serve(async (req) => {
     // If the table cannot be read, checkout stops rather than charging from a stale copy.
     const { data: partRows, error: partsErr } = await admin.from('parts').select('category_key,data')
     if (partsErr) throw partsErr
-    const base: Record<string, unknown[]> = {}
-    for (const r of partRows ?? []) (base[r.category_key] ??= []).push(r.data)
-    for (const c of CATS) if (!base[c]?.length) throw new Error(`Catalogue is missing ${c}`)
+    const catalogue: Record<string, unknown[]> = {}
+    for (const r of partRows ?? []) {
+      const field = PRICE_FIELD[r.category_key] ?? 'p'
+      if (!isAmount(r.data?.[field]) || (r.data.g !== undefined && !isAmount(r.data.g))) {
+        throw new Error(`Catalogue price is invalid: ${r.category_key}/${r.data?.id}`)
+      }
+      (catalogue[r.category_key] ??= []).push(r.data)
+    }
+    for (const c of CATS) if (!catalogue[c]?.length) throw new Error(`Catalogue is missing ${c}`)
 
     // Price every item on the server. priceIds throws if a part id is unknown.
     let subtotal = 0
     const lines = items.map((it) => {
-      if (!LAYOUTS.includes(it.layout)) throw new Error('Unknown layout.')
-      const { total } = priceIds(it.layout, it.part_ids, base)
-      subtotal += total
-      return { name: String(it.name ?? 'Custom keyboard').slice(0, 120), layout: it.layout, part_ids: it.part_ids, price: total }
+      if (!LAYOUTS.includes(it.layout)) throw new CustomerError('Unknown layout.')
+      let line: number
+      try {
+        line = priceIds(it.layout, it.part_ids, catalogue).total
+      } catch {
+        throw new CustomerError('Some parts in your cart are no longer available.')
+      }
+      subtotal += line
+      return { name: String(it.name ?? 'Custom keyboard').slice(0, 120), layout: it.layout, part_ids: it.part_ids, price: line }
     })
+
+    // The browser sends the subtotal the customer was shown. If the prices have changed, stop and ask them to confirm.
+    if (expectedSubtotal != null) {
+      const shown = Number(expectedSubtotal)
+      if (!Number.isFinite(shown) || Math.abs(shown - subtotal) > 0.005) {
+        return json({ error: 'Prices have changed since you added these parts. Review the new subtotal before paying.', priceChanged: true, subtotal }, 409)
+      }
+    }
 
     // Optional voucher: must exist, be unused and not expired.
     let discount = 0
     let voucherCode: string | null = null
     if (voucher) {
       const code = String(voucher).trim().toUpperCase()
-      const { data: v } = await admin.from('vouchers').select('*').eq('code', code).is('used_at', null).maybeSingle()
+      const { data: v, error: voucherErr } = await admin.from('vouchers').select('*').eq('code', code).is('used_at', null).maybeSingle()
+      if (voucherErr) throw voucherErr
       if (!v || new Date(v.expires_at) < new Date()) return json({ error: 'That voucher is not valid any more.' }, 400)
       discount = v.type === 'pct' ? Math.round((subtotal * v.value) / 100) : Math.min(v.value, subtotal)
       voucherCode = v.code
@@ -81,7 +108,7 @@ Deno.serve(async (req) => {
     if (insErr) throw insErr
 
     // Start the HitPay payment request (form-encoded, as HitPay expects).
-    const base = Deno.env.get('HITPAY_BASE') ?? 'https://api.sandbox.hit-pay.com'
+    const hitpayBase = Deno.env.get('HITPAY_BASE') ?? 'https://api.sandbox.hit-pay.com'
     const form = new URLSearchParams({
       amount: total.toFixed(2),
       currency: 'SGD',
@@ -91,7 +118,7 @@ Deno.serve(async (req) => {
       redirect_url: `${origin}/#/order/${order.id}`,
       purpose: 'Le Chaton Typers custom keyboard',
     })
-    const res = await fetch(`${base}/v1/payment-requests`, {
+    const res = await fetch(`${hitpayBase}/v1/payment-requests`, {
       method: 'POST',
       headers: {
         'X-BUSINESS-API-KEY': Deno.env.get('HITPAY_API_KEY')!,
@@ -110,7 +137,7 @@ Deno.serve(async (req) => {
     return json({ orderId: order.id, url: pr.url, subtotal, discount, total })
   } catch (e) {
     console.error(e)
-    const msg = e instanceof Error && /Unknown|layout/.test(e.message) ? 'Some parts in your cart are no longer available.' : 'Something went wrong. Please try again.'
-    return json({ error: msg }, 400)
+    if (e instanceof CustomerError) return json({ error: e.message }, 400)
+    return json({ error: 'Something went wrong. Please try again.' }, 503)
   }
 })
