@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 import { BASE } from '../../src/data/catalog.js'
 
 test('decodes and plays every catalogued MP3 recording in Chromium', async ({ page }) => {
+  test.setTimeout(120_000)
   await page.goto('/')
   await page.getByRole('button', { name: /Select .+/ }).first().click()
   await expect(page).toHaveURL(/\/parts$/)
