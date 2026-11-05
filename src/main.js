@@ -7,5 +7,12 @@ import './assets/about.css'
 import './assets/compare.css'
 import App from './App.vue'
 import router from './router/index.js'
+import { loadRemoteCatalog } from './data/remoteCatalog.js'
 
-createApp(App).use(router).mount('#app')
+// Load the parts from Supabase before the first render, so every page sees the same catalogue.
+// If the load fails, the local catalog.js copy is used. The app is mounted either way.
+loadRemoteCatalog()
+  .catch(() => {})
+  .finally(() => {
+    createApp(App).use(router).mount('#app')
+  })

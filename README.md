@@ -21,7 +21,7 @@ foundation — app shell, domain seed, and test/CI setup. Product features
 - Vue 3 (plain JavaScript, no TypeScript) + Vue Router 5
 - Vite 8 + `@vitejs/plugin-vue`
 - Bootstrap 5.3.3 + custom CSS (`src/style.css`, governed by `DESIGN.md` and `docs/adr/0002-bootstrap-styling.md`) as the active styling system (superseding ADR-0001's initial Tailwind seed)
-- Supabase JS client as a null-safe seam (backend not built yet)
+- Supabase JS client as a null-safe seam; the parts catalogue and checkout prices are read from Supabase, with a local fallback
 - Vitest 5 + jsdom for unit/integration, Playwright for E2E
 - Node 22 (>= 22.12) + npm, Git
 

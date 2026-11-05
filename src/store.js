@@ -24,6 +24,7 @@ export const state = reactive({
   ld: Object.assign({ used: false, prize: null, code: null, expires: 0, applied: false }, saved), // lucky draw
   user: null, // signed-in Supabase user, or null
   savedBuilds: [], // the signed-in user's saved builds
+  orders: [], // the signed-in user's orders, newest first
   savedBuildReview: null, // current-catalogue result for a reopened Saved build
   editingSavedBuildId: null, // existing Saved build being edited, or null for a new Build
   editingSavedBuildName: '',
@@ -41,6 +42,7 @@ let isSigningOut = false
  */
 function clearAccountState() {
   state.savedBuilds = []
+  state.orders = []
   state.savedBuildReview = null
   state.editingSavedBuildId = null
   state.editingSavedBuildName = ''
@@ -260,6 +262,22 @@ export function resolveAccountTransition({ preserveDraft }) {
 }
 
 /* ---------- accounts and saved builds (Supabase) ---------- */
+/**
+ * Fetches the active account's orders and ignores responses from an older session.
+ * Row-level security limits the rows to the signed-in user's own orders.
+ *
+ * @returns {Promise<void>}
+ */
+export async function refreshOrders() {
+  if (!supabase || !state.user) { state.orders = []; return }
+  const revision = sessionRevision
+  const userId = state.user.id
+  const { data, error } = await supabase.from('orders').select('id, status, name, items, subtotal, discount, total, created_at').order('created_at', { ascending: false })
+  if (revision !== sessionRevision || state.user?.id !== userId) return
+  if (error) { toast(`Could not load your orders: ${error.message}`); return }
+  state.orders = data
+}
+
 /**
  * Fetches the active account's saved Builds and ignores responses from an older session.
  *

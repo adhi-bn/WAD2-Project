@@ -24,7 +24,7 @@ async function load() {
     clearInterval(timer)
     // Empty the cart only for the order this browser just paid for.
     try {
-      if (order.value.status === 'paid' && localStorage.getItem('lct_pending_order') === route.params.id) {
+      if (order.value.status === 'paid' && localStorage.getItem('lct_pending_order') === order.value.id) {
         clearCart()
         localStorage.removeItem('lct_pending_order')
       }

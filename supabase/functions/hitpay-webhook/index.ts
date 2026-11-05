@@ -41,18 +41,29 @@ Deno.serve(async (req) => {
     return new Response('Bad body', { status: 400 })
   }
 
-  // Only a completed payment marks the order as paid.
-  if (payload.status !== 'completed' || typeof payload.reference_number !== 'string') {
+  // Only a completed payment marks the order as paid. HitPay's completed event may say
+  // "completed" or "succeeded", so accept both.
+  if (payload.status !== 'completed' && payload.status !== 'succeeded') {
     return new Response('ignored', { status: 200 })
   }
 
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 
+  // Find the order by our reference number, or by HitPay's payment request id when the
+  // event does not include the reference number.
+  const match =
+    typeof payload.reference_number === 'string'
+      ? { column: 'id', value: payload.reference_number }
+      : typeof payload.id === 'string'
+        ? { column: 'hitpay_request_id', value: payload.id }
+        : null
+  if (!match) return new Response('ignored', { status: 200 })
+
   // Only move pending orders to paid, so a repeated webhook does nothing.
   const { data: order } = await admin
     .from('orders')
     .update({ status: 'paid' })
-    .eq('id', payload.reference_number)
+    .eq(match.column, match.value)
     .eq('status', 'pending')
     .select('voucher_code')
     .maybeSingle()
