@@ -10,7 +10,7 @@ For domain terminology and concepts, refer to [CONTEXT.md](../CONTEXT.md). For v
 
 | Layer | Choice | Notes |
 | :--- | :--- | :--- |
-| **Framework** | Vue 3 SPA (plain JS ESM) + Vue Router 5 | Single-page application using Vue 3 Composition API (`<script setup>`) with HTML5 history mode routing (`createWebHistory`). Standard ECMAScript modules without TypeScript. |
+| **Framework** | Vue 3 SPA (plain JS ESM) + Vue Router 5 | Single-page application using Vue 3 Composition API (`<script setup>`) with HTML5 history mode routing (`createWebHistory`). Standard ECMAScript modules without TypeScript. Backend Edge Functions in `supabase/functions/` execute on Deno and use Deno standard TypeScript (`.ts`). |
 | **Build** | Vite 8 (`@vitejs/plugin-vue`) | Lightning-fast native ESM dev server with optimized production bundling. |
 | **Styling** | Bootstrap 5.3.3 + Custom CSS (`src/style.css`) | Bootstrap 5 grid layout and utility classes paired with custom brand classes and tokens (`.brand`, `.navlink`, `.ui-btn`, `.scard`, `.lct-*`) adhering to `DESIGN.md`. No conflicting utility frameworks (Tailwind was removed in #8). |
 | **Backend Seam** | `@supabase/supabase-js` + `src/lib/http.js` + `src/lib/advisor.js` | Lazy, null-safe Supabase client (`src/lib/supabase.js`) returning `null` when credentials are absent, guaranteeing offline/guest workflows never crash. A lightweight JSON fetch wrapper (`src/lib/http.js`) handles async REST calls, while `src/lib/advisor.js` wraps Biscuit's TokenRouter Edge Function with a 15-second timeout and offline fallback. |

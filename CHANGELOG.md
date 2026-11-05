@@ -8,8 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- TokenRouter OpenAI-compatible endpoint migration for Biscuit's advisor Edge Function ([`supabase/functions/advisor/index.ts`](supabase/functions/advisor/index.ts)) using `z-ai/glm-5.3-flash`, backed by client advisor seam ([`src/lib/advisor.js`](src/lib/advisor.js)) with resilient JSON parsing, `<think>` tag stripping, multimodal image fallback, and strict catalog Part ID grounding (#19).
-- Semantic header badge in FatCat chat (`AI Advisor` when connected, `Advisor` when offline) and screen-reader status announcements (`aria-live="polite"`, `role="status"`) for thinking, answered, and error states (#19).
+- TokenRouter OpenAI-compatible endpoint migration for Biscuit's advisor Edge Function ([`supabase/functions/advisor/index.ts`](supabase/functions/advisor/index.ts)) using `z-ai/glm-5.3-flash`, backed by client advisor seam ([`src/lib/advisor.js`](src/lib/advisor.js)) with resilient JSON parsing, `<think>` tag stripping, multimodal image fallback, and live Supabase `parts` catalog grounding with static fallback (#19).
+- Semantic header badge in FatCat chat (`AI Advisor` when connected, `Advisor` when unconfigured or degraded on failure) using Design tokens (`var(--ink)`, `var(--on-accent)`), and screen-reader status announcements (`aria-live="polite"`, `role="status"`) for thinking, answered, and error states (#19).
 - Overwrite confirmation prompt in Biscuit's chat before replacing an existing build with a suggested build when navigating to `/build` (#19).
 - Order history on the Account page: signed-in customers see their orders, status and items (reads their own rows under RLS).
 - `supabase/seed/catalog-images.sql` sets the picture path for Case, Keycap and Switch options. Optional: the app falls back to `/parts/<id>.png`.

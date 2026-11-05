@@ -84,7 +84,7 @@ function handle(k) {
   if (k === 'apply') return applyVoucher()
   if (k === 'switch') return botSay('Quick guide: <b>Linear</b> is smooth, <b>Tactile</b> has a bump you feel, <b>Clicky</b> adds a click, and <b>Silent</b> keeps the office happy. Want me to start the swipe cards?', [['quiz', 'Start swiping'], ['spin', 'Spin the wheel'], ['store', 'Visit the store']])
   if (k === 'quiz') { botSay("Off you go! I'll be right here."); setTimeout(() => router?.push?.('/swipe'), 700); return }
-  if (k === 'store') return botSay('Le Chaton Typers is at <b>[store address]</b>, open <b>[opening hours]</b>. Come try your build in store before you buy.')
+  if (k === 'store') return botSay('Le Chaton Typers has stores at <b>Jewel Changi Airport</b> and <b>Marina Bay Sands</b>. Come try your build in store before you buy.')
   if (k === 'browse') {
     if (router) router.push('/parts')
     return
@@ -176,7 +176,7 @@ function send() {
 }
 
 /* ---------- Biscuit's advisor (TokenRouter via Edge Function seam) ---------- */
-const aiBusy = ref(false), aiPick = ref(null), photoIn = ref(null)
+const aiBusy = ref(false), aiHealthy = ref(true), aiPick = ref(null), photoIn = ref(null)
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 
 /**
@@ -204,11 +204,13 @@ async function askBiscuit(text, image = null) {
   aiBusy.value = false
 
   if (!res.ok) {
+    aiHealthy.value = false
     const errorMsg = res.error || 'Biscuit could not answer just now.'
     aiStatusAnnouncement.value = errorMsg
     return botSay(esc(errorMsg), FALLBACK_CHIPS)
   }
 
+  aiHealthy.value = true
   aiStatusAnnouncement.value = 'Biscuit answered.'
   let html = esc(res.reply)
   if (res.note) html += `<br><small>${esc(res.note)}</small>`
@@ -395,7 +397,7 @@ function confetti() {
       <header class="lct-chat__header">
         <span class="av lct-chat__av" v-html="CAT_SVG"></span>
         <div class="who"><b>Biscuit</b><span>Le Chaton Typers' fat cat</span></div>
-        <span class="lct-chat__badge">{{ isAdvisorReady() ? 'AI Advisor' : 'Advisor' }}</span>
+        <span class="lct-chat__badge">{{ (isAdvisorReady() && aiHealthy) ? 'AI Advisor' : 'Advisor' }}</span>
         <button type="button" class="ic lct-chat__close" aria-label="Minimise chat" @click="chatOpen = false">–</button>
         <button type="button" class="ic" aria-label="Hide Biscuit" @click="hideCat">×</button>
       </header>
@@ -487,8 +489,8 @@ function confetti() {
   text-transform: uppercase;
   padding: 2px 8px;
   border-radius: 999px;
-  background: #15171C;
-  color: #FFFFFF;
+  background: var(--ink, #15171C);
+  color: var(--on-accent, #FFFFFF);
   line-height: 1.4;
   white-space: nowrap;
   flex-shrink: 0;

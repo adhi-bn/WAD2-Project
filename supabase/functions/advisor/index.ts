@@ -10,7 +10,7 @@
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided automatically.
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { CATS, catalog, priceIds } from '../_shared/catalog.js'
+import { CATS, catalog, priceIds, BASE } from '../_shared/catalog.js'
 
 function getCorsHeaders(reqOrigin?: string | null) {
   const allowed = (Deno.env.get('ALLOWED_ORIGINS') ?? '').split(',').map((s) => s.trim()).filter(Boolean)
@@ -40,8 +40,8 @@ const MAX_IMAGE_B64 = 4 * 1024 * 1024 * 1.4 // about 4 MB of image data once bas
 const PER_HOUR = 10 // questions per visitor (by IP) per hour
 
 // Summarise the catalogue for the prompt: one line per option, with the details that matter for choosing.
-function catalogueText(layout: string) {
-  const options = catalog(layout)
+function catalogueText(layout: string, base: typeof BASE = BASE) {
+  const options = catalog(layout, base)
   return CATS.map((c) => {
     const lines = options[c].map((o: any) => {
       const detail = { ...o }
@@ -92,7 +92,7 @@ function findReply(node: any): any {
   return null
 }
 
-function buildPrompt(layout: string, userText: string, hasImage: boolean) {
+function buildPrompt(layout: string, userText: string, hasImage: boolean, base: typeof BASE = BASE) {
   const safeLayout = LAYOUTS.includes(layout) ? layout : '75'
   const text = String(userText ?? '').trim()
   const req = text || (hasImage ? '(sent a photo only)' : '')
@@ -101,7 +101,8 @@ function buildPrompt(layout: string, userText: string, hasImage: boolean) {
 
 Rules:
 - Recommend ONLY part ids that appear in the catalogue below. Never invent a part.
-- Choose one id per category for a full build, or set "build" to null if you are only suggesting one change.
+- Choose one id per Component Group (category) for a full build, or set "build" to null if you are only suggesting one change.
+- Refer to parts by their canonical Component Group names (Case, Plate, PCB, Switches, Keycaps, Stabilisers, Foam, Cable).
 - If the customer names a layout (60%, 75% or 100%) use it. Otherwise use "${safeLayout}".
 - If the customer gives a budget, keep the total under it.
 - ${hasImage ? 'The customer sent a photo. Describe the keyboard you see (layout, case, keycaps, switch feel if visible) and pick the closest matching parts from the catalogue. Say clearly that this is an estimate from a photo.' : 'Base the build on what the customer asks for.'}
@@ -128,7 +129,7 @@ Rules:
 }
 
 Catalogue (id | name | price for ${safeLayout}% | details):
-${catalogueText(safeLayout)}${req ? `\n\nCustomer request: ${req}` : ''}`
+${catalogueText(safeLayout, base)}${req ? `\n\nCustomer request: ${req}` : ''}`
 }
 
 Deno.serve(async (req) => {
@@ -164,6 +165,25 @@ Deno.serve(async (req) => {
     if ((count ?? 0) >= PER_HOUR) return json({ error: 'Biscuit needs a short nap. Try again in a little while.' }, 429, reqOrigin)
     await admin.from('ai_requests').insert({ ip })
 
+    // Load live catalogue from Supabase parts table (matching PR #40), falling back to static BASE
+    let activeBase = BASE
+    try {
+      const { data: partRows, error: partsErr } = await admin.from('parts').select('category_key,data')
+      if (!partsErr && partRows && partRows.length > 0) {
+        const remoteCatalogue: Record<string, any[]> = {}
+        for (const r of partRows) {
+          if (r?.category_key && r?.data) {
+            (remoteCatalogue[r.category_key] ??= []).push(r.data)
+          }
+        }
+        if (CATS.every((c) => remoteCatalogue[c]?.length > 0)) {
+          activeBase = remoteCatalogue as typeof BASE
+        }
+      }
+    } catch {
+      // Fallback to static BASE
+    }
+
     // Check TokenRouter API key
     const apiKey = Deno.env.get('TOKENROUTER_API_KEY')
     if (!apiKey) {
@@ -174,7 +194,7 @@ Deno.serve(async (req) => {
     const baseUrl = (Deno.env.get('TOKENROUTER_BASE_URL') || 'https://api.tokenrouter.com/v1').replace(/\/+$/, '')
     const model = Deno.env.get('TOKENROUTER_MODEL') || 'z-ai/glm-5.3-flash'
 
-    const systemPrompt = buildPrompt(layout, '', Boolean(image))
+    const systemPrompt = buildPrompt(layout, '', Boolean(image), activeBase)
     const messages: any[] = [
       { role: 'system', content: systemPrompt },
     ]
@@ -221,7 +241,7 @@ Deno.serve(async (req) => {
     if (!res.ok && image && (res.status === 400 || res.status === 422)) {
       console.warn(`Vision call returned ${res.status}. Retrying with text-only messages.`)
       const fallbackMessages = [
-        { role: 'system', content: buildPrompt(layout, '', false) },
+        { role: 'system', content: buildPrompt(layout, '', false, activeBase) },
         { role: 'user', content: text || 'Customer provided a photo that could not be processed. Please suggest a great starter build.' },
       ]
       const fallbackRes = await callChatCompletions(fallbackMessages, true)
@@ -243,7 +263,7 @@ Deno.serve(async (req) => {
       console.warn('Chat completion succeeded but findReply returned null. Retrying without response_format.')
       const retryMsgs = fallbackTextOnly
         ? [
-            { role: 'system', content: buildPrompt(layout, '', false) },
+            { role: 'system', content: buildPrompt(layout, '', false, activeBase) },
             { role: 'user', content: text || 'Customer provided a photo that could not be processed. Please suggest a great starter build.' },
           ]
         : messages
@@ -257,14 +277,14 @@ Deno.serve(async (req) => {
     if (!ai) return json({ error: 'Biscuit could not make sense of that. Try asking another way.' }, 502, reqOrigin)
 
     // Check everything suggested against the catalogue.
-    const options = catalog(layout)
+    const options = catalog(layout, activeBase)
     const known = (c: string, id: string) =>
       CATS.includes(c) && Array.isArray(options[c]) && options[c].some((o: any) => o.id === id)
 
     let build = null
     if (ai.build && typeof ai.build === 'object' && CATS.every((c) => typeof ai.build[c] === 'string' && known(c, ai.build[c]))) {
       const part_ids = Object.fromEntries(CATS.map((c) => [c, ai.build[c]]))
-      const { total, lines } = priceIds(layout, part_ids)
+      const { total, lines } = priceIds(layout, part_ids, activeBase)
       build = {
         layout,
         part_ids,
