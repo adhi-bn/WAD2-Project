@@ -13,7 +13,7 @@ For domain terminology and concepts, refer to [CONTEXT.md](../CONTEXT.md). For v
 | **Framework** | Vue 3 SPA (plain JS ESM) + Vue Router 5 | Single-page application using Vue 3 Composition API (`<script setup>`) with HTML5 history mode routing (`createWebHistory`). Standard ECMAScript modules without TypeScript. |
 | **Build** | Vite 8 (`@vitejs/plugin-vue`) | Lightning-fast native ESM dev server with optimized production bundling. |
 | **Styling** | Bootstrap 5.3.3 + Custom CSS (`src/style.css`) | Bootstrap 5 grid layout and utility classes paired with custom brand classes and tokens (`.brand`, `.navlink`, `.ui-btn`, `.scard`, `.lct-*`) adhering to `DESIGN.md`. No conflicting utility frameworks (Tailwind was removed in #8). |
-| **Backend Seam** | `@supabase/supabase-js` + `src/lib/http.js` | Lazy, null-safe Supabase client (`src/lib/supabase.js`) returning `null` when credentials are absent, guaranteeing offline/guest workflows never crash. A lightweight JSON fetch wrapper (`src/lib/http.js`) handles async REST calls. |
+| **Backend Seam** | `@supabase/supabase-js` + `src/lib/http.js` + `src/lib/advisor.js` | Lazy, null-safe Supabase client (`src/lib/supabase.js`) returning `null` when credentials are absent, guaranteeing offline/guest workflows never crash. A lightweight JSON fetch wrapper (`src/lib/http.js`) handles async REST calls, while `src/lib/advisor.js` wraps Biscuit's TokenRouter Edge Function with a 15-second timeout and offline fallback. |
 | **Unit & Integration Tests** | Vitest 5 + `@vue/test-utils` + `jsdom` | Vitest leverages the Vite configuration directly. Pure domain unit tests run without DOM overhead; component and store integration tests run in `jsdom`. |
 | **E2E Tests** | Playwright (Desktop Chromium) | End-to-end browser tests asserting real DOM rendering, navigation, and user flows against the Vite dev server. |
 | **Deployment** | Vercel SPA | Static site hosting configured with client-side history route rewrites. |
@@ -83,11 +83,23 @@ Vue Router (URL) ──> Views (src/views/)
 
 4. **Null-Safe External Seams (`src/lib/`)**:
    - `src/lib/supabase.js` exports `getSupabase()` (and `createSupabaseClient(url, key)`), which lazily instantiates the Supabase client. If environment variables (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) are missing, `getSupabase()` returns `null`.
-   - Consumers (such as the Biscuit demo chat and future persistence handlers) must always check `if (!supabase)` and provide full fallback functionality (e.g., local state persistence, clear status messaging). The application never crashes when running without cloud credentials.
+   - `src/lib/advisor.js` wraps Biscuit's advisor Edge Function invocation with a 15-second timeout (`AbortSignal`), returning structured error and fallback responses when unconfigured or timed out. It exports `isAdvisorReady()`, `askAdvisor()`, `formatOpenAIMessages()`, `parseAdvisorReply()`, and `validateAdvisorCatalogResponse()`.
+   - Consumers (such as the Biscuit chat and future persistence handlers) must always check `if (!supabase)` or `isAdvisorReady()` and provide full fallback functionality (e.g., local state persistence, offline rule-based advice). The application never crashes when running without cloud credentials.
    - `src/lib/http.js` provides `fetchJson()`, a minimal wrapper around `window.fetch` that handles response status validation and JSON parsing.
    - `src/lib/switchAudio.js` owns shared Web Audio context creation/resume and decoded sample caching for the selected-switch player and the one-press keyboard tester. Shared mute and volume markup lives in `SwitchAudioControls.vue`.
 
-5. **Static Data and Seed Logic (`src/data/`, `src/logic/`)**:
+5. **Biscuit's Advisor Architecture & Helper Contract ([ADR-0004](adr/0004-tokenrouter-helper-strategy.md))**:
+   - **Server-Side Edge Function (`supabase/functions/advisor/index.ts`)**: Routes conversational recommendations through TokenRouter's OpenAI-compatible Chat Completions endpoint (`POST ${TOKENROUTER_BASE_URL}/chat/completions`, default `https://api.tokenrouter.com/v1`, model `z-ai/glm-5.3-flash`). `TOKENROUTER_API_KEY` is maintained strictly server-side in Supabase secrets, never exposed to client bundles. Implements CORS origin verification (`ALLOWED_ORIGINS`), IP-based rate limiting (`ai_requests` table, 10 queries/hour per IP), and multimodal keyboard photo analysis via OpenAI `image_url` data URLs with graceful text-only fallback.
+   - **Catalog Grounding & Resilient Parsing**: Strips reasoning `<think>...</think>` tags and markdown code blocks (` ```json `), parsing the structured JSON recommendation and verifying every suggested Part ID against `catalog(layout)`. Any hallucinated or invalid Part ID is rejected before the payload reaches the client.
+   - **Semantic Header Badge Contract**: In `FatCat.vue`, the chat header badge honestly communicates connectivity per story 43:
+     - **`AI Advisor`**: Rendered when `isAdvisorReady()` is true, signifying a live connection to the TokenRouter-backed Edge Function.
+     - **`Advisor`**: Rendered without the "AI" prefix when offline or unconfigured, informing users that responses come from local canned rules.
+     - Status updates (thinking, answered, unavailable) are announced via screen-reader live regions (`role="status"`, `aria-live="polite"`).
+   - **Overwrite Confirmation Flow (`/build`)**: When Biscuit suggests a build, clicking **"Open in builder"** checks whether an existing build is present in `state.build`:
+     - If a build already exists, Biscuit prompts the user for explicit confirmation (`"Load suggested Build? This will replace your current selections."`) with action chips (`['confirmOpenAI', 'Yes, replace it']`, `['cancelOpenAI', 'No, keep mine']`). Confirming loads the suggestion and routes to `/build`; declining preserves the user's active configuration.
+     - If `state.build` is null (empty), the suggested build loads and routes to `/build` immediately without prompting.
+
+6. **Static Data and Seed Logic (`src/data/`, `src/logic/`)**:
    - `src/data/` contains the prototype catalogue and supporting static data used by the current seed builder.
    - `src/logic/builder.js` contains recommendation and presentation helpers, including keyboard SVG generation. These files are distinct from the canonical pure Build domain under `src/domain/`.
 

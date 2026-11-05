@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- TokenRouter OpenAI-compatible endpoint migration for Biscuit's advisor Edge Function ([`supabase/functions/advisor/index.ts`](supabase/functions/advisor/index.ts)) using `z-ai/glm-5.3-flash`, backed by client advisor seam ([`src/lib/advisor.js`](src/lib/advisor.js)) with resilient JSON parsing, `<think>` tag stripping, multimodal image fallback, and strict catalog Part ID grounding (#19).
+- Semantic header badge in FatCat chat (`AI Advisor` when connected, `Advisor` when offline) and screen-reader status announcements (`aria-live="polite"`, `role="status"`) for thinking, answered, and error states (#19).
+- Overwrite confirmation prompt in Biscuit's chat before replacing an existing build with a suggested build when navigating to `/build` (#19).
 - Interactive 3D Build Preview on the `/build` review page ([`src/views/SummaryView.vue`](src/views/SummaryView.vue)) via [`src/components/Keyboard3DView.vue`](src/components/Keyboard3DView.vue) and [`src/components/BuildPreviewCanvas.vue`](src/components/BuildPreviewCanvas.vue) in embedded stage mode (`:embedded-stage="true"`), rendering edge-to-edge interactive 3D keyboard models with initial combined assembly state, orbit/zoom controls, and floating top-right action pills (`Explode layers` / `Combine layers` and `Reset view`).
 - Red part status alert tags (`.part-status-tag`) in the `/build` summary table highlighting `Unavailable` parts, `Incompatible` parts, `Price changed` Parts, and slots that `Differs from saved` when compared against loaded saved build baseline IDs tracked in [`src/store.js`](src/store.js) (`savedBuildBaselineIds`).
 - Synchronized inertia smooth scrolling powered by GSAP (`ScrollTrigger`) and Lenis in [`src/lib/smoothScroll.js`](src/lib/smoothScroll.js) across the application shell (`src/App.vue`) and router (`src/router/index.js`), with full `prefers-reduced-motion` accessibility compliance and scroll-trap isolation (`data-lenis-prevent`) on interactive 3D model canvases and Biscuit's assistant chat window.
@@ -42,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Repository changelog in [`CHANGELOG.md`](CHANGELOG.md) tracking milestones and unreleased changes following Keep a Changelog 1.1.0.
 
 ### Changed
+- Updated environment documentation and server secrets to use `TOKENROUTER_API_KEY`, `TOKENROUTER_BASE_URL` (default `https://api.tokenrouter.com/v1`), and `TOKENROUTER_MODEL` (default `z-ai/glm-5.3-flash`) for server-side advisor recommendations (#19).
 - Moved the interactive two-dimensional keyboard tester and its audio controls into the Type tester summary tab, with a responsive layout for the available panel space.
 - Shared mute and volume controls and Web Audio helpers between the selected-switch player and the Type tester, and standardized recording assets as one-press samples.
 - Reworked virtual keyboard switch playback to use Web Audio API decoding and one-shot audio buffers without changing the keyboard interface.

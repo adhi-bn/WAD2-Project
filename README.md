@@ -82,12 +82,33 @@ Copy-Item .env.example .env
 cp .env.example .env
 ```
 
+### Client variables (`.env`)
+
 | Variable | Purpose |
 | --- | --- |
 | `VITE_SUPABASE_URL` | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | Supabase anon key |
 
-Server-only integration secrets belong in `supabase/.env`, never the browser `.env` file. For the OneMap store locator, register a OneMap account and add `ONEMAP_EMAIL` and `ONEMAP_PASSWORD` to `supabase/.env`, then deploy them with `supabase secrets set --env-file ./supabase/.env`.
+### Server-only secrets (`supabase/.env`)
+
+Server-only integration secrets belong in `supabase/.env`, never the browser `.env` file. Deploy them with `supabase secrets set --env-file ./supabase/.env`.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `TOKENROUTER_API_KEY` | _(required)_ | API key for TokenRouter OpenAI-compatible completions API |
+| `TOKENROUTER_BASE_URL` | `https://api.tokenrouter.com/v1` | Base URL for TokenRouter OpenAI-compatible endpoint |
+| `TOKENROUTER_MODEL` | `z-ai/glm-5.3-flash` | LLM model identifier for Biscuit's advisor recommendations |
+| `ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated allowed frontend origins for CORS |
+| `ONEMAP_EMAIL` | — | OneMap account email for store locator driving-route queries |
+| `ONEMAP_PASSWORD` | — | OneMap account password |
+
+### Biscuit's Advisor (Helper)
+
+Biscuit's conversational advisor uses a server-side Supabase Edge Function ([`supabase/functions/advisor/index.ts`](supabase/functions/advisor/index.ts)) and a null-safe client helper seam ([`src/lib/advisor.js`](src/lib/advisor.js)). It connects to TokenRouter's OpenAI-compatible Chat Completions API (`POST ${TOKENROUTER_BASE_URL}/chat/completions`) using `TOKENROUTER_MODEL` (default `z-ai/glm-5.3-flash`). Architecture highlights:
+- **Catalog Grounding**: Every recommended Part ID is strictly verified against the active catalog before returning to the visitor, guaranteeing that the advisor cannot suggest uncatalogued or hallucinated parts.
+- **Multimodal & Vision Fallback**: Accepts optional keyboard photos via standard OpenAI `image_url` data URLs (`data:<mime>;base64,<data>`), gracefully falling back to text-only advice if the upstream model rejects images.
+- **Resilient Parsing**: Strips reasoning `<think>...</think>` tags and markdown code blocks (` ```json `) before validating the structured response.
+- **Null-Safe Seam & Offline Mode**: When Supabase credentials or edge functions are unconfigured, the helper falls back gracefully to offline rule-based advice with clear status labelling (`Advisor` badge vs `AI Advisor` badge).
 
 ## CI
 

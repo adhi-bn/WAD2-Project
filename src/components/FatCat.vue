@@ -1,11 +1,11 @@
 <script setup>
 // Biscuit the fat cat: floating mascot, chat box and the Spin-to-Win lucky draw.
 // Presenter tip: type /win10, /win15, /win5 or /lose in the chat to fix the next spin.
-import { ref, computed, watch, nextTick, onMounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { CAT_SVG, PRIZES, SLICES, VOUCHER_MINUTES } from '../data/fatcat.js'
 import { state, toast, saveLD, resetLD, activeVoucher, timeLeft, openWheel, loadBuild, addToCart, choose } from '../store.js'
-import { supabase, supabaseReady } from '../lib/supabase.js'
+import { isAdvisorReady, askAdvisor } from '../lib/advisor.js'
 import { CATS } from '../data/catalog.js'
 
 const router = useRouter()
@@ -13,12 +13,33 @@ const reduce = typeof window !== 'undefined' && typeof window.matchMedia === 'fu
 
 /* ---------- chat ---------- */
 const DEFAULT_CHIPS = [['spin', 'Spin the wheel'], ['switch', 'Help me pick switches'], ['store', 'Visit the store'], ['reset', 'Reset demo']]
+const FALLBACK_CHIPS = [['browse', 'Browse parts'], ['quiz', 'Start swiping'], ['spin', 'Spin the wheel']]
+const CONFIRM_OPEN_CHIPS = [['confirmOpenAI', 'Yes, replace it'], ['cancelOpenAI', 'No, keep mine']]
+
 const chatOpen = ref(false), hiddenCat = ref(false), tease = ref(false), badge = ref(true)
 const msgs = ref([]), chips = ref(DEFAULT_CHIPS), input = ref(''), msgBox = ref(null)
+const pendingBuildPick = ref(null), aiStatusAnnouncement = ref('')
 let greeted = false, uid = 0
 
 const scrollDown = () => nextTick(() => { if (msgBox.value) msgBox.value.scrollTop = 1e6 })
+
+/**
+ * Appends a message to the chat stream and scrolls to bottom.
+ *
+ * @param {'me'|'bot'} who - Sender of the message.
+ * @param {string} html - Formatted message content.
+ * @returns {void}
+ */
 function addMsg(who, html) { msgs.value.push({ id: ++uid, who, html }); scrollDown() }
+
+/**
+ * Queues a bot message with simulated typing delay and updates active quick chips.
+ *
+ * @param {string} html - HTML string to render in the message bubble.
+ * @param {Array<[string, string]>} [chipList] - Optional chips to display after typing.
+ * @param {boolean} [notify] - Whether to show the unread badge if chat is closed.
+ * @returns {void}
+ */
 function botSay(html, chipList, notify) {
   const id = ++uid
   msgs.value.push({ id, who: 'bot', typing: true })
@@ -31,6 +52,26 @@ function botSay(html, chipList, notify) {
     scrollDown()
   }, 600)
 }
+
+/**
+ * Persists current cart state to local storage.
+ *
+ * @returns {void}
+ */
+function saveCart() {
+  try {
+    localStorage.setItem('lct_cart', JSON.stringify(state.cart))
+  } catch (e) {
+    /* private mode */
+  }
+}
+
+/**
+ * Processes chat chip selections, AI actions, and lucky wheel commands.
+ *
+ * @param {string} k - The action identifier (e.g. 'spin', 'browse', 'openAI', 'confirmOpenAI', 'cancelOpenAI').
+ * @returns {void}
+ */
 function handle(k) {
   if (k === 'spin') {
     if (state.ld.used) {
@@ -42,15 +83,56 @@ function handle(k) {
   }
   if (k === 'apply') return applyVoucher()
   if (k === 'switch') return botSay('Quick guide: <b>Linear</b> is smooth, <b>Tactile</b> has a bump you feel, <b>Clicky</b> adds a click, and <b>Silent</b> keeps the office happy. Want me to start the swipe cards?', [['quiz', 'Start swiping'], ['spin', 'Spin the wheel'], ['store', 'Visit the store']])
-  if (k === 'quiz') { botSay("Off you go! I'll be right here."); setTimeout(() => router.push('/swipe'), 700); return }
+  if (k === 'quiz') { botSay("Off you go! I'll be right here."); setTimeout(() => router?.push?.('/swipe'), 700); return }
   if (k === 'store') return botSay('Le Chaton Typers is at <b>[store address]</b>, open <b>[opening hours]</b>. Come try your build in store before you buy.')
-  if (k === 'addAI' || k === 'openAI') {
+  if (k === 'browse') {
+    if (router) router.push('/parts')
+    return
+  }
+  if (k === 'addAI') {
     const pick = aiPick.value?.build
     if (!pick) return botSay("I've lost my suggestion, meow. Ask me again?")
+    if (state.build) {
+      // Direct cart push to preserve existing active build and layout
+      state.cart.push({
+        uid: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        name: `Biscuit's pick (${pick.layout}%)`,
+        layout: pick.layout,
+        part_ids: pick.part_ids,
+      })
+      saveCart()
+      toast('Added to your cart.')
+      return router?.push ? router.push('/cart') : null
+    }
     loadBuild(pick, { fromBiscuit: true })
-    if (k === 'openAI') return router.push('/build')
     addToCart(`Biscuit's pick (${pick.layout}%)`)
-    return router.push('/cart')
+    return router?.push ? router.push('/cart') : null
+  }
+  if (k === 'openAI') {
+    const pick = aiPick.value?.build
+    if (!pick) return botSay("I've lost my suggestion, meow. Ask me again?")
+    // Guard existing active build before overwriting
+    if (state.build) {
+      pendingBuildPick.value = pick
+      return botSay('Load suggested Build? This will replace your current selections.', CONFIRM_OPEN_CHIPS)
+    }
+    loadBuild(pick, { fromBiscuit: true })
+    if (router) return router.push('/build')
+    return
+  }
+  if (k === 'confirmOpenAI') {
+    const pick = pendingBuildPick.value
+    pendingBuildPick.value = null
+    if (pick) {
+      loadBuild(pick, { fromBiscuit: true })
+      if (router) return router.push('/build')
+      return
+    }
+    return botSay("I've lost my suggestion, meow. Ask me again?")
+  }
+  if (k === 'cancelOpenAI') {
+    pendingBuildPick.value = null
+    return botSay('Kept your current build.', DEFAULT_CHIPS)
   }
   if (k === 'swapAI') {
     const c = aiPick.value?.change
@@ -60,7 +142,20 @@ function handle(k) {
   }
   if (k === 'reset') { resetLD(); botSay('Demo reset. My wheel is ready to spin again.') }
 }
+
+/**
+ * Handles quick chip tap interaction.
+ *
+ * @param {[string, string]} c - Chip key and label tuple.
+ * @returns {void}
+ */
 function tapChip(c) { addMsg('me', c[1]); handle(c[0]) }
+
+/**
+ * Dispatches customer text queries to presentation cheats, built-in intents, or Biscuit's AI advisor.
+ *
+ * @returns {void}
+ */
 function send() {
   const v = input.value.trim()
   if (!v) return
@@ -73,48 +168,80 @@ function send() {
   else if (/switch|linear|tactile|click|silent|thock|sound/.test(t)) handle('switch')
   else if (/store|shop|where|address|hour|open|visit/.test(t)) handle('store')
   else if (/^(hi|hello|hey|meow)/.test(t)) botSay('Meow! What can I help you with?')
-  else if (supabaseReady) askBiscuit(v)
-  else botSay("Meow? I'm a simple cat for now. Try one of the buttons below.")
+  else if (isAdvisorReady()) askBiscuit(v)
+  else {
+    aiStatusAnnouncement.value = "Meow? I'm a simple cat for now. Try one of the buttons below."
+    botSay("Meow? I'm a simple cat for now. Try one of the buttons below.", FALLBACK_CHIPS)
+  }
 }
 
-/* ---------- Biscuit's advisor (Gemini, through the advisor function) ---------- */
+/* ---------- Biscuit's advisor (TokenRouter via Edge Function seam) ---------- */
 const aiBusy = ref(false), aiPick = ref(null), photoIn = ref(null)
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 
+/**
+ * Consults Biscuit's AI advisor through the unified advisor seam, managing thinking states and fallback chips.
+ *
+ * @param {string} text - User's query or prompt.
+ * @param {{ mime_type: string, data: string } | null} [image=null] - Optional base64 encoded photo.
+ * @returns {Promise<void>}
+ */
 async function askBiscuit(text, image = null) {
-  if (aiBusy.value) return botSay('One question at a time, meow.')
+  if (aiBusy.value) {
+    aiStatusAnnouncement.value = 'One question at a time, meow.'
+    return botSay('One question at a time, meow.')
+  }
   aiBusy.value = true
+  aiStatusAnnouncement.value = 'Biscuit is thinking…'
   botSay('Let me think…')
-  const { data, error } = await supabase.functions.invoke('advisor', {
-    body: { message: text, image, origin: window.location.origin, layout: state.answers.layout || undefined },
-  })
-  aiBusy.value = false
-  let problem = data?.error
-  if (error) problem = (await error.context?.json?.().catch(() => null))?.error || 'Biscuit could not answer just now.'
-  if (problem) return botSay(esc(problem), DEFAULT_CHIPS)
 
-  let html = esc(data.reply)
-  if (data.note) html += `<br><small>${esc(data.note)}</small>`
+  const res = await askAdvisor({
+    message: text,
+    image,
+    layout: state.answers.layout || undefined,
+  })
+
+  aiBusy.value = false
+
+  if (!res.ok) {
+    const errorMsg = res.error || 'Biscuit could not answer just now.'
+    aiStatusAnnouncement.value = errorMsg
+    return botSay(esc(errorMsg), FALLBACK_CHIPS)
+  }
+
+  aiStatusAnnouncement.value = 'Biscuit answered.'
+  let html = esc(res.reply)
+  if (res.note) html += `<br><small>${esc(res.note)}</small>`
   const chipList = []
-  aiPick.value = data
-  if (data.build) {
-    const b = data.build
+  aiPick.value = res
+  if (res.build) {
+    const b = res.build
     html += `<br><br><b>Suggested build (${b.layout}%): S$${b.total}</b><br>` + CATS.map((c) => `${c}: ${esc(b.names[c])}`).join('<br>')
     chipList.push(['addAI', 'Add to cart'], ['openAI', 'Open in builder'])
   }
-  if (data.change) {
-    html += `<br><br>Suggested swap: <b>${esc(data.change.name)}</b> (S$${data.change.price})`
+  if (res.change) {
+    html += `<br><br>Suggested swap: <b>${esc(res.change.name)}</b> (S$${res.change.price})`
     if (state.build) chipList.push(['swapAI', 'Swap it in'])
   }
   botSay(html, chipList.length ? [...chipList, ['spin', 'Spin the wheel']] : DEFAULT_CHIPS)
 }
 
 function pickPhoto() { photoIn.value?.click() }
+
+/**
+ * Handles photo uploads for AI visual identification.
+ *
+ * @param {Event} e - Input file change event.
+ * @returns {void}
+ */
 function onPhoto(e) {
   const f = e.target.files?.[0]
   e.target.value = ''
   if (!f) return
-  if (!supabaseReady) return botSay('My photo eyes are not connected yet, meow.')
+  if (!isAdvisorReady()) {
+    aiStatusAnnouncement.value = 'My photo eyes are not connected yet, meow.'
+    return botSay('My photo eyes are not connected yet, meow.', FALLBACK_CHIPS)
+  }
   if (f.size > 4 * 1024 * 1024) return botSay('That photo is too big. Try one under 4 MB.')
   const reader = new FileReader()
   reader.onload = () => {
@@ -135,9 +262,48 @@ function openChat() {
     setTimeout(() => botSay('This week only: spin my lucky wheel for up to <b>15% off</b> your keyboard build.'), 1300)
   }
 }
+
+/**
+ * Hides the Biscuit mascot for this visit; the paw tab brings him back.
+ *
+ * @returns {void}
+ */
+function hideCat() {
+  hiddenCat.value = true
+}
+
+/**
+ * Brings the Biscuit mascot back for this visit.
+ *
+ * @returns {void}
+ */
+function showCat() {
+  hiddenCat.value = false
+}
+/**
+ * Handles Escape keypress to dismiss wheel or chat.
+ *
+ * @param {KeyboardEvent} e - Keydown event.
+ * @returns {void}
+ */
+function onKeydown(e) {
+  if (e.key === 'Escape') {
+    if (state.ui.wheel) closeWheel()
+    else if (chatOpen.value) chatOpen.value = false
+  }
+}
+
 onMounted(() => {
-  setTimeout(() => { if (!chatOpen.value && !hiddenCat.value && !state.ld.used) tease.value = true }, 3500)
-  addEventListener('keydown', (e) => { if (e.key === 'Escape' && state.ui.wheel) closeWheel() })
+  setTimeout(() => {
+    // No auto-tease on small screens: the fixed bottom-right bubble would cover task controls.
+    const roomy = typeof window === 'undefined' || typeof window.matchMedia !== 'function' || window.matchMedia('(min-width: 1024px)').matches
+    if (roomy && !chatOpen.value && !hiddenCat.value && !state.ld.used) tease.value = true
+  }, 3500)
+  addEventListener('keydown', onKeydown)
+})
+
+onUnmounted(() => {
+  removeEventListener('keydown', onKeydown)
 })
 
 /* ---------- spin wheel ---------- */
@@ -229,9 +395,11 @@ function confetti() {
       <header class="lct-chat__header">
         <span class="av lct-chat__av" v-html="CAT_SVG"></span>
         <div class="who"><b>Biscuit</b><span>Le Chaton Typers' fat cat</span></div>
+        <span class="lct-chat__badge">{{ isAdvisorReady() ? 'AI Advisor' : 'Advisor' }}</span>
         <button type="button" class="ic lct-chat__close" aria-label="Minimise chat" @click="chatOpen = false">–</button>
-        <button type="button" class="ic" aria-label="Hide Biscuit" @click="hiddenCat = true">×</button>
+        <button type="button" class="ic" aria-label="Hide Biscuit" @click="hideCat">×</button>
       </header>
+      <p class="visually-hidden" role="status" aria-live="polite" aria-atomic="true">{{ aiStatusAnnouncement }}</p>
       <div ref="msgBox" class="msgs lct-chat__messages" aria-live="polite" data-lenis-prevent>
         <template v-for="m in msgs" :key="m.id">
           <div v-if="m.typing" class="msg bot typing"><i></i><i></i><i></i></div>
@@ -256,7 +424,7 @@ function confetti() {
       <span v-html="CAT_SVG"></span><span v-if="badge" class="cat-badge">1</span>
     </button>
   </div>
-  <button v-if="hiddenCat" type="button" class="pawtab" aria-label="Bring Biscuit back" @click="hiddenCat = false">
+  <button v-if="hiddenCat" type="button" class="pawtab" aria-label="Bring Biscuit back" @click="showCat">
     <span v-html="CAT_SVG"></span>Biscuit
   </button>
 
@@ -309,3 +477,25 @@ function confetti() {
   </div>
   <canvas ref="canvas" id="confetti" hidden></canvas>
 </template>
+
+<style scoped>
+.lct-chat__badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #15171C;
+  color: #FFFFFF;
+  line-height: 1.4;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.lct-chat__header .ic:focus-visible {
+  outline: 2px solid var(--accent-ink, #FFFFFF);
+  outline-offset: 2px;
+}
+</style>
