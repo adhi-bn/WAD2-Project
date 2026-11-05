@@ -5,7 +5,6 @@ import { kbSVG, total, money } from '../logic/builder.js'
 import { openWheel, state, loadBuild, buildFromIds } from '../store.js'
 import ExplodedAnatomyCanvas from '../components/ExplodedAnatomyCanvas.vue'
 import { FATKEYS } from '../data/fatkeys.js'
-import { useTypewriter } from '../lib/typewriter.js'
 
 const router = useRouter()
 const fatkeys = FATKEYS.map((k) => ({ ...k, price: total(buildFromIds(k.layout, k.part_ids)) }))
@@ -40,9 +39,6 @@ const steps = [
   { n: '04', t: 'Save and order', d: 'Save your build to your account, add it to the cart and pay securely.' },
 ]
 const layers = ['Keycaps', 'Switches', 'Plate', 'PCB', 'Foam', 'Case']
-
-// Hero title typewriter animation with accessibility and reduced-motion fallback
-const { plainText, emText, isComplete, reducedMotion } = useTypewriter()
 </script>
 
 <template>
@@ -54,19 +50,7 @@ const { plainText, emText, isComplete, reducedMotion } = useTypewriter()
       <div class="hero">
         <div>
           <div class="eyebrow">Custom mechanical keyboards · priced in S$</div>
-          <h1 aria-label="Swipe right on your dream keyboard.">
-            <span class="hero-typewriter">
-              <!-- Reserved space placeholder to guarantee zero layout shift across line wraps -->
-              <span class="hero-typewriter-ghost" aria-hidden="true">Swipe right on your <em>dream keyboard.</em></span>
-              <!-- Animated typing layer -->
-              <span class="hero-typewriter-live" aria-hidden="true"><span>{{ plainText }}</span><em v-if="emText">{{ emText }}</em><span
-                  v-if="!reducedMotion"
-                  class="hero-caret"
-                  :class="{ 'hero-caret--done': isComplete }"
-                  aria-hidden="true"
-                ></span></span>
-            </span>
-          </h1>
+          <h1>Swipe right on your <em>dream keyboard.</em></h1>
           <p class="lede">Six quick cards: layout, weight, frame, keycaps, switches and budget. We pick every part, show what each swap does to the price, then save it or order it here.</p>
           <div class="ctas">
             <router-link to="/swipe" class="ui-btn primary big">

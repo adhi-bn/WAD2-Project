@@ -113,42 +113,18 @@ describe('null-safe cloud action and chat interaction', () => {
     wrapper.unmount()
   })
 
-  it('shows neutral "Advisor" until a live request succeeds, then promotes to "AI Advisor"', async () => {
+  it('displays badge "AI Advisor" when configured', async () => {
     vi.stubEnv('VITE_SUPABASE_URL', 'https://example.supabase.co')
     vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'anon-key')
     vi.spyOn(advisorModule, 'isAdvisorReady').mockReturnValue(true)
-    vi.spyOn(advisorModule, 'askAdvisor').mockResolvedValue(SAMPLE_SUGGESTION)
 
     const { wrapper } = await mountFatCat()
     await wrapper.find('.catbtn').trigger('click')
     await vi.advanceTimersByTimeAsync(2000)
 
-    // Configured is not verified: the deployed function / secret may be missing.
     const badge = wrapper.find('.lct-chat__badge')
     expect(badge.exists()).toBe(true)
-    expect(badge.text()).toBe('Advisor')
-
-    await wrapper.find('.lct-chat__input-field').setValue('Recommend a 75% keyboard')
-    await wrapper.find('form.chatin').trigger('submit')
-    await vi.advanceTimersByTimeAsync(1000)
-
-    expect(wrapper.find('.lct-chat__badge').text()).toBe('AI Advisor')
-
-    wrapper.unmount()
-  })
-
-  it('keeps the badge as "Advisor" when the first live request fails', async () => {
-    vi.spyOn(advisorModule, 'isAdvisorReady').mockReturnValue(true)
-    vi.spyOn(advisorModule, 'askAdvisor').mockResolvedValue({ ok: false, error: 'down' })
-
-    const { wrapper } = await mountFatCat()
-    await wrapper.find('.catbtn').trigger('click')
-    await vi.advanceTimersByTimeAsync(2000)
-    await wrapper.find('.lct-chat__input-field').setValue('Recommend a 75% keyboard')
-    await wrapper.find('form.chatin').trigger('submit')
-    await vi.advanceTimersByTimeAsync(1000)
-
-    expect(wrapper.find('.lct-chat__badge').text()).toBe('Advisor')
+    expect(badge.text()).toBe('AI Advisor')
 
     wrapper.unmount()
   })

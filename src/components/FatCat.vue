@@ -176,7 +176,7 @@ function send() {
 }
 
 /* ---------- Biscuit's advisor (TokenRouter via Edge Function seam) ---------- */
-const aiBusy = ref(false), aiHealthy = ref(false), aiPick = ref(null), photoIn = ref(null)
+const aiBusy = ref(false), aiHealthy = ref(true), aiPick = ref(null), photoIn = ref(null)
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 
 /**

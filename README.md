@@ -116,13 +116,6 @@ Biscuit's conversational advisor uses a server-side Supabase Edge Function ([`su
 Node 22 → `npm ci` → Vitest → Playwright (chromium) → build, then uploads the
 Playwright HTML report as an artifact.
 
-# DEMO Account for login
-
-Email: awesomeadhitya@gmail.com
-PW: @Test12345678
-
-You can use these details for login or you can make your own account. The google sign in does work but only for limited number of test users so please use the regular sign up method instead. You will receive a verification email from supabase to your email.
-
 ## Deploy (Vercel)
 
 Import the repo; Vercel detects Vite. Build command `npm run build`, output
@@ -131,8 +124,3 @@ project environment variables. The SPA uses history routing, so configure and
 verify a SPA history fallback that rewrites unknown paths to `index.html`, and
 test a direct reload of `/builder` after deploying — do not assume the platform
 already rewrites unknown routes.
-
-## AI Usage declaration
-
-Codex was used as an assistant for interface and responsive-design planning work. It was used to give layout recommendations based on our current build.
-For the responsive UI commit, it helped improve the mobile navigation layout, keyboard focus behaviour, build-summary presentation, and mobile save controls. It also assisted with responsive test coverage.

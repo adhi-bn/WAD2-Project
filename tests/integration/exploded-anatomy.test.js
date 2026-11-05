@@ -1059,7 +1059,6 @@ describe('ExplodedAnatomyCanvas.vue in jsdom environment', () => {
       wrapper.unmount()
 
       expect(removeWindowSpy).toHaveBeenCalledWith('scroll', expect.any(Function))
-      expect(removeWindowSpy).toHaveBeenCalledWith('resize', expect.any(Function))
       expect(removeDocSpy).toHaveBeenCalledWith('visibilitychange', expect.any(Function))
       expect(disconnectSpy).toHaveBeenCalled()
       expect(mockRenderer.dispose).toHaveBeenCalled()

@@ -11,7 +11,6 @@ import {
   isWebGLAvailable,
   createExplodedAnatomyScene,
 } from '../lib/explodedAnatomyScene.js'
-import { computeStoryProgress } from '../lib/scrollProgress.js'
 
 const props = defineProps({
   activeLayerId: {
@@ -65,22 +64,11 @@ function updateScrollProgress() {
 
   const startY = lookRect.top + window.scrollY
   const endY = endRect.bottom + window.scrollY
+  const total = endY - startY
+  if (total <= 0) return
 
-  // Calculate maximum document scroll to guarantee collapse at page bottom (AC-1)
-  const maxScroll = Math.max(
-    0,
-    (document.documentElement ? document.documentElement.scrollHeight : document.body.scrollHeight) -
-      window.innerHeight
-  )
-
-  const progress = computeStoryProgress({
-    scrollY: window.scrollY,
-    viewportH: window.innerHeight,
-    startY,
-    endY,
-    maxScroll,
-  })
-
+  const current = window.scrollY + window.innerHeight * 0.5 - startY
+  const progress = Math.max(0, Math.min(1, current / total))
   sceneInstance?.setExplosionProgress(progress, { smooth: true })
 }
 
@@ -211,7 +199,6 @@ onMounted(async () => {
 
     if (typeof window !== 'undefined') {
       window.addEventListener('scroll', handleScroll, { passive: true })
-      window.addEventListener('resize', handleScroll, { passive: true })
       handleScroll()
     }
   }
@@ -233,7 +220,6 @@ onUnmounted(() => {
   scrollTicking = false
   if (typeof window !== 'undefined') {
     window.removeEventListener('scroll', handleScroll)
-    window.removeEventListener('resize', handleScroll)
   }
   if (typeof document !== 'undefined') {
     document.removeEventListener('visibilitychange', handleVisibilityChange)

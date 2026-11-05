@@ -286,13 +286,6 @@ section.screen {
   opacity: 0.55;
 }
 
-/* Phones: a 44px-tall slider gives the seek bar a finger-sized target. */
-@media (max-width: 760px) {
-  .switch-audio__seek {
-    height: 44px;
-  }
-}
-
 .switch-audio__time {
   display: flex;
   justify-content: space-between;
@@ -426,66 +419,6 @@ section.screen {
 .hero h1 em {
   font-style: normal;
   color: var(--lct-accent-indigo);
-}
-
-/* Hero typewriter title & caret */
-.hero-typewriter {
-  display: inline-grid;
-  grid-template-areas: "hero-stack";
-  align-items: start;
-  justify-items: start;
-  white-space: pre-wrap;
-  max-width: 100%;
-}
-
-.hero-typewriter-ghost {
-  grid-area: hero-stack;
-  visibility: hidden;
-  user-select: none;
-  pointer-events: none;
-}
-
-.hero-typewriter-live {
-  grid-area: hero-stack;
-}
-
-.hero-caret {
-  display: inline-block;
-  width: 3px;
-  height: 0.88em;
-  margin-left: 4px;
-  margin-right: -7px;
-  vertical-align: -0.04em;
-  background-color: var(--lct-accent-indigo);
-  border-radius: 1.5px;
-  animation: lct-caret-blink 0.9s steps(1, start) infinite;
-}
-
-.hero-caret.hero-caret--done {
-  animation: lct-caret-blink 0.9s steps(1, start) 2, lct-caret-fade 0.8s ease 1.8s forwards;
-}
-
-@keyframes lct-caret-blink {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0;
-  }
-}
-
-@keyframes lct-caret-fade {
-  to {
-    opacity: 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hero-caret {
-    display: none !important;
-    animation: none !important;
-    transition: none !important;
-  }
 }
 
 .hero p.lede {
@@ -855,10 +788,9 @@ section.screen {
 body.hasbar {
   padding-bottom: var(--bar-clearance, 180px);
 }
-/* Phones and tablets (up to the 900px bar contract): clear the bar by its measured height, set in App.vue. */
-@media (max-width: 900px) {
+@media (max-width: 760px) {
   body.hasbar {
-    padding-bottom: calc(var(--lct-bar-h, 104px) + 12px);
+    padding-bottom: 260px;
   }
 }
 
@@ -881,9 +813,4 @@ body.hasbar {
 .lct-chat__header .ic:focus-visible {
   outline: 2px solid var(--lct-accent-indigo);
   outline-offset: 2px;
-}
-
-/* The footer sits below the page content, so the fixed bottom bar (inside <main>) stays on top of it. */
-#app footer {
-  z-index: 1;
 }
