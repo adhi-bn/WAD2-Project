@@ -308,6 +308,11 @@ onBeforeUnmount(() => {
     justify-content: center;
   }
 }
+/* The 3D preview and Build so far card scroll with the page. main.css makes aside.sheet sticky
+   on wide screens, which pinned the card while the part list scrolled under it. */
+aside.sheet {
+  position: static;
+}
 /* Part picture from the 3D model, shown above the name on the option card. */
 .part-img {
   display: block;
