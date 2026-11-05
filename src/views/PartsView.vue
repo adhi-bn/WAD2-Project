@@ -105,13 +105,10 @@ const nextLabel = computed(() => (onAddons.value ? 'See my keyboard →' : catId
 onMounted(() => {
   document.body.classList.add('hasbar')
   document.body.style.setProperty('--bar-clearance', '100px')
-  // On phones the bar is about 78-96px tall, so 104px keeps the last cards clear of it.
-  document.body.style.setProperty('--bar-clearance-mobile', '104px')
 })
 onBeforeUnmount(() => {
   document.body.classList.remove('hasbar')
   document.body.style.removeProperty('--bar-clearance')
-  document.body.style.removeProperty('--bar-clearance-mobile')
 })
 </script>
 
@@ -145,6 +142,14 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="layout">
+        <BuildPreviewCanvas
+          :barebones="domainBuild.barebones ?? b?.case"
+          :switches="domainBuild.switches ?? b?.switches"
+          :keycaps="domainBuild.keycaps ?? b?.keycaps"
+          :layout="state.answers.layout || '75'"
+          compact
+          class="mb-3 sheet-preview"
+        />
         <div class="parts-main">
           <div class="tabs" role="tablist">
             <button v-for="(c, i) in MAIN" :key="c" type="button" class="tab" :class="{ on: i === catIdx }" role="tab" :aria-selected="i === catIdx" @click="go(i)">
@@ -177,7 +182,7 @@ onBeforeUnmount(() => {
             <SwitchAudioPreview v-if="c === 'switches' && !curOf(c)?.unavailable" :part="curOf(c)" />
 
             <div class="row g-3">
-              <div v-for="o in allOf(c)" :key="o.id" class="col-12 col-md-4">
+              <div v-for="o in allOf(c)" :key="o.id" class="col-6 col-md-4">
                 <button type="button" class="opt w-100 h-100" :class="{ sel: isSel(c, o) }" :disabled="!!reason(c, o, b)" @click="choose(c, o.id)">
                   <span class="tag" :class="{ fit: isFit(c, o) }">{{ tag(c, o) }}</span>
                   <img v-if="partImg(c, o)" :src="partImg(c, o)" alt="" class="part-img" :class="{ 'part-img--small': c === 'switches' }" loading="lazy" @error="$event.target.hidden = true" />
@@ -197,14 +202,6 @@ onBeforeUnmount(() => {
         </div>
 
         <aside class="sheet">
-          <BuildPreviewCanvas
-            :barebones="domainBuild.barebones ?? b?.case"
-            :switches="domainBuild.switches ?? b?.switches"
-            :keycaps="domainBuild.keycaps ?? b?.keycaps"
-            :layout="state.answers.layout || '75'"
-            compact
-            class="mb-3 sheet-preview"
-          />
           <h3>Build so far</h3>
           <ol>
             <li v-for="c in CATS" :key="c"><span class="k">{{ META[c].short }}</span><span class="nm" :title="b[c].name">{{ b[c].name }}</span><span class="pr">{{ b[c].price ? money(b[c].price) : '—' }}</span></li>
@@ -287,20 +284,58 @@ onBeforeUnmount(() => {
     grid-template-columns: minmax(0, 1fr) 390px;
   }
 }
-/* Phones: let the single column shrink to the screen. The tab row would otherwise widen it.
-   The 3D preview moves above the part tabs: its sidebar and the main column pass their
-   children straight into the grid, and the preview takes order -1. Desktop keeps the sidebar. */
-@media (max-width: 900px) {
-  #parts .layout,
-  .layout {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .parts-main,
-  aside.sheet {
-    display: contents;
-  }
+/* Page order is preview, part tabs, then the Build so far card on phones, so keyboard and
+   screen-reader order match what is shown. Desktop keeps the preview and summary in the right column. */
+@media (min-width: 901px) {
   .sheet-preview {
-    order: -1;
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .parts-main {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+  aside.sheet {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}
+/* Phones: part tabs wrap two per row so every label is visible without a swipe. */
+@media (max-width: 760px) {
+  .tabs {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+  .tab {
+    flex: 1 1 calc(50% - 3px);
+    min-width: 0;
+  }
+}
+/* Phones: more compact option cards, two per row, with the tag floating over the picture. */
+@media (max-width: 767.98px) {
+  .opt {
+    padding: 10px;
+    border-radius: 14px;
+    gap: 6px;
+    min-height: 0;
+  }
+  .opt .name {
+    font-size: 13px;
+  }
+  .opt .spec {
+    font-size: 11px;
+  }
+  .opt .price {
+    font-size: 16px;
+  }
+  .opt .tag {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 2;
+  }
+  .part-img {
+    max-width: 100%;
   }
 }
 /* Phones: the quiz button spans the full width instead of leaving a gap beside it. */
