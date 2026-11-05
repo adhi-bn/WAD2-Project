@@ -24,19 +24,20 @@ For domain terminology and concepts, refer to [CONTEXT.md](../CONTEXT.md). For v
 
 ```
 .
-├── docs/{adr,agents,specs}/         # Architecture Decision Records, agent guides, and product specs
-├── src/
-│   ├── components/                  # Reusable UI components
-│   ├── domain/                      # Pure, framework-agnostic business logic
-│   ├── lib/                         # External seams and API wrappers (supabase.js, http.js)
-│   ├── router/                      # Vue Router configuration and route declarations
-│   ├── stores/                      # Reactive state singletons
-│   └── views/                       # Route views
-└── tests/{unit,integration,e2e}/    # Pure domain unit, component integration, and Playwright E2E suites
+|-- docs/{adr,agents,specs}/         # Architecture Decision Records, agent guides, and product specs
+|-- src/
+|   |-- components/                   # Reusable UI components
+|   |-- data/                         # Catalogue and other static data
+|   |-- domain/                       # Pure, framework-agnostic business logic
+|   |-- lib/                          # External seams (supabase.js, http.js, switchAudio.js)
+|   |-- logic/                        # Seed builder recommendations, formatting, and keyboard SVG
+|   |-- router/                       # Vue Router configuration and route declarations
+|   |-- stores/                       # Reactive state singletons
+|   `-- views/                        # Route views
+`-- tests/{unit,integration,e2e}/     # Unit, component integration, and Playwright suites
 ```
 
 ---
-
 ## Data Flow & Module Boundaries
 
 Lechaton Typers enforces a strict unidirectional data flow:
@@ -77,12 +78,18 @@ Vue Router (URL) ──> Views (src/views/)
    - Components read from reactive stores and dispatch actions via store helpers or router navigation.
    - UI components never execute domain math or validation directly; they consume store computed properties.
    - **3-Layer 3D Visual Preview Boundary**: In `BuilderView.vue`, the interactive Three.js 3D canvas is architecturally bounded to 3 active exterior layers: **Keycaps**, **Switches**, and **Base (Case)**. Internal hardware selections (Plate, PCB, Foam, Stabilizers) do not alter 3D mesh geometry, avoiding WebGL polygon bloat and misalignment; their details and visual cues are presented via high-fidelity 2D product imagery on selection cards.
+   - **Compare Builds & Build Review 3D Stages**: In `CompareBuildsView.vue`, two compared saved Builds render side-by-side static, combined-state 3-layer 3D previews using `BuildPreviewCanvas.vue` with `:interactive="false"`, `:compact="true"`, `:canvas-only="true"`, and `:initial-exploded="false"` on a clean transparent stage at full native pixel ratio with 0% idle GPU loop overhead. In `SummaryView.vue` (`/build`), `Keyboard3DView.vue` actively integrates `BuildPreviewCanvas.vue` in embedded stage mode (`:embedded-stage="true"`, `:compact="true"`, `:initial-exploded="false"`) with floating camera controls, full-width 380px/280px responsive stage height, and tab switching between the 3D preview and the type tester. Discontinued or missing historical parts pass null to their respective layer and display high-contrast, accessible missing-part indicators.
    - **Floating Navigation Shortcut**: A floating action button with a hover tooltip menu provides fast jumping between the 6 Component Groups without requiring horizontal tab scrolling.
 
 4. **Null-Safe External Seams (`src/lib/`)**:
    - `src/lib/supabase.js` exports `getSupabase()` (and `createSupabaseClient(url, key)`), which lazily instantiates the Supabase client. If environment variables (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) are missing, `getSupabase()` returns `null`.
    - Consumers (such as the Biscuit demo chat and future persistence handlers) must always check `if (!supabase)` and provide full fallback functionality (e.g., local state persistence, clear status messaging). The application never crashes when running without cloud credentials.
    - `src/lib/http.js` provides `fetchJson()`, a minimal wrapper around `window.fetch` that handles response status validation and JSON parsing.
+   - `src/lib/switchAudio.js` owns shared Web Audio context creation/resume and decoded sample caching for the selected-switch player and the one-press keyboard tester. Shared mute and volume markup lives in `SwitchAudioControls.vue`.
+
+5. **Static Data and Seed Logic (`src/data/`, `src/logic/`)**:
+   - `src/data/` contains the prototype catalogue and supporting static data used by the current seed builder.
+   - `src/logic/builder.js` contains recommendation and presentation helpers, including keyboard SVG generation. These files are distinct from the canonical pure Build domain under `src/domain/`.
 
 ---
 

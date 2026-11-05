@@ -18,6 +18,7 @@ The keyboard builder's audio feature needs user-initiated switch/typing samples 
 - Verify each catalogue MP3 can be fetched, decoded, and played in Chromium before publishing it.
 - Store each available public sample path on its matching switch catalogue entry and use the selected entry to determine the sample and announced profile.
 - Play the clips only after an explicit user action with the Web Audio API. Provide mute and volume controls, visible focus, and announced playing, muted, missing-sample, and playback-error states.
+- Keep the short key-test clips in `public/switch-audio-one-press/`, use the `onePressSample` catalogue field, and call them **one-press samples** consistently. Share context creation, resume handling, decode caching, and mute/volume controls across the tester and selected-switch player.
 - Link `gazzew-boba-u4.mp3` to Gazzew Boba U4 and the separate `gazzew-boba.mp3` recording to Gazzew Boba U4T; each catalogue entry uses its matching recording.
 - Keep any other unrecorded entry unlinked rather than substituting an unrelated recording.
 - Treat the clips as a demo of the declared switch profile, not as a claim of acoustic or engineering accuracy.
