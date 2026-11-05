@@ -15,9 +15,9 @@ import { BASE, catalog, KEYS, META } from '../src/data/catalog.js'
 const PART_CATS = ['case', 'plate', 'pcb', 'switches', 'keycaps', 'stabs', 'foam', 'cable']
 
 /* ---------- 1. Parts table: one row per option ---------- */
-// price_sgd  = the flat base price (60% layout). Null for per-switch and per-stabiliser items.
-// unit_price = per-switch (ps) or per-stabiliser (pp) price, otherwise null.
-// attributes = everything else about the part (weight, feel, switch type, etc.).
+// Each parts row holds the full part object in `data`, the same shape the app uses:
+// p = flat price (60% layout), ps = per-switch price, pp = per-stabiliser price, g = grams,
+// plus everything else about the part (feel, switch type, etc.). Prices are read from p, or ps/pp where a category uses them.
 // One row per category, for the labels the app shows.
 export const categories = PART_CATS.map((key, sort_order) => ({
   key,

@@ -693,17 +693,42 @@ function addNow() {
     min-height: 280px;
   }
 }
-/* Full-width tabs for the 3D view and type tester. */
-#summary .viewtoggle {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-  margin-bottom: 14px;
+/* Panel header with a title on the left and actions on the right. */
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
 }
-#summary .viewtoggle .ui-btn {
-  width: 100%;
-  justify-content: center;
-  border-radius: 12px;
-  padding: 10px 14px;
+.panel-header h3 {
+  margin: 0;
+}
+#summary .bar-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+}
+/* Red status alert tags and flagged part rows */
+.part-status-tag {
+  background: var(--lct-danger-tint, #FCE6DD);
+  color: color-mix(in srgb, var(--lct-danger-orange, #D2461A) 82%, var(--lct-text-ink, #12151C));
+  font-family: var(--mono, "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 6px;
+  display: inline-block;
+  margin-left: 8px;
+  vertical-align: middle;
+  border: 1px solid var(--lct-danger-orange, #D2461A);
+  line-height: 1.3;
+}
+#summary .tbl tbody tr.is-flagged-part {
+  background-color: rgba(210, 70, 26, 0.04);
 }
 </style>

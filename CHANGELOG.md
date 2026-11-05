@@ -10,7 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Order history on the Account page: signed-in customers see their orders, status and items (reads their own rows under RLS).
 - `supabase/seed/catalog-images.sql` sets the picture path for Case, Keycap and Switch options. Optional: the app falls back to `/parts/<id>.png`.
-- Part pictures on the Parts page for Case, Keycap and Switch options, rendered from the 3D model. Each picture path comes from the catalogue row's `image` field, with a default under `public/parts/` (see the `supabase/seed/catalog-images.sql` update).
+- Interactive 3D Build Preview on the `/build` review page ([`src/views/SummaryView.vue`](src/views/SummaryView.vue)) via [`src/components/Keyboard3DView.vue`](src/components/Keyboard3DView.vue) and [`src/components/BuildPreviewCanvas.vue`](src/components/BuildPreviewCanvas.vue) in embedded stage mode (`:embedded-stage="true"`), rendering edge-to-edge interactive 3D keyboard models with initial combined assembly state, orbit/zoom controls, and floating top-right action pills (`Explode layers` / `Combine layers` and `Reset view`).
+- Red part status alert tags (`.part-status-tag`) in the `/build` summary table highlighting `Unavailable` parts, `Incompatible` parts, `Price changed` Parts, and slots that `Differs from saved` when compared against loaded saved build baseline IDs tracked in [`src/store.js`](src/store.js) (`savedBuildBaselineIds`).
+- Synchronized inertia smooth scrolling powered by GSAP (`ScrollTrigger`) and Lenis in [`src/lib/smoothScroll.js`](src/lib/smoothScroll.js) across the application shell (`src/App.vue`) and router (`src/router/index.js`), with full `prefers-reduced-motion` accessibility compliance and scroll-trap isolation (`data-lenis-prevent`) on interactive 3D model canvases and Biscuit's assistant chat window.
+- Side-by-side static 3D previews on the Compare Builds page (`/compare`, `CompareBuildsView.vue`) powered by `BuildPreviewCanvas.vue` in combined 3-layer static mode (`:interactive="false"`, `:canvas-only="true"`, `:initial-exploded="false"`, `:compact="true"`) on a clean transparent stage at full native pixel ratio with 0% idle GPU loop overhead, alongside accessible missing-part highlighting (`.is-missing-cell`, `.compare-missing-badge`, `.is-missing-part`) with explicit fallback indicators (#33).
 - Compare Builds page (`/compare`) for selecting two saved Builds, comparing the six canonical Component Groups side by side, and reopening either Build for editing; includes resilient future `image_url` support and accessible higher/lower amount indicators (#33).
 - OneMap-powered two-store locator on the About Us page, including Jewel Changi Airport and Marina Bay Sands store cards with photos, browser-location driving-route comparison, distance and estimated travel-time summaries, and an interactive route map.
 - Saved-build snapshots now retain the selected eight Parts, quiz preferences, target Budget, and historical prices; reopening flags catalogue drift and offers alternatives without silently replacing a Part (#12).
@@ -41,10 +44,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Repository changelog in [`CHANGELOG.md`](CHANGELOG.md) tracking milestones and unreleased changes following Keep a Changelog 1.1.0.
 
 ### Changed
-- The parts catalogue is loaded from Supabase at startup (`categories` and `parts` tables). The loader checks every category before replacing the local copy, times out after 4 seconds, and falls back to the local copy if anything fails.
-- Checkout prices each build from the Supabase `parts` table, the same source the app shows, and stops if that table cannot be read.
-- The HitPay webhook accepts the `completed` and `succeeded` statuses and finds the order by reference number or by payment request id.
-- Parts page: unavailable options grey out their picture, and bottom clearance for the floating bar is set in one place in `src/style.css`.
+- Moved the interactive two-dimensional keyboard tester and its audio controls into the Type tester summary tab, with a responsive layout for the available panel space.
+- Shared mute and volume controls and Web Audio helpers between the selected-switch player and the Type tester, and standardized recording assets as one-press samples.
+- Reworked virtual keyboard switch playback to use Web Audio API decoding and one-shot audio buffers without changing the keyboard interface.
+- Refactored the `/build` review page ([`src/views/SummaryView.vue`](src/views/SummaryView.vue)) header to replace the redundant "Name your build" card and generic title with an enthusiast-grade in-place editable heading (`${L}% Custom Mechanical Keyboard`), subtitle spec badges (layout, switch feel, case material), and a floating `Save build` button, while preserving the three diagnostic cards (*Loudness*, *Typing feel*, *Weight*) in their exact format.
 - Switched the frontend and shared switch catalogues to MP3 recordings; removed the M4A originals after verifying all catalogue samples decode and play in Chromium.
 - Expanded the switch-audio player with pause/resume, seeking, playback progress, and responsive card controls; linked Gazzew Boba U4 to its dedicated recording (#17).
 - Moved the switch-audio card below the Switches description, compacted its controls, and replaced visible status text and the Mute label with accessible status and an icon (#17).
@@ -56,6 +59,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Standardized code documentation requirements across collaboration guides, mandating JSDoc docstrings for public exports/functions and inline comments for non-obvious logic when agents or contributors write code.
 
 ### Fixed
+- Restored the `/build` review page styles for the part status tags, flagged table rows, action bar and panel headers, and removed the duplicated view-toggle rule in `SummaryView.vue`.
+- The Parts page's bottom clearance is set only while that page is open, so `/build` and other pages keep their default. Disabled Part cards no longer show the hover border.
+- Checkout function could not be deployed: `base` was declared twice. The HitPay URL is now `hitpayBase`.
+- Checkout asks the customer to confirm a changed subtotal before it starts payment (HTTP 409 with `priceChanged`), instead of charging the new price silently.
+- Checkout returns 503 for server or database faults and 400 only for problems with the cart. Voucher lookup errors are no longer treated as invalid codes.
+- Catalogue loader and checkout reject parts whose price (or weight) is missing or not a finite, non-negative number.
+- `supabase/schema.sql` runs again on an existing database (policies are dropped before they are created), grants signed-in customers read access to their orders, and documents the rollout order.
+- App startup waits at most 2 seconds for the Supabase catalogue, then uses the local copy.
 - Removed the unnecessary keyboard tester host tab stop and its outline suppression; physical-key listeners remain on `window`, and audio controls retain their focus indicators (#IMP-9).
 - Added a regression assertion to keep the Build summary actions readable as `← Change parts` and `Add to cart →` (#IMP-11).
 - Matched the 100% virtual keyboard to its spaced function-key groups, right-side navigation and arrow clusters, and 104-key geometry; fixed physical numpad presses to highlight numpad keycaps.
@@ -71,14 +82,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed per-material shader recompiles and the multi-second drop animation stall on software-rendered or weak GPUs in [`src/lib/buildPreviewScene.js`](src/lib/buildPreviewScene.js): switch materials only flag `needsUpdate` when transparency actually changes, and a frame slower than 120 ms snaps the assembly animation to its settled state (#22).
 - Kept the procedural 3D Build Preview visible when only the `.glb` fetch fails instead of hiding it behind a false "WebGL could not be initialized" alert, restored the screen-reader live region that announces layout and restore changes, reused the memoised keycap UV projection so part picks no longer re-project every vertex, and repainted keycaps in their colourway colours when an artwork texture fails to load (#22).
 - Skip the 3D assembly drop animation on software-rendered GPUs (SwiftShader/llvmpipe, as used by headless browsers and CI runners) so selecting a Part applies instantly in a single render instead of blocking the main thread for seconds; real GPUs keep the animation (#22).
-
-### Fixed
-- Checkout function could not be deployed: `base` was declared twice. The HitPay URL is now `hitpayBase`.
-- Checkout asks the customer to confirm a changed subtotal before it starts payment (HTTP 409 with `priceChanged`), instead of charging the new price silently.
-- Checkout returns 503 for server or database faults and 400 only for problems with the cart. Voucher lookup errors are no longer treated as invalid codes.
-- Catalogue loader and checkout reject parts whose price (or weight) is missing or not a finite, non-negative number.
-- `supabase/schema.sql` runs again on an existing database (policies are dropped before they are created), grants signed-in customers read access to their orders, and documents the rollout order.
-- App startup waits at most 2 seconds for the Supabase catalogue (was 4 seconds), then uses the local copy.
 
 ## [0.1.0] - 2026-10-18
 
