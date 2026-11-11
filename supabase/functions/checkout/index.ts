@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
       email: customer.email,
       name: customer.name,
       reference_number: order.id,
-      redirect_url: `${origin}/#/order/${order.id}`,
+      redirect_url: `${origin}/order/${order.id}`,
       purpose: 'Le Chaton Typers custom keyboard',
     })
     const res = await fetch(`${hitpayBase}/v1/payment-requests`, {
